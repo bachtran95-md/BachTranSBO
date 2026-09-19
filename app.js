@@ -192,7 +192,12 @@ function activeShiftPatients() {
 }
 
 function nextPatientId() {
-  return String(activeShiftPatients().length + 1).padStart(2, "0");
+  const maxId = activeShiftPatients().reduce((max, patient) => {
+    const value = Number.parseInt(String(patient.localId || ""), 10);
+    return Number.isFinite(value) ? Math.max(max, value) : max;
+  }, 0);
+
+  return String(maxId + 1).padStart(2, "0");
 }
 
 function patientById(id) {

@@ -150,38 +150,6 @@
     st.style.color = isError ? "#b91c1c" : "";
   }
 
-  function backendReady() {
-    return Boolean(window.BachSBOBackend?.getSession);
-  }
-
-  function db() {
-    if (!window.supabase?.createClient) return null;
-    if (!window.__BachSBOInlineCaseClient) {
-      const c = window.BACH_SBO_CONFIG || {};
-      window.__BachSBOInlineCaseClient = window.supabase.createClient(
-        c.supabaseUrl,
-        c.supabasePublishableKey,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-      );
-    }
-    return window.__BachSBOInlineCaseClient;
-  }
-
-  async function syncedClient() {
-    const client = db();
-    if (!client) throw new Error("Supabase client is not available.");
-    if (backendReady()) {
-      const session = await window.BachSBOBackend.getSession();
-      if (session?.access_token && session?.refresh_token) {
-        await client.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token
-        });
-      }
-    }
-    return client;
-  }
-
   function inlineHost() {
     return document.getElementById("inlineCaseEditor");
   }

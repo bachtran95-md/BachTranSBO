@@ -477,6 +477,11 @@ if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() 
 
 // Klinikum demographics must stay visible and editable.
 await beta.locator('[data-cockpit-tab="clinical"]').click();
+await beta.waitForFunction(() => {
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  const editor = document.querySelector("#inlineCaseEditor");
+  return Boolean(row?.dataset.id && editor?.dataset.loadedCaseId === row.dataset.id);
+});
 await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceAge").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "visible" });

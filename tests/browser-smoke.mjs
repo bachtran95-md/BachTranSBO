@@ -391,14 +391,6 @@ await page.evaluate(() => {
   if (!p) return;
   p.complaint = "";
   p.complaintSkipped = false;
-  p.history = "";
-  p.historySkipped = false;
-  p.physical = "";
-  p.physicalSkipped = false;
-  p.therapy = "";
-  p.therapySkipped = false;
-  p.course = "";
-  p.courseSkipped = false;
   for (const entry of [p.tests?.ekg, p.tests?.gas, p.tests?.radiology?.[0]]) {
     if (!entry) continue;
     entry.mode = "waiting";

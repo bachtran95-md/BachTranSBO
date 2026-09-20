@@ -282,6 +282,8 @@
         localId: row.local_id,
         sex: row.sex || "",
         yob: row.year_of_birth ? String(row.year_of_birth) : "",
+        arrivalMode: row.arrival_mode || "",
+        arrivalOther: row.arrival_other || "",
         mainComplaint: row.main_complaint || "",
         complaint: row.complaint || "",
         complaintSkipped: Boolean(row.complaint_skipped),
@@ -428,6 +430,19 @@
     );
   }
 
+  async function deleteCase(caseId) {
+    if (!caseId) throw new Error("Missing case ID.");
+
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "delete_case",
+        caseId
+      },
+      "Case delete"
+    );
+  }
+
   async function appendSummaryRevision(patient) {
     if (!patient?.summaryFinalizedAt || !patient.summaryFinalizedText) {
       return { removed: 0, report: null };
@@ -450,6 +465,35 @@
       "generate-summary",
       { caseId },
       "Summary generation"
+    );
+  }
+
+  async function caseAssistantSuggest(patient) {
+    if (!patient?.id) throw new Error("A saved case is required.");
+
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "suggest",
+        caseId: patient.id,
+        patient
+      },
+      "Case Assistant"
+    );
+  }
+
+  async function caseAssistantExtract(caseId, text) {
+    if (!caseId) throw new Error("A saved case is required.");
+    if (!String(text || "").trim()) throw new Error("Paste text to analyze.");
+
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "extract",
+        caseId,
+        text: String(text)
+      },
+      "Case Assistant extraction"
     );
   }
 
@@ -508,8 +552,11 @@
     savePatient,
     finalizePatient,
     reopenCase,
+    deleteCase,
     appendSummaryRevision,
     generateSummary,
+    caseAssistantSuggest,
+    caseAssistantExtract,
     getLearningOverview,
     analyzeStyle,
     activateStyle,

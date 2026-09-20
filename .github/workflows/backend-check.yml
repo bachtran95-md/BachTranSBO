@@ -27,6 +27,7 @@ jobs:
           node --check app.js
           node --check backend.js
           node --check config.js
+          node --check cockpit.js
 
       - name: Check security invariants
         run: |
@@ -36,6 +37,18 @@ jobs:
           fi
           if grep -q "localStorage" app.js; then
             echo "Clinical app.js must not persist data in localStorage."
+            exit 1
+          fi
+          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.delete|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.delete' config.js app.js backend.js cockpit.js; then
+            echo "Browser code must not delete cases directly; use clinical-store delete_case."
+            exit 1
+          fi
+          if ! grep -q 'action: "delete_case"' backend.js; then
+            echo "backend.js is missing the secure delete_case bridge."
+            exit 1
+          fi
+          if ! grep -q 'body?.action === "delete_case"' supabase/functions/clinical-store/index.ts; then
+            echo "clinical-store is missing the server-side delete_case action."
             exit 1
           fi
           if grep -R -E "verify_jwt[[:space:]]*=[[:space:]]*true" supabase/config.toml; then

@@ -661,15 +661,20 @@ window.BACH_SBO_CONFIG = {
     if (btn) btn.disabled = true;
     try {
       setStatus("Deleting case…", "Eset törlése…");
-      const client = await syncedClient();
-      const { error } = await client.from("cases").delete().eq("id", id);
-      if (error) throw error;
+      const backend = window.BachSBOBackend;
+      if (!backend?.deleteCase) {
+        throw new Error(label(
+          "Secure case deletion is not available.",
+          "A biztonságos esettörlés nem érhető el."
+        ));
+      }
+      await backend.deleteCase(id);
       window.location.reload();
     } catch (error) {
       if (btn) btn.disabled = false;
       const detail = error?.message ? ` (${error.message})` : "";
       setStatus(`Could not delete case${detail}.`, `Nem sikerült törölni az esetet${detail}.`, true);
-      console.warn("Inline case delete failed", error);
+      console.warn("Secure case delete failed", error);
     }
   }
 

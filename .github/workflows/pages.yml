@@ -32,7 +32,28 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp index.html recovery.html beta.html styles.css app.js backend.js config.js cockpit.js cockpit-beta.js .nojekyll _site/
+          cp index.html recovery.html beta.html styles.css app.js backend.js config.js case-ui.js assistant-core.js cockpit.js cockpit-beta.js .nojekyll _site/
+
+      - name: Verify local script assets
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+
+          for (const htmlName of ["index.html", "recovery.html", "beta.html"]) {
+            const html = fs.readFileSync(path.join("_site", htmlName), "utf8");
+            const sources = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)]
+              .map((match) => match[1])
+              .filter((source) => !/^(?:https?:)?\/\//i.test(source));
+
+            for (const source of sources) {
+              const localPath = source.split(/[?#]/, 1)[0].replace(/^\.\//, "");
+              if (!fs.existsSync(path.join("_site", localPath))) {
+                throw new Error(`${htmlName} references missing local script: ${localPath}`);
+              }
+            }
+          }
+          NODE
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

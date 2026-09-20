@@ -278,7 +278,7 @@ async function caseFingerprint(patient: any) {
 async function loadGuidelineRegistry(db: any) {
   const { data, error } = await db
     .from("clinical_guideline_sources")
-    .select("organization,domain,base_url,jurisdiction,priority")
+    .select("organization,domain,base_url,jurisdiction,priority,last_verified_at")
     .eq("is_active", true)
     .order("priority", { ascending: true })
     .order("organization", { ascending: true });
@@ -369,11 +369,15 @@ function sourceMetadata(
     registryMap.get(domain) ||
     [...registryMap.entries()].find(([key]) => domain.endsWith("." + key))?.[1];
 
+  const title = citation?.title || "";
+  const yearMatch = String(title).match(/\b(20\d{2})\b/);
   return {
     url,
-    title: citation?.title || "",
+    title,
     organization: registry?.organization || "",
     jurisdiction: registry?.jurisdiction || "",
+    year: yearMatch ? Number(yearMatch[1]) : null,
+    lastVerifiedAt: registry?.last_verified_at || null,
   };
 }
 
@@ -629,6 +633,12 @@ export async function handler(req: Request) {
     }
 
     if (body.action === "decide") {
+      if (owned.status === "completed") {
+        return json(
+          { error: "Reopen the case before changing assistant decisions." },
+          409,
+        );
+      }
       const decisionMap: Record<string, string> = {
         pending: "pending",
         yes: "yes",

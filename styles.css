@@ -685,7 +685,36 @@ body.cockpit-ui .cockpit-clinical-primary > #cockpitDemographicsMount{
   font-size:10px!important;
   margin-bottom:5px;
 }
+.cockpit-paste-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin:-2px 0 6px;
+  font-size:8px;
+  color:#667085;
+}
+.cockpit-paste-meta .near-limit{color:#b54708;font-weight:800}
 .cockpit-extract-item details{margin-top:5px;font-size:8px;color:#667085}
+.cockpit-extract-item.action-update{border-left:3px solid #2e90fa}
+.cockpit-extract-item.action-add{border-left:3px solid #12b76a}
+.cockpit-extract-item.action-duplicate{border-left:3px solid #98a2b3;background:#f9fafb}
+.cockpit-extract-item.action-conflict{border-left:3px solid #f79009;background:#fffcf5}
+.cockpit-extract-action.add{background:#ecfdf3;color:#067647}
+.cockpit-extract-action.update{background:#eff8ff;color:#175cd3}
+.cockpit-extract-action.duplicate{background:#f2f4f7;color:#475467}
+.cockpit-extract-action.conflict{background:#fff7ed;color:#b54708}
+.cockpit-extract-compare{
+  margin-top:5px;
+  padding:5px;
+  border-radius:6px;
+  font-size:8px;
+  line-height:1.35;
+}
+.cockpit-extract-compare > span{display:block;margin-bottom:2px;font-weight:800;color:#667085}
+.cockpit-extract-compare.current{background:#f2f4f7;color:#475467}
+.cockpit-extract-compare.proposed{background:#f8fafc;color:#344054}
+.cockpit-extract-reason{margin-top:4px;font-size:8px;line-height:1.35;color:#667085}
+.cockpit-decision:disabled{opacity:.62;cursor:not-allowed}
 .cockpit-evidence{
   margin-top:3px;
   padding:5px;

@@ -2113,8 +2113,16 @@ async function applyAcceptedExtraction(caseId, items) {
   }
 }
 
+function getExtractionContext(caseId) {
+  if (!caseId || caseId !== selectedPatientId || !backendReady) return null;
+  const current = collectForm();
+  if (!current || current.id !== caseId) return null;
+  return structuredClone(current);
+}
+
 window.BachSBOClinicalUi = Object.freeze({
-  applyAcceptedExtraction
+  applyAcceptedExtraction,
+  getExtractionContext
 });
 
 function flash(message) {

@@ -7,6 +7,7 @@
   let lastSelectedCaseId = "";
   let assistantBusy = false;
   let assistantLoadToken = 0;
+  let extractionLoadToken = 0;
   let patientBoardLoad = null;
   let extractionPreviewState = null;
   const patientProgressByCase = new Map();
@@ -266,6 +267,10 @@
         </div>
         <div class="cockpit-rail-body">
           <textarea id="cockpitPasteText" class="cockpit-paste-text" maxlength="30000"></textarea>
+          <div class="cockpit-paste-meta">
+            <span id="cockpitPasteHint"></span>
+            <span id="cockpitPasteCount">0 / 30000</span>
+          </div>
           <button class="btn cockpit-wide-btn" id="cockpitExtractText" type="button"></button>
           <div id="cockpitExtractStatus" class="cockpit-status"></div>
           <div id="cockpitExtractPreview"></div>
@@ -285,6 +290,7 @@
       document.getElementById("finalizeSummaryBtn")?.click();
     });
     document.getElementById("cockpitExtractText")?.addEventListener("click", extractPastedText);
+    document.getElementById("cockpitPasteText")?.addEventListener("input", updatePasteCount);
 
     const toggle = document.createElement("button");
     toggle.id = "cockpitAiToggle";
@@ -335,22 +341,32 @@
     set("cockpitOpenSummary", label("OPEN", "MEGNYITÁS"));
     set("cockpitGenerateSummary", label("GENERATE", "GENERÁLÁS"));
     set("cockpitFinalizeSummary", label("FINALIZE SUMMARY", "ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE"));
-    set("cockpitPasteTitle", label("Paste note / Heidi text", "Jegyzet / Heidi szöveg"));
+    set("cockpitPasteTitle", label("New note / Heidi update", "Új jegyzet / Heidi frissítés"));
     set(
       "cockpitPasteSub",
       label(
-        "Extract documented facts first; review before applying.",
-        "Először dokumentált tények kinyerése; alkalmazás előtt ellenőrizendő."
+        "Paste only newly received information. Existing chart data is compared before applying.",
+        "Csak az újonnan érkezett információt illessze be. Alkalmazás előtt összehasonlítjuk a meglévő dokumentációval."
       )
     );
+    set("cockpitPasteHint", label("Incremental update", "Kiegészítő frissítés"));
     set("cockpitExtractText", label("EXTRACT FACTS", "TÉNYEK KINYERÉSE"));
     const paste = document.getElementById("cockpitPasteText");
     if (paste) {
       paste.placeholder = label(
-        "Paste referral, ambulance or Heidi note here…",
-        "Illessze be a beutaló, mentő vagy Heidi szövegét…"
+        "Paste newly received history, result, consultation or course update…",
+        "Illessze be az új anamnézist, eredményt, konzíliumot vagy állapotváltozást…"
       );
     }
+    updatePasteCount();
+  }
+
+  function updatePasteCount() {
+    const paste = document.getElementById("cockpitPasteText");
+    const count = document.getElementById("cockpitPasteCount");
+    if (!paste || !count) return;
+    count.textContent = `${paste.value.length} / ${paste.maxLength || 30000}`;
+    count.classList.toggle("near-limit", paste.value.length >= 27000);
   }
 
   function renderSummaryProgress(progress, ready) {
@@ -762,9 +778,22 @@
       if (!window.BachSBOBackend?.caseAssistantExtract) {
         throw new Error(label("Case Assistant extraction bridge is unavailable.", "A Case Assistant szövegkinyerő kapcsolat nem érhető el."));
       }
+      const requestToken = ++extractionLoadToken;
       if (status) status.textContent = label("Extracting documented facts…", "Dokumentált tények kinyerése…");
       const response = await window.BachSBOBackend.caseAssistantExtract(id, text);
-      renderExtractionPreview(response, text, id);
+      if (requestToken !== extractionLoadToken || selectedCaseId() !== id) {
+        if (status) status.textContent = label(
+          "The selected case changed. The previous extraction was discarded.",
+          "A kiválasztott eset megváltozott. Az előző kinyerést elvetettük."
+        );
+        return;
+      }
+      const patient = window.BachSBOClinicalUi?.getExtractionContext?.(id);
+      if (!patient) throw new Error(label(
+        "Current case data is unavailable for comparison.",
+        "Az aktuális eset adatai nem érhetők el az összehasonlításhoz."
+      ));
+      renderExtractionPreview(response, response?.source || text, id, patient);
       if (status) status.textContent = label(
         "Review each item before applying it to the chart.",
         "Minden elemet ellenőrizzen, mielőtt a dokumentációba kerül."
@@ -779,7 +808,10 @@
   }
 
   function extractionItemModeControl(item) {
-    if (!window.BachAssistantCore?.fields?.includes(item.target)) return "";
+    if (
+      !window.BachAssistantCore?.fields?.includes(item.target) ||
+      ["duplicate", "conflict"].includes(item.action)
+    ) return "";
     return `
       <label class="cockpit-apply-mode-wrap">
         <span>${esc(label("When applied", "Alkalmazáskor"))}</span>
@@ -872,7 +904,27 @@
     }
   }
 
-  function renderExtractionPreview(response, sourceText, caseId) {
+  function extractionActionLabel(action) {
+    const labels = {
+      add: label("ADD NEW", "ÚJ HOZZÁADÁSA"),
+      update: label("UPDATE EXISTING", "MEGLÉVŐ FRISSÍTÉSE"),
+      duplicate: label("ALREADY DOCUMENTED", "MÁR DOKUMENTÁLT"),
+      conflict: label("NEEDS REVIEW", "ELLENŐRIZENDŐ")
+    };
+    return labels[action] || action || "";
+  }
+
+  function extractionCurrentValue(item) {
+    const value = String(item.currentText || "").trim();
+    const status = String(item.currentStatus || "").trim();
+    if (!value && !status) return "";
+    return `<div class="cockpit-extract-compare current">
+      <span>${esc(label("Current", "Jelenlegi"))}</span>
+      <div>${esc(value || status)}</div>
+    </div>`;
+  }
+
+  function renderExtractionPreview(response, sourceText, caseId, patient) {
     const preview = document.getElementById("cockpitExtractPreview");
     if (!preview) return;
 
@@ -884,24 +936,41 @@
     }
 
     const validated = window.BachAssistantCore.validateProposal(response, sourceText);
-    const items = validated.items;
+    if (!window.BachAssistantCore?.reconcileItems) {
+      throw new Error(label(
+        "Incremental comparison core is unavailable.",
+        "A kiegészítő összehasonlító modul nem érhető el."
+      ));
+    }
+    const items = window.BachAssistantCore.reconcileItems(patient, validated.items);
     const warnings = validated.warnings;
     extractionPreviewState = { caseId, items, warnings };
 
     const itemHtml = items.map((item, index) => `
-      <div class="cockpit-extract-item" data-index="${index}" data-decision="">
+      <div class="cockpit-extract-item action-${esc(item.action)}" data-index="${index}" data-decision="">
         <div class="cockpit-extract-head">
           <strong>${esc(item.label || item.target || "Fact")}</strong>
-          <span>${esc(item.status || "documented")}</span>
+          <span class="cockpit-extract-action ${esc(item.action)}">${esc(extractionActionLabel(item.action))}</span>
         </div>
-        <div class="cockpit-extract-text">${esc(item.text || "")}</div>
+        ${extractionCurrentValue(item)}
+        <div class="cockpit-extract-compare proposed">
+          <span>${esc(label("Proposed", "Javasolt"))} · ${esc(item.status || "documented")}</span>
+          <div class="cockpit-extract-text">${esc(item.text || "")}</div>
+        </div>
+        <div class="cockpit-extract-reason">${esc(item.reason || "")}</div>
         <details>
           <summary>${esc(label("Evidence", "Bizonyíték"))}</summary>
           <div class="cockpit-evidence">${esc(item.evidence || "")}</div>
         </details>
         ${extractionItemModeControl(item)}
         <div class="cockpit-decision-row">
-          <button type="button" class="cockpit-decision yes" data-extract-decision="accept">${esc(label("ACCEPT", "ELFOGAD"))}</button>
+          <button type="button" class="cockpit-decision yes" data-extract-decision="accept" ${["duplicate", "conflict"].includes(item.action) ? "disabled" : ""}>${esc(
+            item.action === "duplicate"
+              ? label("NO CHANGE", "NINCS VÁLTOZÁS")
+              : item.action === "conflict"
+                ? label("REVIEW MANUALLY", "KÉZI ELLENŐRZÉS")
+                : label("ACCEPT", "ELFOGAD")
+          )}</button>
           <button type="button" class="cockpit-decision no" data-extract-decision="ignore">${esc(label("IGNORE", "KIHAGY"))}</button>
         </div>
       </div>
@@ -1285,6 +1354,7 @@
   function syncCaseSelection() {
     const id = selectedCaseId();
     if (id !== lastSelectedCaseId) {
+      extractionLoadToken += 1;
       lastSelectedCaseId = id;
       activeTab = "clinical";
       document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {

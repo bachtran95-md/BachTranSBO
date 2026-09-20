@@ -254,6 +254,7 @@ export function clinicalTextItems(patient: any): Array<{ key: string; text: stri
   };
 
   add("mainComplaint", patient.mainComplaint);
+  add("arrivalOther", patient.arrivalOther);
   add("complaint", patient.complaint);
   add("history", patient.history);
   add("physical", patient.physical);

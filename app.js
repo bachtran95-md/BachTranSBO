@@ -695,6 +695,8 @@ async function addPatient() {
     sex,
     yob,
     mainComplaint,
+    arrivalMode: "",
+    arrivalOther: "",
     complaint: "",
     complaintSkipped: false,
     history: "",

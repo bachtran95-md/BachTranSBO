@@ -44,6 +44,18 @@ jobs:
             echo "Browser code must not delete cases directly; use clinical-store delete_case."
             exit 1
           fi
+          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.update|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.update' config.js app.js backend.js cockpit.js cockpit-beta.js; then
+            echo "Browser code must not update cases directly; use clinical-store."
+            exit 1
+          fi
+          if ! grep -q 'action: "update_case_metadata"' backend.js; then
+            echo "backend.js is missing the secure update_case_metadata bridge."
+            exit 1
+          fi
+          if ! grep -q 'body?.action === "update_case_metadata"' supabase/functions/clinical-store/index.ts; then
+            echo "clinical-store is missing update_case_metadata."
+            exit 1
+          fi
           if grep -q "MutationObserver" cockpit-beta.js; then
             echo "cockpit-beta.js must not use DOM mutation observers."
             exit 1
@@ -90,3 +102,18 @@ jobs:
         run: |
           deno test supabase/functions/_shared/deidentify.test.ts
           deno test supabase/functions/_shared/openai.test.ts
+
+      - name: Setup Node for browser smoke
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run browser smoke test
+        run: |
+          python3 -m http.server 4173 >/tmp/bachsbo-smoke-server.log 2>&1 &
+          SMOKE_BASE_URL=http://127.0.0.1:4173 node tests/browser-smoke.mjs

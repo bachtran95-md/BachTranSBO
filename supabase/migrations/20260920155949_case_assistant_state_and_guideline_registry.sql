@@ -1,3 +1,4 @@
+-- Reconciled from production Supabase migration history.
 create table if not exists public.case_assistant_runs (
   id uuid primary key default gen_random_uuid(),
   case_id uuid not null references public.cases(id) on delete cascade,

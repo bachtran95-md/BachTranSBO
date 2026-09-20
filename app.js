@@ -135,18 +135,11 @@ async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
     return { removed: 0, report: null };
   }
 
-  const previousSilentAutosave = Boolean(window.__sboSilentAutosave);
-  if (silentAutosave) window.__sboSilentAutosave = true;
-
-  let result;
-  try {
-    result = await window.BachSBOBackend.savePatient(
-      state.shift.id,
-      patient
-    );
-  } finally {
-    window.__sboSilentAutosave = previousSilentAutosave;
-  }
+  const result = await window.BachSBOBackend.savePatient(
+    state.shift.id,
+    patient,
+    { silentAutosave }
+  );
   stateDirty = false;
 
   if (result?.patient?.id === patient.id) {

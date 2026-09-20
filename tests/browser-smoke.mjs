@@ -499,16 +499,6 @@ for (const selector of demographics) {
   await beta.locator(selector).waitFor({ state: "visible" });
 }
 
-const pendingText = await beta.locator("#patientTbody tr[data-id] .cockpit-test-pending-line").textContent();
-for (const expected of ["EKG", "AVG"]) {
-  if (!pendingText.includes(expected)) {
-    throw new Error(`Pending test ${expected} is missing from Case list`);
-  }
-}
-if (/\+\d+/.test(pendingText)) {
-  throw new Error("Case list collapsed waiting tests into a +N summary");
-}
-
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();
 

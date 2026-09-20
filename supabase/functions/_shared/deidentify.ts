@@ -379,3 +379,19 @@ export async function deidentifyState(stateInput: ClinicalState): Promise<{
 export function reportTotal(report: PiiReport): number {
   return Object.values(report).reduce((sum, value) => sum + Number(value || 0), 0);
 }
+
+
+// Assistant requests must fail closed if the AI privacy pass cannot return one
+// sanitized payload. This is stricter than normal persistence de-identification.
+export async function deidentifyAssistantText(input: string): Promise<string> {
+  const ruled = ruleBasedDeidentify(input).text;
+  const result = await aiScrubItems([{ key: "assistantInput", text: ruled }]);
+  if (
+    result.items.length !== 1 ||
+    result.items[0].key !== "assistantInput" ||
+    !result.items[0].text.trim()
+  ) {
+    throw new Error("Privacy check failed; analysis aborted.");
+  }
+  return result.items[0].text;
+}

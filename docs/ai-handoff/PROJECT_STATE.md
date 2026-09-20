@@ -184,6 +184,20 @@ The 2026-09-20 audit inspected:
 
 No destructive changes, schema changes, or production function deployments were performed during the audit.
 
+## Frontend cockpit work in progress
+
+Branch `ui-compact-cockpit` / draft PR #2 now contains the first merge of the existing UI with the compact 1080p cockpit prototype:
+
+- three-column ER layout (patient board / case workspace / AI rail);
+- compact Clinical / Tests / Disposition / Summary tabs without replacing existing clinical IDs or backend workflow;
+- responsive AI drawer on narrower displays;
+- Case Assistant rail wired to the deployed `case-assistant` Edge Function for current-case analysis;
+- pasted-note extraction preview with source evidence and explicit review controls;
+- Summary rail reuses the existing Generate Summary / Finalize Summary controls;
+- GitHub Backend checks pass, including browser JavaScript syntax and privacy regression tests.
+
+The extraction preview does **not** yet write accepted items back into clinical fields. Case Assistant YES/NO/DONE/N/A choices are currently local UI decisions only; persistence and structured suggestion semantics should be designed before saving them.
+
 ## Resume here
 
 **Start with AI Assistance in the Summary workflow.**

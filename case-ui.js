@@ -150,38 +150,6 @@
     st.style.color = isError ? "#b91c1c" : "";
   }
 
-  function backendReady() {
-    return Boolean(window.BachSBOBackend?.getSession);
-  }
-
-  function db() {
-    if (!window.supabase?.createClient) return null;
-    if (!window.__BachSBOInlineCaseClient) {
-      const c = window.BACH_SBO_CONFIG || {};
-      window.__BachSBOInlineCaseClient = window.supabase.createClient(
-        c.supabaseUrl,
-        c.supabasePublishableKey,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-      );
-    }
-    return window.__BachSBOInlineCaseClient;
-  }
-
-  async function syncedClient() {
-    const client = db();
-    if (!client) throw new Error("Supabase client is not available.");
-    if (backendReady()) {
-      const session = await window.BachSBOBackend.getSession();
-      if (session?.access_token && session?.refresh_token) {
-        await client.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token
-        });
-      }
-    }
-    return client;
-  }
-
   function inlineHost() {
     return document.getElementById("inlineCaseEditor");
   }
@@ -420,54 +388,49 @@
     if (!id) return;
     const host = inlineHost();
 
-    // Once the authoritative row for this case has loaded, clinician edits are
-    // the local source of truth until the metadata save resolves. Timers and
-    // retry refreshes must not overwrite Sex/YOB/Age/Arrival with stale DB data.
     if (metadataDirtyCaseId === id && inlineDetailsLoadedFor(id)) return;
     if (host && host.dataset.pendingCaseId !== id && host.dataset.loadedCaseId !== id) {
       clearInlineDetails(id);
     }
-    mirrorSelectedDisplayIntoInline({ force: false });
-    if (!force) {
-      if (id === lastLoadedCaseId && isEditingCaseDetails()) return;
-      if (Date.now() - lastSaveFailedAt < 3000) return;
+    if (!force && id === lastLoadedCaseId && isEditingCaseDetails()) return;
+
+    const data = window.BachSBOClinicalUi?.getCaseMetadata?.(id);
+    if (!data || selectedId() !== id) return;
+
+    const sex = normalizeSex(data.sex);
+    const sexEl = document.getElementById("iceSex");
+    const yobEl = document.getElementById("iceYob");
+    const ageEl = document.getElementById("iceAge");
+    const arrivalEl = document.getElementById("iceArrival");
+    const arrivalOtherEl = document.getElementById("iceArrivalOther");
+
+    if (sexEl) {
+      sexEl.value = sex;
+      paintSexSelect(sexEl);
     }
-    try {
-      const client = await syncedClient();
-      const { data, error } = await client
-        .from("cases")
-        .select("id, sex, year_of_birth, main_complaint, arrival_mode, arrival_other, disposition, other_details")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data || selectedId() !== id) {
-        mirrorSelectedDisplayIntoInline({ force: false });
-        setTimeout(() => loadSelected({ force: true }), 700);
-        return;
+    if (yobEl) yobEl.value = data.year_of_birth ? String(data.year_of_birth) : "";
+    if (ageEl) ageEl.value = ageFromYob(data.year_of_birth);
+    if (arrivalEl) arrivalEl.value = data.arrival_mode || "";
+    if (arrivalOtherEl) arrivalOtherEl.value = data.arrival_other || "";
+    document.getElementById("iceArrivalOtherWrap")?.classList.toggle(
+      "hidden",
+      (data.arrival_mode || "") !== "other"
+    );
+
+    if ((document.getElementById("fDisposition")?.value || "") === "discharged") {
+      const discharge = document.getElementById("fDischargeCondition");
+      if (discharge && !discharge.value) {
+        discharge.value = dischargeConditionTextFromStored(data.other_details);
       }
-      const sex = normalizeSex(data.sex);
-      document.getElementById("iceSex").value = sex;
-      paintSexSelect(document.getElementById("iceSex"));
-      document.getElementById("iceYob").value = data.year_of_birth ? String(data.year_of_birth) : "";
-      document.getElementById("iceAge").value = ageFromYob(data.year_of_birth);
-      document.getElementById("iceArrival").value = data.arrival_mode || "";
-      document.getElementById("iceArrivalOther").value = data.arrival_other || "";
-      document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (data.arrival_mode || "") !== "other");
-      if ((document.getElementById("fDisposition")?.value || data.disposition) === "discharged") {
-        const discharge = document.getElementById("fDischargeCondition");
-        if (discharge && !discharge.value) discharge.value = dischargeConditionTextFromStored(data.other_details);
-      }
-      ensureDischargeConditionUi();
-      lastLoadedCaseId = id;
-      if (host) {
-        host.dataset.pendingCaseId = id;
-        host.dataset.loadedCaseId = id;
-      }
-      enhanceSexUi();
-    } catch (error) {
-      mirrorSelectedDisplayIntoInline({ force: false });
-      console.warn("Inline case load failed", error);
     }
+
+    ensureDischargeConditionUi();
+    lastLoadedCaseId = id;
+    if (host) {
+      host.dataset.pendingCaseId = id;
+      host.dataset.loadedCaseId = id;
+    }
+    enhanceSexUi();
   }
 
   function buildPayload() {
@@ -491,6 +454,15 @@
     }
     if (!yobText || validYob) payload.year_of_birth = validYob ? yobNum : null;
     return { payload, partialYob };
+  }
+
+  function syncDraftIntoPatientState() {
+    const id = selectedId();
+    if (!id) return;
+    const { payload, partialYob } = buildPayload();
+    if (partialYob) return;
+    window.BachSBOClinicalUi?.applyCaseMetadata?.(id, payload);
+    rowUpdate(payload);
   }
 
   function repairPatientLocalId(patient) {
@@ -643,11 +615,11 @@
     }
     try {
       setStatus("Saving case details…", "Esetadatok mentése…");
-      const backend = window.BachSBOBackend;
-      if (!backend?.updateCaseMetadata) {
+      const clinicalUi = window.BachSBOClinicalUi;
+      if (!clinicalUi?.saveCaseMetadata) {
         throw new Error(label(
-          "Secure case metadata save is not available.",
-          "A biztonságos esetadat-mentés nem érhető el."
+          "Single-source case metadata save is not available.",
+          "Az egységes esetadat-mentés nem érhető el."
         ));
       }
       const metadata = {
@@ -662,7 +634,7 @@
       if (Object.prototype.hasOwnProperty.call(payload, "other_details")) {
         metadata.otherDetails = payload.other_details || "";
       }
-      const result = await backend.updateCaseMetadata(id, metadata);
+      const result = await clinicalUi.saveCaseMetadata(id, metadata);
       const saved = result?.metadata || {};
       if (Object.prototype.hasOwnProperty.call(saved, "main_complaint")) {
         const complaint = document.getElementById("fMainComplaint");
@@ -747,6 +719,7 @@
         }
         if (id === "iceSex") paintSexSelect(el);
         document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (arrival?.value || "") !== "other");
+        syncDraftIntoPatientState();
         scheduleSave(id === "iceYob" || id === "iceAge" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
       el.addEventListener("input", handler);

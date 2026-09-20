@@ -84,6 +84,8 @@ const backendMock = String.raw`
   };
 
   window.__BACH_E2E_FAIL_NEXT_SAVE = false;
+  let corpusStatus = "approved";
+  let corpusNote = "";
 
   const session = () => localStorage.getItem(SESSION_KEY)
     ? { user: { email: "e2e@example.test" }, access_token: "e2e-access", refresh_token: "e2e-refresh" }
@@ -209,7 +211,30 @@ const backendMock = String.raw`
         warnings: []
       };
     },
-    async getLearningOverview() { return { finalizedCount: 0, styleProfiles: [], skillSuggestions: [], activeSkill: { name: "Mock", version: 1 } }; },
+    async getLearningOverview() {
+      return {
+        finalizedCount: 1,
+        corpusRevisions: [{
+          id: "77777777-7777-4777-8777-777777777777",
+          case_id: "22222222-2222-4222-8222-222222222222",
+          finalized_text: "Mock finalized corpus text",
+          generated_text: "Mock generated corpus text",
+          finalized_at: new Date().toISOString(),
+          learning_status: corpusStatus,
+          learning_note: corpusNote,
+          learning_reviewed_at: null,
+          model: "mock"
+        }],
+        styleProfiles: [],
+        skillSuggestions: [],
+        activeSkill: { name: "Mock", version: 1 }
+      };
+    },
+    async reviewCorpusRevision(_revisionId, decision, note = "") {
+      corpusStatus = decision;
+      corpusNote = note;
+      return { learningStatus: corpusStatus, learningNote: corpusNote };
+    },
     async analyzeStyle() { return { candidate: { version: 1 } }; },
     async activateStyle() { return true; },
     async analyzeSkill() { return true; },
@@ -357,6 +382,21 @@ if (historyAfterFailure !== "Doctor draft must survive") {
 }
 if (historyAfterFailure.includes("Hypertonia")) {
   throw new Error("Failed AI apply leaked extracted content into clinician draft");
+}
+
+await beta.locator("#aiLearningNav").click();
+await beta.locator("#corpusReviewList").waitFor();
+await beta.waitForFunction(() =>
+  (document.querySelector("#corpusReviewList")?.textContent || "").includes("Mock finalized corpus text")
+);
+const corpusItem = beta.locator(".corpus-review-item", { hasText: "Mock finalized corpus text" });
+await corpusItem.locator('[data-decision="excluded"]').click();
+await beta.waitForFunction(() =>
+  (document.querySelector("#corpusReviewList")?.textContent || "").includes("EXCLUDED")
+);
+const corpusAfterReview = await beta.locator("#corpusReviewList").textContent();
+if (!corpusAfterReview.includes("EXCLUDED")) {
+  throw new Error("Corpus review did not update to EXCLUDED");
 }
 
 if (errors.length) {

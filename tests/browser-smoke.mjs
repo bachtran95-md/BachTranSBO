@@ -1,0 +1,264 @@
+import { chromium } from "playwright";
+
+const baseUrl = process.env.SMOKE_BASE_URL || "http://127.0.0.1:4173";
+const backendMock = String.raw`
+(() => {
+  const STORE_KEY = "__bach_sbo_e2e_state";
+  const SESSION_KEY = "__bach_sbo_e2e_session";
+  const shiftId = "11111111-1111-4111-8111-111111111111";
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const entry = (id) => ({ id, type: "", mode: "notordered", text: "", savedText: "" });
+  const seed = () => ({
+    shift: { id: shiftId, startedAt: new Date().toISOString(), status: "active" },
+    patients: [{
+      id: "22222222-2222-4222-8222-222222222222",
+      shiftId,
+      localId: "01",
+      sex: "M",
+      yob: "1970",
+      arrivalMode: "walk_in",
+      arrivalOther: "",
+      mainComplaint: "Existing smoke case",
+      complaint: "",
+      complaintSkipped: true,
+      history: "",
+      historySkipped: true,
+      physical: "",
+      physicalSkipped: true,
+      tests: {
+        labs: [entry("30000000-0000-4000-8000-000000000001")],
+        ekg: entry("30000000-0000-4000-8000-000000000002"),
+        gas: entry("30000000-0000-4000-8000-000000000003"),
+        radiology: [{ ...entry("30000000-0000-4000-8000-000000000004"), bodyPart: "", modality: "", otherTest: "" }],
+        consultations: [entry("30000000-0000-4000-8000-000000000005")]
+      },
+      others: "",
+      therapy: "",
+      therapySkipped: true,
+      course: "",
+      courseSkipped: true,
+      diagnoses: "",
+      disposition: "",
+      recommendations: [""],
+      hospital: "",
+      ward: "",
+      physician: "",
+      admissionNote: "",
+      otherOutcome: "",
+      otherDetails: "",
+      summary: "",
+      summaryGeneratedText: "",
+      summaryGeneratedAt: null,
+      summaryFinalizedText: "",
+      summaryFinalizedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }],
+    references: []
+  });
+
+  const read = () => {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      const state = seed();
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      return state;
+    }
+    return JSON.parse(raw);
+  };
+  const write = (state) => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  const row = (p) => ({
+    id: p.id,
+    sex: p.sex || null,
+    year_of_birth: p.yob ? Number(p.yob) : null,
+    main_complaint: p.mainComplaint || "",
+    arrival_mode: p.arrivalMode || "",
+    arrival_other: p.arrivalOther || "",
+    disposition: p.disposition || "",
+    other_details: p.otherDetails || ""
+  });
+
+  window.__BACH_E2E_CASE_ROW = (id) => {
+    const patient = read().patients.find((p) => p.id === id);
+    return patient ? row(patient) : null;
+  };
+
+  const session = () => localStorage.getItem(SESSION_KEY)
+    ? { user: { email: "e2e@example.test" }, access_token: "e2e-access", refresh_token: "e2e-refresh" }
+    : null;
+
+  window.BachSBOBackend = {
+    async init() { return { configured: true, session: session() }; },
+    async getSession() { return session(); },
+    async getUser() { return session()?.user || null; },
+    async signInWithPassword(password) {
+      if (String(password).length < 6) throw new Error("Bad test password");
+      localStorage.setItem(SESSION_KEY, "1");
+      return session();
+    },
+    async signOut() { localStorage.removeItem(SESSION_KEY); },
+    async changeAdminPassword() { return true; },
+    async loadState() { return clone(read()); },
+    async startShift() {
+      const state = read();
+      state.shift ||= { id: shiftId, startedAt: new Date().toISOString(), status: "active" };
+      write(state);
+      return clone(state.shift);
+    },
+    async closeShift() {
+      const state = read();
+      state.shift = null;
+      state.patients = [];
+      write(state);
+      return true;
+    },
+    async saveState(next) { write(clone(next)); return { state: clone(next), removed: 0, report: null }; },
+    async savePatient(_shiftId, patient) {
+      const state = read();
+      const index = state.patients.findIndex((p) => p.id === patient.id);
+      if (index >= 0) state.patients[index] = clone(patient);
+      else state.patients.push(clone(patient));
+      write(state);
+      return { patient: clone(patient), removed: 0, report: null };
+    },
+    async updateCaseMetadata(caseId, metadata) {
+      const state = read();
+      const p = state.patients.find((x) => x.id === caseId);
+      if (!p) throw new Error("Missing mock case");
+      p.sex = metadata.sex || "";
+      p.yob = metadata.yearOfBirth ? String(metadata.yearOfBirth) : "";
+      p.mainComplaint = metadata.mainComplaint || "";
+      p.arrivalMode = metadata.arrivalMode || "";
+      p.arrivalOther = p.arrivalMode === "other" ? metadata.arrivalOther || "" : "";
+      if (Object.prototype.hasOwnProperty.call(metadata, "otherDetails")) {
+        p.otherDetails = metadata.otherDetails || "";
+      }
+      p.updatedAt = new Date().toISOString();
+      write(state);
+      return { metadata: row(p), removed: 0, report: null };
+    },
+    async deleteCase(caseId) {
+      const state = read();
+      state.patients = state.patients.filter((p) => p.id !== caseId);
+      write(state);
+      return { caseId, deleted: true };
+    },
+    async reopenCase(_shiftId, caseId) {
+      const state = read();
+      const p = state.patients.find((x) => x.id === caseId);
+      if (p) p.summaryFinalizedAt = null;
+      write(state);
+      return { caseId, reopenedAt: new Date().toISOString() };
+    },
+    async finalizePatient(_shiftId, patient) {
+      const state = read();
+      const index = state.patients.findIndex((p) => p.id === patient.id);
+      if (index >= 0) state.patients[index] = clone(patient);
+      write(state);
+      return { patient: clone(patient), removed: 0, revisionId: "44444444-4444-4444-8444-444444444444", embedded: true };
+    },
+    async appendSummaryRevision() { return { removed: 0, embedded: true }; },
+    async generateSummary() { return { summary: "Mock summary", generatedAt: new Date().toISOString(), model: "mock", skillVersion: "1", similarCasesUsed: [] }; },
+    async caseAssistantSuggest(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
+    async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
+    async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
+    async caseAssistantExtract() { return { items: [], warnings: [] }; },
+    async getLearningOverview() { return { finalizedCount: 0, styleProfiles: [], skillSuggestions: [], activeSkill: { name: "Mock", version: 1 } }; },
+    async analyzeStyle() { return { candidate: { version: 1 } }; },
+    async activateStyle() { return true; },
+    async analyzeSkill() { return true; },
+    async reviewSkillSuggestion() { return true; }
+  };
+})();
+`;
+
+const supabaseMock = String.raw`
+window.supabase = {
+  createClient() {
+    return {
+      auth: { async setSession() { return { data: {}, error: null }; } },
+      from(table) {
+        const filters = {};
+        const chain = {
+          select() { return chain; },
+          eq(key, value) { filters[key] = value; return chain; },
+          order() { return chain; },
+          async maybeSingle() {
+            if (table === "cases") {
+              return { data: window.__BACH_E2E_CASE_ROW?.(filters.id) || null, error: null };
+            }
+            return { data: null, error: null };
+          }
+        };
+        return chain;
+      }
+    };
+  }
+};
+`;
+
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext();
+const errors = [];
+context.on("page", (page) => page.on("pageerror", (error) => errors.push(error.message)));
+
+await context.route(/supabase-js@2\.116\.0/, async (route) => {
+  await route.fulfill({ status: 200, contentType: "application/javascript", body: supabaseMock });
+});
+await context.route(/\/backend\.js(?:\?.*)?$/, async (route) => {
+  await route.fulfill({ status: 200, contentType: "application/javascript", body: backendMock });
+});
+
+const page = await context.newPage();
+page.on("dialog", async (dialog) => dialog.accept());
+
+await page.goto(baseUrl + "/", { waitUntil: "domcontentloaded" });
+await page.locator("#authPassword").waitFor();
+await page.locator("#authPassword").fill("smoke-test-password");
+await page.locator("#passwordSignIn").click();
+await page.locator("#patientsView:not(.hidden)").waitFor();
+
+const initialRows = page.locator("#patientTbody tr[data-id]");
+if (await initialRows.count() !== 1) {
+  throw new Error("Expected one existing case after sign-in");
+}
+if (!(await page.locator("#patientTbody").textContent()).includes("Existing smoke case")) {
+  throw new Error("Existing case did not render");
+}
+
+await page.locator("#newSex").selectOption("F");
+await page.locator("#newYob").fill("1988");
+await page.locator("#newComplaint").fill("E2E synthetic complaint");
+await page.locator("#addPatientBtn").click();
+await page.waitForFunction(() => document.querySelectorAll("#patientTbody tr[data-id]").length === 2);
+
+const syntheticRow = page.locator("#patientTbody tr[data-id]", { hasText: "E2E synthetic complaint" });
+await syntheticRow.click();
+await page.locator("#iceDeleteCase").waitFor();
+await page.locator("#iceDeleteCase").click();
+
+await page.waitForLoadState("domcontentloaded");
+await page.locator("#patientsView:not(.hidden)").waitFor();
+await page.waitForFunction(() => document.querySelectorAll("#patientTbody tr[data-id]").length === 1);
+const afterDelete = await page.locator("#patientTbody").textContent();
+if (afterDelete.includes("E2E synthetic complaint")) {
+  throw new Error("Synthetic case survived delete + reload");
+}
+if (!afterDelete.includes("Existing smoke case")) {
+  throw new Error("Existing case was lost during smoke flow");
+}
+
+const beta = await context.newPage();
+await beta.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
+await beta.locator("#patientsView:not(.hidden)").waitFor();
+await beta.locator("#cockpitBetaBadge").waitFor();
+if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
+  throw new Error("Beta did not restore the expected case state");
+}
+
+if (errors.length) {
+  throw new Error("Browser page errors: " + errors.join(" | "));
+}
+
+await browser.close();
+console.log("Browser smoke passed: login -> existing case -> add -> delete -> reload -> beta.");

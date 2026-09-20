@@ -1220,6 +1220,31 @@ body.cockpit-ui .cockpit-row-complete{
   font-weight:800;
   color:#067647;
 }
+body.cockpit-ui .cockpit-test-pending-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:2px 5px;
+  min-width:0;
+  font-size:9px;
+  line-height:1.25;
+  color:#b54708;
+}
+body.cockpit-ui .cockpit-test-pending-line strong{
+  flex:0 0 auto;
+  font-weight:850;
+}
+body.cockpit-ui .cockpit-test-pending-line span{
+  min-width:0;
+  max-width:100%;
+  font-weight:750;
+  overflow-wrap:anywhere;
+}
+body.cockpit-ui .cockpit-test-pending-line span::before{
+  content:"· ";
+  color:#d0d5dd;
+}
+
 body.cockpit-ui .cockpit-row-loading{
   display:inline-flex;
   align-items:center;

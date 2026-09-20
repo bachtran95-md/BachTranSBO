@@ -315,7 +315,7 @@
           </div>
           <div class="field">
             <label data-ice-label="age">Age</label>
-            <input id="iceAge" inputmode="numeric" maxlength="3" placeholder="auto" autocomplete="off" />
+            <input id="iceAge" placeholder="auto" readonly aria-readonly="true" tabindex="-1" />
           </div>
         </div>
         <div class="field">

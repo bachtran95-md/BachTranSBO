@@ -954,9 +954,11 @@
     if (!waiting.length) {
       return `<div class="cockpit-test-chip-list"><span class="cockpit-row-ready">${esc(label("No waiting tests", "Nincs függő vizsgálat"))}</span></div>`;
     }
-    return `<div class="cockpit-test-chip-list" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}">${waiting
-      .map((item) => `<span class="cockpit-test-chip" title="${esc(item.name)}">${esc(item.name)}</span>`)
-      .join("")}</div>`;
+    return `
+      <div class="cockpit-test-pending-line" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}">
+        <strong>${waiting.length} ${esc(label("waiting", "függő"))}</strong>
+        ${waiting.map((item) => `<span title="${esc(item.name)}">${esc(item.name)}</span>`).join("")}
+      </div>`;
   }
 
   function installPatientListStatusHook() {

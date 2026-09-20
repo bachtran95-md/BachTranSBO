@@ -214,6 +214,7 @@ const backendMock = String.raw`
     async getLearningOverview() {
       return {
         finalizedCount: 1,
+        approvedDistinctCaseCount: 1,
         corpusRevisions: [{
           id: "77777777-7777-4777-8777-777777777777",
           case_id: "22222222-2222-4222-8222-222222222222",
@@ -390,6 +391,9 @@ await beta.locator("#corpusReviewList").waitFor();
 await beta.waitForFunction(() =>
   (document.querySelector("#corpusReviewList")?.textContent || "").includes("Mock finalized corpus text")
 );
+if ((await beta.locator("#learningApprovedCaseCount").textContent()) !== "1") {
+  throw new Error("Approved learning case metric did not render");
+}
 const corpusItem = beta.locator(".corpus-review-item", { hasText: "Mock finalized corpus text" });
 await corpusItem.locator('[data-decision="excluded"]').click();
 await beta.waitForFunction(() =>

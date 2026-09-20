@@ -496,11 +496,27 @@ await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.valu
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
-await beta.waitForFunction(({ expectedYob }) => {
+await beta.waitForTimeout(1600);
+const demographicSaveDiagnostic = await beta.evaluate(({ expectedYob }) => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
-  const patient = state?.patients?.[0];
-  return patient?.sex === "F" && patient?.yob === expectedYob;
+  const patient = state?.patients?.[0] || null;
+  const editor = document.querySelector("#inlineCaseEditor");
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return {
+    expectedYob,
+    persistedSex: patient?.sex || "",
+    persistedYob: patient?.yob || "",
+    status: document.querySelector("#iceStatus")?.textContent || "",
+    loadedCaseId: editor?.dataset.loadedCaseId || "",
+    selectedCaseId: row?.dataset.id || ""
+  };
 }, { expectedYob });
+if (
+  demographicSaveDiagnostic.persistedSex !== "F" ||
+  demographicSaveDiagnostic.persistedYob !== expectedYob
+) {
+  throw new Error("Demographic metadata did not persist: " + JSON.stringify(demographicSaveDiagnostic));
+}
 await beta.waitForFunction(() => {
   const row = document.querySelector("#patientTbody tr[data-id]");
   return row?.querySelector('td:nth-child(2) [data-sex-badge="F"]') &&

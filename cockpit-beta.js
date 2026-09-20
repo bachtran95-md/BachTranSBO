@@ -1048,44 +1048,52 @@
     }
   }
 
-  function compactTestCards(panel) {
-    panel.querySelectorAll(".test-card").forEach((card) => {
-      card.classList.add("cockpit-test-row");
+  function decorateTestCard(card) {
+    if (!card) return;
+    card.classList.add("cockpit-test-row");
 
-      const save = card.querySelector(".test-save");
-      if (save) {
-        save.textContent = "✓";
-        save.title = label("Save result", "Eredmény mentése");
-        save.setAttribute("aria-label", save.title);
-      }
+    const save = card.querySelector(".test-save");
+    if (save) {
+      save.textContent = "✓";
+      save.title = label("Save result", "Eredmény mentése");
+      save.setAttribute("aria-label", save.title);
+    }
 
-      card.querySelectorAll("[data-delete-test]").forEach((button) => {
-        button.textContent = "×";
-        button.title = label("Delete test", "Vizsgálat törlése");
-        button.setAttribute("aria-label", button.title);
-      });
-
-      const dots = card.querySelector(".mode-dots");
-      if (dots && !dots.dataset.cockpitOrdered) {
-        const notOrdered = dots.querySelector('[data-mode-choice="notordered"]');
-        const waiting = dots.querySelector('[data-mode-choice="waiting"]');
-        const result = dots.querySelector(".mode-dot-btn.result");
-        [notOrdered, waiting, result].filter(Boolean).forEach((node) => dots.appendChild(node));
-        dots.dataset.cockpitOrdered = "true";
-      }
-
-      const radiologyGrid = card.querySelector(".radiology-grid");
-      if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
-        const identity = document.createElement("div");
-        identity.className = "cockpit-radiology-identity";
-        const first = radiologyGrid.firstElementChild;
-        if (first) radiologyGrid.insertBefore(identity, first);
-        ["[data-body]", "[data-modality]", "[data-other]"].forEach((selector) => {
-          const control = radiologyGrid.querySelector(`:scope > ${selector}`);
-          if (control) identity.appendChild(control);
-        });
-      }
+    card.querySelectorAll("[data-delete-test]").forEach((button) => {
+      button.textContent = "×";
+      button.title = label("Delete test", "Vizsgálat törlése");
+      button.setAttribute("aria-label", button.title);
     });
+
+    const dots = card.querySelector(".mode-dots");
+    if (dots && !dots.dataset.cockpitOrdered) {
+      const notOrdered = dots.querySelector('[data-mode-choice="notordered"]');
+      const waiting = dots.querySelector('[data-mode-choice="waiting"]');
+      const result = dots.querySelector(".mode-dot-btn.result");
+      [notOrdered, waiting, result].filter(Boolean).forEach((node) => dots.appendChild(node));
+      dots.dataset.cockpitOrdered = "true";
+    }
+
+    const radiologyGrid = card.querySelector(".radiology-grid");
+    if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
+      const identity = document.createElement("div");
+      identity.className = "cockpit-radiology-identity";
+      const first = radiologyGrid.firstElementChild;
+      if (first) radiologyGrid.insertBefore(identity, first);
+      ["[data-body]", "[data-modality]", "[data-other]"].forEach((selector) => {
+        const control = radiologyGrid.querySelector(`:scope > ${selector}`);
+        if (control) identity.appendChild(control);
+      });
+    }
+  }
+
+  function installTestCardHook() {
+    window.BachSBOUiHooks ||= {};
+    window.BachSBOUiHooks.decorateTestCard = (card) => decorateTestCard(card);
+  }
+
+  function compactTestCards(panel) {
+    panel.querySelectorAll(".test-card").forEach((card) => decorateTestCard(card));
   }
 
   function addUnifiedTest() {
@@ -1374,6 +1382,7 @@
 
   function install() {
     installPatientListStatusHook();
+    installTestCardHook();
     addBetaControls();
     activateCockpitIfReady();
     installSync();

@@ -382,6 +382,32 @@ if (!afterDelete.includes("Existing smoke case")) {
   throw new Error("Existing case was lost during smoke flow");
 }
 
+// Make the remaining case intentionally unresolved so the legacy app row would
+// render a tall workflow-blocker stack. Beta must replace it without flicker.
+await page.evaluate(() => {
+  const key = "__bach_sbo_e2e_state";
+  const state = JSON.parse(localStorage.getItem(key) || "{}");
+  const p = state?.patients?.[0];
+  if (!p) return;
+  p.complaint = "";
+  p.complaintSkipped = false;
+  p.history = "";
+  p.historySkipped = false;
+  p.physical = "";
+  p.physicalSkipped = false;
+  p.therapy = "";
+  p.therapySkipped = false;
+  p.course = "";
+  p.courseSkipped = false;
+  for (const entry of [p.tests?.ekg, p.tests?.gas, p.tests?.radiology?.[0]]) {
+    if (!entry) continue;
+    entry.mode = "waiting";
+    entry.text = "";
+    entry.savedText = "";
+  }
+  localStorage.setItem(key, JSON.stringify(state));
+});
+
 const beta = await context.newPage();
 let cancelNextBetaDialog = false;
 beta.on("dialog", async (dialog) => {
@@ -399,7 +425,28 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
   throw new Error("Beta did not restore the expected case state");
 }
 
-await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+const betaCaseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
+await betaCaseRow.waitFor();
+await beta.waitForFunction(() =>
+  Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-chip-list"))
+);
+
+const heightBeforeSelect = await betaCaseRow.evaluate((row) => row.getBoundingClientRect().height);
+if (await betaCaseRow.locator(".wait-stack").count()) {
+  throw new Error("Beta Case list exposed the legacy workflow-blocker stack before selection");
+}
+
+await betaCaseRow.click();
+
+if (await beta.locator("#patientTbody tr[data-id] .wait-stack").count()) {
+  throw new Error("Beta Case list flashed the legacy workflow-blocker stack after selection");
+}
+const heightAfterSelect = await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" })
+  .evaluate((row) => row.getBoundingClientRect().height);
+if (heightAfterSelect > heightBeforeSelect + 8) {
+  throw new Error(`Beta Case list row jumped from ${heightBeforeSelect}px to ${heightAfterSelect}px`);
+}
+
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();
 

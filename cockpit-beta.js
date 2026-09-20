@@ -1365,6 +1365,16 @@
       }
     }, true);
     document.addEventListener("change", () => setTimeout(syncRailState, 0), true);
+
+    // app.js handles row selection on the row itself and synchronously rebuilds
+    // #patientTbody. Re-decorate that freshly rendered table during bubble phase,
+    // before the browser gets a chance to paint the native multi-line blocker stack.
+    document.addEventListener("click", (event) => {
+      if (event.target?.closest?.("#patientTbody tr[data-id]")) {
+        enhancePatientRows();
+      }
+    });
+
     document.addEventListener("click", (event) => {
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
         setTimeout(updateTabLabels, 0);

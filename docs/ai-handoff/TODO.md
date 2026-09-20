@@ -24,7 +24,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [ ] Commit production-only Edge Function source, especially `case-assistant` and `backend-diagnostics`.
 - [ ] Reconcile `summary-standardization-sync` with `main`.
 - [ ] Move direct clinical free-text updates in `config.js` behind `clinical-store`.
-- [ ] Move Delete Case to a server-authorized backend action.
+- [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
 - [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
 - [ ] Confirm whether `case_patch.js` is dead code, then remove or integrate it.
 - [ ] Update stale GitHub Pages URLs and outdated privacy/learning documentation.

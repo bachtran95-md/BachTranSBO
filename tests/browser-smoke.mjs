@@ -310,11 +310,11 @@ if (!persistedComplaint.includes("mellkasi fájdalom")) {
 await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
-await beta.locator(".cockpit-extract-item").waitFor();
-await beta.locator(".cockpit-extract-item .cockpit-decision.yes").click();
+await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
+await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
 await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
 await beta.locator("#cockpitApplyAccepted").click();
-await beta.waitForFunction(() => (document.querySelector("#cockpitExtractStatus")?.textContent || "").includes("Nothing was applied"));
+await beta.waitForFunction(() => (document.querySelector("#cockpitExtractStatus")?.textContent || "").includes("Synthetic save failure"));
 
 const historyAfterFailure = await beta.locator("#fHistory").inputValue();
 if (historyAfterFailure !== "Doctor draft must survive") {

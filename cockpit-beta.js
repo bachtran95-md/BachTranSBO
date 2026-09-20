@@ -292,6 +292,7 @@
 
   async function analyzeCurrentCase() {
     if (assistantBusy) return;
+    const requestCaseId = selectedCaseId();
     const status = document.getElementById("cockpitAssistantStatus");
     const results = document.getElementById("cockpitAssistantResults");
     try {
@@ -305,16 +306,23 @@
       }
       const response = await window.BachSBOBackend.caseAssistantSuggest(patient);
       assistantStateByCase.set(patient.id, response);
-      renderAssistantResponse(response);
-      if (status) {
-        status.textContent = label(
-          "Updated. Suggestions are advisory only.",
-          "Frissítve. A javaslatok kizárólag döntéstámogatók."
-        );
+
+      // The physician may switch patients while the AI request is running.
+      // Cache the result for its original case, but never paint it over another case.
+      if (selectedCaseId() === patient.id) {
+        renderAssistantResponse(response);
+        if (status) {
+          status.textContent = label(
+            "Updated. Suggestions are advisory only.",
+            "Frissítve. A javaslatok kizárólag döntéstámogatók."
+          );
+        }
       }
     } catch (error) {
-      if (status) status.textContent = error?.message || label("Analysis failed.", "Elemzés sikertelen.");
-      if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || "Analysis failed.")}</div>`;
+      if (!requestCaseId || selectedCaseId() === requestCaseId) {
+        if (status) status.textContent = error?.message || label("Analysis failed.", "Elemzés sikertelen.");
+        if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || "Analysis failed.")}</div>`;
+      }
     } finally {
       assistantBusy = false;
       syncRailState();
@@ -364,8 +372,10 @@
         );
       });
     } catch (error) {
-      const status = document.getElementById("cockpitAssistantStatus");
-      if (status) status.textContent = error?.message || label("Could not save decision.", "A döntés mentése sikertelen.");
+      if (selectedCaseId() === caseId) {
+        const status = document.getElementById("cockpitAssistantStatus");
+        if (status) status.textContent = error?.message || label("Could not save decision.", "A döntés mentése sikertelen.");
+      }
     } finally {
       row?.querySelectorAll(".cockpit-decision").forEach((node) => {
         node.disabled = false;

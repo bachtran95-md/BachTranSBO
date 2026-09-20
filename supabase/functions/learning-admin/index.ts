@@ -71,6 +71,7 @@ async function overview(db: any, ownerId: string) {
   const [
     revisionsResult,
     corpusResult,
+    approvedCasesResult,
     skillResult,
     profilesResult,
     suggestionsResult,
@@ -86,6 +87,12 @@ async function overview(db: any, ownerId: string) {
       .eq("owner_id", ownerId)
       .order("finalized_at", { ascending: false })
       .limit(20),
+
+    db.from("summary_revisions")
+      .select("case_id")
+      .eq("owner_id", ownerId)
+      .eq("learning_status", "approved")
+      .limit(1000),
 
     db.from("skill_versions")
       .select("id, version, name, is_active, created_at")
@@ -113,6 +120,7 @@ async function overview(db: any, ownerId: string) {
   for (const result of [
     revisionsResult,
     corpusResult,
+    approvedCasesResult,
     skillResult,
     profilesResult,
     suggestionsResult,
@@ -123,12 +131,18 @@ async function overview(db: any, ownerId: string) {
   const corpusRevisions = corpusResult.data || [];
   const approvedCount = corpusRevisions.filter((item: any) => item.learning_status === "approved").length;
   const excludedCount = corpusRevisions.filter((item: any) => item.learning_status === "excluded").length;
+  const approvedDistinctCaseCount = new Set(
+    (approvedCasesResult.data || [])
+      .map((item: any) => String(item.case_id || ""))
+      .filter(Boolean),
+  ).size;
 
   return {
     finalizedCount: revisionsResult.count || 0,
     corpusReviewedWindow: corpusRevisions.length,
     corpusApprovedInWindow: approvedCount,
     corpusExcludedInWindow: excludedCount,
+    approvedDistinctCaseCount,
     corpusRevisions,
     activeSkill: skillResult.data || null,
     styleProfiles: profilesResult.data || [],

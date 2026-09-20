@@ -282,6 +282,8 @@
         localId: row.local_id,
         sex: row.sex || "",
         yob: row.year_of_birth ? String(row.year_of_birth) : "",
+        arrivalMode: row.arrival_mode || "",
+        arrivalOther: row.arrival_other || "",
         mainComplaint: row.main_complaint || "",
         complaint: row.complaint || "",
         complaintSkipped: Boolean(row.complaint_skipped),

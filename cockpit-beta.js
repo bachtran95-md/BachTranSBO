@@ -408,11 +408,17 @@
       const sourceLinks = sources.map((source) => {
         const url = String(source?.url || "");
         if (!url.startsWith("https://")) return "";
-        const title = source?.organization || source?.title || url;
-        const jurisdiction = source?.jurisdiction
-          ? ` · ${esc(source.jurisdiction)}`
-          : "";
-        return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>${jurisdiction}`;
+        const organization = String(source?.organization || "").trim();
+        const sourceTitle = String(source?.title || "").trim();
+        const title = [organization, sourceTitle]
+          .filter(Boolean)
+          .filter((value, index, array) => array.indexOf(value) === index)
+          .join(" — ") || url;
+        const meta = [
+          source?.year ? String(source.year) : "",
+          source?.jurisdiction || ""
+        ].filter(Boolean).join(" · ");
+        return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>${meta ? ` · ${esc(meta)}` : ""}`;
       }).filter(Boolean).join("<br>");
 
       return `
@@ -552,7 +558,18 @@
   function enhancePatientRows() {
     document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
       row.classList.add("cockpit-compact-patient");
-      row.querySelectorAll(".cockpit-next-action").forEach((node) => node.remove());
+      row.querySelectorAll(".cockpit-next-action, .cockpit-status-more").forEach((node) => node.remove());
+
+      const chips = [...row.querySelectorAll(".wait-chip")];
+      chips.forEach((chip, index) => {
+        chip.classList.toggle("cockpit-status-hidden", index > 0);
+      });
+      if (chips.length > 1) {
+        const more = document.createElement("span");
+        more.className = "cockpit-status-more";
+        more.textContent = `+${chips.length - 1}`;
+        row.querySelector("[data-status-cell] .wait-stack")?.appendChild(more);
+      }
     });
   }
 

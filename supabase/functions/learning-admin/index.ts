@@ -70,6 +70,7 @@ function serviceClient() {
 async function overview(db: any, ownerId: string) {
   const [
     revisionsResult,
+    corpusResult,
     skillResult,
     profilesResult,
     suggestionsResult,
@@ -77,6 +78,14 @@ async function overview(db: any, ownerId: string) {
     db.from("summary_revisions")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", ownerId),
+
+    db.from("summary_revisions")
+      .select(
+        "id, case_id, finalized_text, generated_text, finalized_at, learning_status, learning_note, learning_reviewed_at, model, embedding_model",
+      )
+      .eq("owner_id", ownerId)
+      .order("finalized_at", { ascending: false })
+      .limit(20),
 
     db.from("skill_versions")
       .select("id, version, name, is_active, created_at")
@@ -103,6 +112,7 @@ async function overview(db: any, ownerId: string) {
 
   for (const result of [
     revisionsResult,
+    corpusResult,
     skillResult,
     profilesResult,
     suggestionsResult,
@@ -110,11 +120,59 @@ async function overview(db: any, ownerId: string) {
     if (result.error) throw result.error;
   }
 
+  const corpusRevisions = corpusResult.data || [];
+  const approvedCount = corpusRevisions.filter((item: any) => item.learning_status === "approved").length;
+  const excludedCount = corpusRevisions.filter((item: any) => item.learning_status === "excluded").length;
+
   return {
     finalizedCount: revisionsResult.count || 0,
+    corpusReviewedWindow: corpusRevisions.length,
+    corpusApprovedInWindow: approvedCount,
+    corpusExcludedInWindow: excludedCount,
+    corpusRevisions,
     activeSkill: skillResult.data || null,
     styleProfiles: profilesResult.data || [],
     skillSuggestions: suggestionsResult.data || [],
+  };
+}
+
+async function reviewRevision(
+  db: any,
+  ownerId: string,
+  revisionId: string,
+  decision: string,
+  noteInput: unknown,
+) {
+  if (!/^[0-9a-f-]{36}$/i.test(revisionId)) {
+    throw new Error("Invalid corpus revision.");
+  }
+  if (!["approved", "excluded"].includes(decision)) {
+    throw new Error("Invalid corpus review decision.");
+  }
+
+  const note = String(noteInput || "").trim().slice(0, 1000);
+  const reviewedAt = new Date().toISOString();
+
+  const { data, error } = await db
+    .from("summary_revisions")
+    .update({
+      learning_status: decision,
+      learning_note: note || null,
+      learning_reviewed_at: reviewedAt,
+    })
+    .eq("id", revisionId)
+    .eq("owner_id", ownerId)
+    .select("id,learning_status,learning_note,learning_reviewed_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Corpus revision not found.");
+
+  return {
+    revisionId: data.id,
+    learningStatus: data.learning_status,
+    learningNote: data.learning_note,
+    reviewedAt: data.learning_reviewed_at,
   };
 }
 
@@ -133,6 +191,18 @@ Deno.serve(async (req) => {
 
     if (action === "overview") {
       return json(await overview(db, user.id));
+    }
+
+    if (action === "review_revision") {
+      return json(
+        await reviewRevision(
+          db,
+          user.id,
+          String(body?.revisionId || ""),
+          String(body?.decision || ""),
+          body?.note,
+        ),
+      );
     }
 
     return json({ error: "Unknown action." }, 400);

@@ -781,10 +781,12 @@ body.cockpit-ui .cockpit-case-list .patient-table tbody{
 body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient{
   display:grid;
   grid-template-columns:30px 34px 42px minmax(0,1fr) 86px;
+  grid-template-rows:auto auto;
   grid-template-areas:
-    "id sex age complaint status";
+    "id sex age . ."
+    "id complaint complaint complaint status";
   align-items:center;
-  min-height:48px;
+  min-height:56px;
   border:1px solid #e2e8f0;
   border-radius:8px;
   background:#fff;
@@ -938,16 +940,25 @@ body.cockpit-ui .cockpit-todo-info > summary{
   font-size:13px;
 }
 body.cockpit-ui .cockpit-todo-info > summary::-webkit-details-marker{display:none}
+body.cockpit-ui .cockpit-rail-card{overflow:visible}
+body.cockpit-ui .cockpit-todo-item{position:relative;overflow:visible}
 body.cockpit-ui .cockpit-info-body{
-  grid-column:1/-1;
-  margin-top:6px;
-  padding:7px;
-  border-radius:6px;
-  background:#f8fafc;
+  display:none;
+  position:absolute;
+  right:0;
+  top:28px;
+  width:min(320px,78vw);
+  z-index:80;
+  padding:8px;
+  border:1px solid #d0d5dd;
+  border-radius:7px;
+  background:#fff;
   color:#475467;
   font-size:10px;
   line-height:1.4;
+  box-shadow:0 12px 28px rgba(15,23,42,.16);
 }
+body.cockpit-ui .cockpit-todo-info[open] .cockpit-info-body{display:block}
 body.cockpit-ui .cockpit-info-body > div + div{margin-top:5px}
 body.cockpit-ui .cockpit-todo-item .cockpit-decision-row{
   margin-top:5px;

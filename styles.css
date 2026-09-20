@@ -1570,8 +1570,17 @@ body.cockpit-ui .cockpit-test-row:has(.radiology-grid) .test-name-wrap{
 body.cockpit-ui .cockpit-radiology-identity{
   grid-area:name;
   display:flex;
+  align-items:center;
   gap:4px;
   min-width:0;
+}
+body.cockpit-ui .cockpit-radiology-prefix{
+  flex:0 0 auto;
+  font-size:10px;
+  line-height:1;
+  font-weight:850;
+  color:#475467;
+  white-space:nowrap;
 }
 body.cockpit-ui .cockpit-radiology-identity select,
 body.cockpit-ui .cockpit-radiology-identity input{

@@ -70,3 +70,14 @@ Deno.test("clinical text inventory includes diagnoses and structured radiology f
     if (!keys.has(key)) throw new Error(`Missing clinical text key: ${key}`);
   }
 });
+
+
+Deno.test("clinical text inventory includes free-text arrival details", () => {
+  const items = clinicalTextItems({
+    arrivalOther: "Név: Kovács János, saját autóval",
+  });
+  const item = items.find((entry) => entry.key === "arrivalOther");
+  if (!item) throw new Error("Missing arrivalOther in clinical text inventory");
+  const scrubbed = ruleBasedDeidentify(item.text);
+  if (!scrubbed.text.includes("[PERSON]")) throw new Error(scrubbed.text);
+});

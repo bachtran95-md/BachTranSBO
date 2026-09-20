@@ -126,7 +126,7 @@ function persist() {
   stateDirty = true;
 }
 
-async function persistNow() {
+async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
   if (!backendReady || !state.shift) return { removed: 0, report: null };
 
   const patient = patientById(selectedPatientId);
@@ -135,10 +135,18 @@ async function persistNow() {
     return { removed: 0, report: null };
   }
 
-  const result = await window.BachSBOBackend.savePatient(
-    state.shift.id,
-    patient
-  );
+  const previousSilentAutosave = Boolean(window.__sboSilentAutosave);
+  if (silentAutosave) window.__sboSilentAutosave = true;
+
+  let result;
+  try {
+    result = await window.BachSBOBackend.savePatient(
+      state.shift.id,
+      patient
+    );
+  } finally {
+    window.__sboSilentAutosave = previousSilentAutosave;
+  }
   stateDirty = false;
 
   if (result?.patient?.id === patient.id) {
@@ -147,7 +155,7 @@ async function persistNow() {
     // The browser form is updated to the same de-identified representation
     // that was permanently stored. Raw identifiers are not kept as the
     // operational in-memory version after an explicit save.
-    if (currentView === "patients" && selectedPatientId === patient.id) {
+    if (reloadForm && currentView === "patients" && selectedPatientId === patient.id) {
       loadPatientForm();
     }
   }
@@ -1379,6 +1387,14 @@ function collectForm() {
   return patient;
 }
 
+async function autosaveCurrentCase() {
+  const patient = collectForm();
+  if (!patient || isCompleted(patient)) return { skipped: true };
+
+  stateDirty = true;
+  return persistNow({ reloadForm: false, silentAutosave: true });
+}
+
 async function savePatient() {
   const patient = collectForm();
   if (!patient) return;
@@ -2213,6 +2229,7 @@ async function applyAcceptedExtraction(caseId, items) {
 window.BachSBOClinicalUi = Object.freeze({
   applyAcceptedExtraction,
   applyCaseMetadata,
+  autosaveCurrentCase,
   getCaseMetadata,
   saveCaseMetadata
 });

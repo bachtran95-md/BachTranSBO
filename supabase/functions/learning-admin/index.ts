@@ -73,6 +73,7 @@ async function overview(db: any, ownerId: string) {
     corpusResult,
     skillResult,
     profilesResult,
+    coachRunsResult,
     suggestionsResult,
   ] = await Promise.all([
     db.from("summary_revisions")
@@ -101,6 +102,14 @@ async function overview(db: any, ownerId: string) {
       .order("version", { ascending: false })
       .limit(10),
 
+    db.from("style_coach_runs")
+      .select(
+        "id, candidate_profile_id, source_revision_count, official_rule_count, corpus_maturity, analysis_text, candidate_profile_text, status, model, generated_at, reviewed_at",
+      )
+      .eq("owner_id", ownerId)
+      .order("generated_at", { ascending: false })
+      .limit(10),
+
     db.from("skill_suggestions")
       .select(
         "id, base_skill_version, source_revision_count, suggestion_text, status, model, generated_at, reviewed_at",
@@ -115,6 +124,7 @@ async function overview(db: any, ownerId: string) {
     corpusResult,
     skillResult,
     profilesResult,
+    coachRunsResult,
     suggestionsResult,
   ]) {
     if (result.error) throw result.error;
@@ -132,6 +142,7 @@ async function overview(db: any, ownerId: string) {
     corpusRevisions,
     activeSkill: skillResult.data || null,
     styleProfiles: profilesResult.data || [],
+    styleCoachRuns: coachRunsResult.data || [],
     skillSuggestions: suggestionsResult.data || [],
   };
 }

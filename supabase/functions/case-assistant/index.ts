@@ -498,15 +498,8 @@ async function latestAssistantState(
 
   if (itemError) throw itemError;
 
-  return {
-    run: {
-      id: run.id,
-      model: run.model,
-      generatedAt: run.generated_at,
-      sourceCount: run.source_count,
-      caseFingerprint: run.case_fingerprint,
-    },
-    suggestions: (items || []).map((item: any) => ({
+  const mappedItems = (items || [])
+    .map((item: any) => ({
       id: item.id,
       itemKey: item.item_key,
       priority: item.priority,
@@ -517,7 +510,21 @@ async function latestAssistantState(
       sources: item.sources || [],
       doctorDecision: item.doctor_decision,
       decidedAt: item.decided_at,
-    })),
+    }))
+    .sort((a: any, b: any) => {
+      const order: Record<string, number> = { now: 0, next: 1, consider: 2 };
+      return (order[a.priority] ?? 9) - (order[b.priority] ?? 9);
+    });
+
+  return {
+    run: {
+      id: run.id,
+      model: run.model,
+      generatedAt: run.generated_at,
+      sourceCount: run.source_count,
+      caseFingerprint: run.case_fingerprint,
+    },
+    suggestions: mappedItems,
     stale: Boolean(
       currentFingerprint &&
         run.case_fingerprint &&

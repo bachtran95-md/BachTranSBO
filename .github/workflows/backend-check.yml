@@ -27,6 +27,7 @@ jobs:
           node --check app.js
           node --check backend.js
           node --check config.js
+          node --check case-ui.js
           node --check cockpit.js
           node --check cockpit-beta.js
 
@@ -40,11 +41,15 @@ jobs:
             echo "Clinical app.js must not persist data in localStorage."
             exit 1
           fi
-          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.delete|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.delete' config.js app.js backend.js cockpit.js cockpit-beta.js; then
+          if grep -q "MutationObserver\|document\.\|addEventListener\|setInterval" config.js; then
+            echo "config.js must remain configuration-only."
+            exit 1
+          fi
+          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.delete|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.delete' config.js case-ui.js app.js backend.js cockpit.js cockpit-beta.js; then
             echo "Browser code must not delete cases directly; use clinical-store delete_case."
             exit 1
           fi
-          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.update|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.update' config.js app.js backend.js cockpit.js cockpit-beta.js; then
+          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.update|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.update' config.js case-ui.js app.js backend.js cockpit.js cockpit-beta.js; then
             echo "Browser code must not update cases directly; use clinical-store."
             exit 1
           fi

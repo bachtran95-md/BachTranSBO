@@ -351,6 +351,48 @@ async function activate(db: any, ownerId: string, profileId: string) {
   return { activeProfile: activated };
 }
 
+async function rejectCandidate(db: any, ownerId: string, profileId: string) {
+  if (!profileId) throw new Error("profileId is required.");
+
+  const { data: owned, error: ownedError } = await db
+    .from("style_profiles")
+    .select("id, version, is_active")
+    .eq("id", profileId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (ownedError) throw ownedError;
+  if (!owned) throw new Error("Style profile not found.");
+  if (owned.is_active) {
+    throw new Error("An active style profile cannot be rejected.");
+  }
+
+  const reviewedAt = new Date().toISOString();
+  const { data: reviewed, error: reviewError } = await db
+    .from("style_coach_runs")
+    .update({
+      status: "rejected",
+      reviewed_at: reviewedAt,
+    })
+    .eq("owner_id", ownerId)
+    .eq("candidate_profile_id", profileId)
+    .eq("status", "pending")
+    .select("id,status,reviewed_at")
+    .maybeSingle();
+
+  if (reviewError) throw reviewError;
+  if (!reviewed) {
+    throw new Error("No pending Style Coach review exists for this candidate.");
+  }
+
+  return {
+    profileId,
+    version: owned.version,
+    status: reviewed.status,
+    reviewedAt: reviewed.reviewed_at,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -370,6 +412,10 @@ Deno.serve(async (req) => {
 
     if (action === "activate") {
       return json(await activate(db, user.id, String(body?.profileId || "")));
+    }
+
+    if (action === "reject") {
+      return json(await rejectCandidate(db, user.id, String(body?.profileId || "")));
     }
 
     return json({ error: "Unknown action." }, 400);

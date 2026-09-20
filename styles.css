@@ -990,3 +990,25 @@ body.cockpit-ui .cockpit-stale-banner{
     grid-template-columns:270px minmax(0,1fr);
   }
 }
+
+
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(2)::after{
+  content:"–";
+  margin-left:3px;
+  color:#98a2b3;
+  font-weight:700;
+}
+body.cockpit-ui .cockpit-status-hidden{display:none!important}
+body.cockpit-ui .cockpit-status-more{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:20px;
+  height:18px;
+  padding:0 4px;
+  border-radius:999px;
+  background:#f2f4f7;
+  color:#667085;
+  font-size:9px;
+  font-weight:800;
+}

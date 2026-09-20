@@ -8,7 +8,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [ ] Add browser-level smoke test covering login → load existing cases → add case → delete synthetic case → reload before re-enabling cockpit UI.
 
 - [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v3.
-- [ ] Compare deployed `generate-summary` with repo source so production-only logic is not lost.
+- [x] Compare deployed `generate-summary` with repo source and sync the production source back into GitHub.
 - [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).
 - [x] Add optional paste-text input for physician notes / Heidi text (preview UI implemented on `ui-compact-cockpit`).
 - [x] Call `case-assistant` to extract only explicitly documented facts (wired on `ui-compact-cockpit`).
@@ -21,7 +21,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Preserve Generate Summary → edit → Finalize Summary as the authoritative documentation path; Assistant state is separate.
 - [ ] Test that AI failure never destroys or overwrites clinician-entered data.
 
-## NEXT — source-of-truth / privacy cleanup
+## NEXT — source-of-truth / privacy cleanup\n\nSee `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
 
 - [ ] Reconcile production Supabase migrations with GitHub `main`.
 - [ ] Commit production-only Edge Function source, especially `case-assistant` and `backend-diagnostics`.
@@ -29,9 +29,9 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [ ] Move direct clinical free-text updates in `config.js` behind `clinical-store`.
 - [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
 - [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
-- [ ] Confirm whether `case_patch.js` is dead code, then remove or integrate it.
-- [ ] Update stale GitHub Pages URLs and outdated privacy/learning documentation.
-- [ ] Close/delete the Codex write-test PR/branch when no longer needed.
+- [x] Confirm `case_patch.js` is dead code and remove it.
+- [x] Update stale GitHub Pages URLs.\n- [ ] Reconcile remaining outdated privacy/learning documentation with production behavior.
+- [x] Close the Codex write-test PR.\n- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
 
 ## LATER — learning / production hardening
 

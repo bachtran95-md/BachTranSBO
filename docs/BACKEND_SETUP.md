@@ -78,7 +78,7 @@ The frontend uses the configured single-owner Supabase email/password account. P
 In Auth settings:
 
 1. enable Email,
-2. add `https://report0101.github.io/BachTranSBO/` as an allowed redirect URL,
+2. add `https://bachtran95-md.github.io/BachTranSBO/` as an allowed redirect URL,
 3. use the personal email account intended for BachTranSBO,
 4. after the owner account exists, disable public new-user signups for this personal app,
 5. copy the owner's Auth user UUID for the `APP_OWNER_USER_ID` secret.
@@ -96,7 +96,7 @@ supabase secrets set SUMMARY_MODEL=gpt-5.6-terra
 supabase secrets set EMBEDDING_MODEL=text-embedding-3-small
 supabase secrets set STYLE_MODEL=gpt-5.6-luna
 supabase secrets set SKILL_ANALYSIS_MODEL=gpt-5.6-luna
-supabase secrets set APP_ORIGIN=https://report0101.github.io
+supabase secrets set APP_ORIGIN=https://bachtran95-md.github.io
 supabase secrets set APP_OWNER_USER_ID=YOUR_SUPABASE_AUTH_USER_UUID
 ```
 
@@ -220,8 +220,8 @@ Supabase migrations, Edge Function source, and project docs are not placed in th
 
 For this repository:
 
-- App URL / Auth redirect: `https://report0101.github.io/BachTranSBO/`
-- CORS `APP_ORIGIN`: `https://report0101.github.io`
+- App URL / Auth redirect: `https://bachtran95-md.github.io/BachTranSBO/`
+- CORS `APP_ORIGIN`: `https://bachtran95-md.github.io`
 
 CORS origin must not include `/BachTranSBO/`; browser Origin headers contain only scheme + host (+ port).
 

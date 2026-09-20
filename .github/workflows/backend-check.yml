@@ -84,6 +84,7 @@ jobs:
           deno check supabase/functions/analyze-skill/index.ts
           deno check supabase/functions/learning-admin/index.ts
           deno check supabase/functions/case-assistant/index.ts
+          deno check supabase/functions/backend-diagnostics/index.ts
 
       - name: Run privacy regression tests
         run: |

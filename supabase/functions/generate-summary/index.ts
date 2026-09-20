@@ -232,9 +232,10 @@ async function similarCases(
 ) {
   try {
     const embedded = await createEmbedding(JSON.stringify(clinicalCase));
-    const { data, error } = await db.rpc("match_finalized_cases", {
+    const { data, error } = await db.rpc("match_approved_finalized_cases", {
       p_owner_id: ownerId,
       p_query_embedding: embedded.embedding,
+      p_embedding_model: embedded.model,
       p_exclude_case_id: caseId,
       p_match_count: 4,
     });
@@ -349,6 +350,16 @@ Deno.serve(async (req) => {
 
     if (styleError) throw styleError;
 
+    const { data: documentationRules, error: documentationRulesError } = await db
+      .from("documentation_rules")
+      .select("code, category, prompt_text, priority")
+      .eq("is_active", true)
+      .eq("allow_clinical_inference", false)
+      .order("priority", { ascending: false })
+      .limit(12);
+
+    if (documentationRulesError) throw documentationRulesError;
+
     const clinicalCase = casePayload(caseRow, tests || []);
     const examples = await similarCases(db, user.id, caseId, clinicalCase);
 
@@ -362,6 +373,12 @@ Deno.serve(async (req) => {
           String(example.finalized_text || ""),
         ].join("\n")).join("\n\n")
       : "(No similar finalized examples available yet.)";
+
+    const officialRulesBlock = (documentationRules || []).length
+      ? (documentationRules || []).map((rule: any) =>
+          `[${rule.code}] ${String(rule.prompt_text || "").trim()}`
+        ).join("\n")
+      : "(No active official documentation rules.)";
 
     const prompt = [
       "You are generating the final clinical documentation draft for BachTranSBO.",
@@ -377,6 +394,12 @@ Deno.serve(async (req) => {
       "",
       "=== WRITING STYLE PROFILE ===",
       style?.profile_text || "(No active style profile yet.)",
+      "",
+      "=== OFFICIAL DOCUMENTATION QUALITY RULES ===",
+      "These rules improve structure, completeness, continuity and readability ONLY.",
+      "They must NEVER be used to infer, recommend, or add any clinical fact, diagnosis, result, treatment, medication, consultation, advice, follow-up, or disposition that is absent from the CURRENT case.",
+      "When a rule refers to information that is not present in the current case, simply do not add it.",
+      officialRulesBlock,
       "",
       "=== SIMILAR DOCTOR-APPROVED CASES ===",
       "Use these only as style/structure examples. Never copy patient-specific facts from them into the current case.",
@@ -411,6 +434,7 @@ Deno.serve(async (req) => {
       model: generated.model,
       skillVersion: String(skill.version),
       styleVersion: style ? String(style.version) : null,
+      officialRulesUsed: (documentationRules || []).map((x: any) => x.code),
       similarCasesUsed: examples.map((x: any) => ({
         caseId: x.case_id,
         revisionId: x.revision_id,

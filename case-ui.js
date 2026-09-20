@@ -563,9 +563,9 @@
 
     const originalSavePatient = backend.savePatient;
     if (typeof originalSavePatient === "function") {
-      backend.savePatient = function patchedSavePatient(shiftId, patient) {
+      backend.savePatient = function patchedSavePatient(shiftId, patient, options = {}) {
         mergeInlineDetailsIntoPatient(patient);
-        const silentAutosave = Boolean(window.__sboSilentAutosave);
+        const silentAutosave = Boolean(options?.silentAutosave);
         if (!silentAutosave && !validateDischargeCondition(patient)) {
           return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
         }

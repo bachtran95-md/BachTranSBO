@@ -223,6 +223,10 @@ textarea{min-height:92px;resize:vertical}
 .learning-metric{padding:16px 18px}
 .learning-number{font-size:30px;font-weight:850;margin-top:4px}
 .learning-number.small{font-size:18px}
+.learning-corpus-card{margin-bottom:18px}
+#corpusReviewList{max-height:520px;overflow:auto}
+.corpus-review-item{background:#fff}
+.corpus-finalized-text{max-height:180px;overflow:auto}
 .learning-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .learning-item{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
 .learning-item:last-child{margin-bottom:0}

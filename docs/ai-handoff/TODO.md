@@ -7,12 +7,12 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Replace the cockpit MutationObserver with an observer-free event/timer model in isolated `/beta.html`; stable `/` remains default.
 - [x] Add browser-level Chromium smoke test covering login → load existing cases → add case → delete synthetic case → reload, plus beta load.
 
-- [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v3.
+- [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v4.
 - [x] Compare deployed `generate-summary` with repo source and sync the production source back into GitHub.
-- [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).
-- [x] Add optional paste-text input for physician notes / Heidi text (preview UI implemented on `ui-compact-cockpit`).
-- [x] Call `case-assistant` to extract only explicitly documented facts (wired on `ui-compact-cockpit`).
-- [x] Show an extraction preview with evidence/traceability before applying anything (wired on `ui-compact-cockpit`).
+- [x] Define the Summary Assistant UI inside/next to the Case Summary section; it is available in the isolated `/beta.html` cockpit.
+- [x] Add optional paste-text input for physician notes / Heidi text in the beta cockpit.
+- [x] Call `case-assistant` to extract only explicitly documented facts in the beta cockpit.
+- [x] Show an extraction preview with evidence/traceability before applying anything in the beta cockpit.
 - [ ] Persist/apply explicitly accepted extracted items to the correct clinical fields; current branch only records local Accept/Ignore UI decisions and never auto-overwrites.
 - [ ] Show missing/conflicting/unresolved information that may affect documentation.
 - [x] Keep investigation suggestions in the separate Case Assistant rail/to-do list, never in documented/ordered test fields.
@@ -23,7 +23,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## NEXT — source-of-truth / privacy cleanup
 
-See `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
+`docs/AUDIT_2026-09-20.md` is the historical audit; the hardening section in `PROJECT_STATE.md` is the current source of truth and the arrival gap is fixed.
 
 - [x] Reconcile the current late production Supabase migration history with GitHub `main`.
 - [x] Commit/sync production Edge Function source needed for the current runtime, including `case-assistant`, `generate-summary`, and `backend-diagnostics`.

@@ -879,6 +879,16 @@ function renderAllTests(patient) {
   refreshSummaryControls(patient);
 }
 
+function applyTestCardUiHook(card, context = {}) {
+  const hook = window.BachSBOUiHooks?.decorateTestCard;
+  if (typeof hook !== "function" || !card) return;
+  try {
+    hook(card, context);
+  } catch (error) {
+    console.error("Test-card UI hook failed; using stable card renderer.", error);
+  }
+}
+
 function modeDots(entry) {
   const status = entryStatus(entry);
   const waiting = uiLang === "hu" ? "Eredményre vár" : "Waiting for result";
@@ -952,6 +962,8 @@ function makeSimpleCard(label, entry, key, isGas = false) {
     </div>
   `;
 
+  applyTestCardUiHook(card, { kind: "simple", key, entry });
+
   const deleteButton = card.querySelector("[data-delete-test]");
   if (deleteButton) {
     deleteButton.onclick = () => {
@@ -1005,6 +1017,8 @@ function renderDynamicCards(hostId, entries, label, prefix, placeholder) {
         </button>
       </div>
     `;
+
+    applyTestCardUiHook(card, { kind: "dynamic", key, entry });
 
     host.appendChild(card);
 
@@ -1110,6 +1124,7 @@ function renderRadiologyCards(patient) {
         refreshSummaryControls(patient);
       };
     }
+    applyTestCardUiHook(card, { kind: "radiology", key, entry });
     host.appendChild(card);
     wireCard(card, entry, key);
   });

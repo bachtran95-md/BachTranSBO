@@ -763,6 +763,13 @@
   function install() {
     if (window.__inlineCaseEditorInstalled) return;
     window.__inlineCaseEditorInstalled = true;
+
+    // If Beta provides a native inline editor, wire it immediately so
+    // Age/YOB/Arrival work before any timer, observer, or case-selection click.
+    ensureUi();
+    installBackendPayloadBridge();
+    enhanceSexUi();
+
     setTimeout(() => window.applyLanguage?.("hu"), 250);
     setTimeout(() => window.applyLanguage?.("hu"), 900);
     new MutationObserver(() => {

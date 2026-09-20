@@ -200,6 +200,20 @@ The extraction preview does **not** yet write accepted items back into clinical 
 
 Delete Case has now been moved behind the authenticated `clinical-store` Edge Function via a `delete_case` action. Browser code no longer issues direct case DELETE queries. Production foreign keys for `test_entries`, `summaries`, and `summary_revisions` use ON DELETE CASCADE. A synthetic production-database add/delete test verified case creation, deletion, all three cascades, and zero retained synthetic rows. GitHub Backend checks pass with a new invariant that rejects direct browser case deletion.
 
+## Production incident — cockpit UI rollback (2026-09-20)
+
+After PR #2 was merged, the new `cockpit.js` layer caused the production page to become unresponsive before the normal login flow could be used. The likely root cause is a self-triggering `MutationObserver`: it watches `childList`/class/disabled mutations while its callback rewrites text/classes/disabled states, creating a mutation feedback loop.
+
+Immediate recovery completed:
+
+- production data was checked directly in Supabase and remained intact: 1 active shift, 8 active-shift cases, 7 summaries, 15 revisions;
+- `cockpit.js` was disabled in `index.html` by hotfix commit `fb90248a90d99eebd5691aa9254520a69478bfd3`;
+- the pre-cockpit clinical UI/login flow is active again;
+- secure server-side Delete Case remains in place via `clinical-store/delete_case`;
+- GitHub Backend checks and GitHub Pages deployment both passed after the hotfix.
+
+Do not re-enable `cockpit.js` on production until its observer/event model is rewritten and browser-level login/state-load/add/delete regression tests pass.
+
 ## Resume here
 
 **Start with AI Assistance in the Summary workflow.**

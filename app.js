@@ -1116,8 +1116,10 @@ function wireCard(card, entry, key) {
   function refreshVisual() {
     const status = entryStatus(entry);
 
-    card.className =
-      `test-card ${status === "result" ? "result" : status === "notordered" ? "notordered" : ""}`;
+    // Preserve UI-extension classes such as Beta's cockpit-test-row while
+    // updating only state classes. Resetting className caused layout flicker.
+    card.classList.toggle("result", status === "result");
+    card.classList.toggle("notordered", status === "notordered");
 
     const statusEl = card.querySelector(".test-status");
     if (statusEl) statusEl.outerHTML = statusBadge(status);

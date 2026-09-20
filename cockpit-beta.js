@@ -6,6 +6,8 @@
   let activeTab = "clinical";
   let lastSelectedCaseId = "";
   let assistantBusy = false;
+  let assistantLoadToken = 0;
+  const assistantStateByCase = new Map();
 
   const label = (en, hu) => {
     const huActive =
@@ -127,7 +129,7 @@
             <strong id="cockpitAssistantTitle">🩺 Case Assistant</strong>
             <div class="cockpit-rail-sub" id="cockpitAssistantSub"></div>
           </div>
-          <span class="cockpit-ai-badge">AI</span>
+          <span class="cockpit-ai-badge">AI · <span id="cockpitAssistantCount">0</span></span>
         </div>
         <div class="cockpit-rail-body">
           <button class="btn primary cockpit-wide-btn" id="cockpitAnalyzeCase" type="button"></button>
@@ -295,17 +297,21 @@
     try {
       assistantBusy = true;
       syncRailState();
-      if (status) status.textContent = label("Analyzing current case…", "Aktuális eset elemzése…");
+      if (status) status.textContent = label("Refreshing assistant…", "Asszisztens frissítése…");
       const patient = await selectedPatient();
       if (!patient) throw new Error(label("Select an active case first.", "Először válasszon aktív esetet."));
       if (!window.BachSBOBackend?.caseAssistantSuggest) {
         throw new Error(label("Case Assistant frontend bridge is unavailable.", "A Case Assistant frontend kapcsolat nem érhető el."));
       }
       const response = await window.BachSBOBackend.caseAssistantSuggest(patient);
+      assistantStateByCase.set(patient.id, response);
       renderAssistantResponse(response);
-      if (status) status.textContent = response?.model
-        ? label(`Completed with ${response.model}`, `Elkészült: ${response.model}`)
-        : label("Analysis complete.", "Elemzés kész.");
+      if (status) {
+        status.textContent = label(
+          "Updated. Suggestions are advisory only.",
+          "Frissítve. A javaslatok kizárólag döntéstámogatók."
+        );
+      }
     } catch (error) {
       if (status) status.textContent = error?.message || label("Analysis failed.", "Elemzés sikertelen.");
       if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || "Analysis failed.")}</div>`;
@@ -315,50 +321,162 @@
     }
   }
 
+  function decisionUiValue(value) {
+    if (value === "already_done") return "done";
+    if (value === "not_applicable") return "na";
+    return value || "pending";
+  }
+
+  function priorityMeta(priority) {
+    if (priority === "now") return { icon: "●", label: "NOW" };
+    if (priority === "next") return { icon: "●", label: "NEXT" };
+    return { icon: "○", label: "CONSIDER" };
+  }
+
+  async function saveAssistantDecision(button) {
+    const item = button.closest(".cockpit-todo-item");
+    const caseId = selectedCaseId();
+    const itemId = item?.dataset.itemId || "";
+    const decision = button.dataset.decision || "";
+    if (!caseId || !itemId || !decision || assistantBusy) return;
+
+    const row = button.closest(".cockpit-decision-row");
+    row?.querySelectorAll(".cockpit-decision").forEach((node) => {
+      node.disabled = true;
+    });
+
+    try {
+      const updated = await window.BachSBOBackend.caseAssistantDecide(
+        caseId,
+        itemId,
+        decision
+      );
+      const cached = assistantStateByCase.get(caseId);
+      const suggestion = cached?.suggestions?.find((entry) => entry.id === itemId);
+      if (suggestion) {
+        suggestion.doctorDecision = updated.doctorDecision;
+        suggestion.decidedAt = updated.decidedAt;
+      }
+      row?.querySelectorAll(".cockpit-decision").forEach((node) => {
+        node.classList.toggle(
+          "selected",
+          node.dataset.decision === decisionUiValue(updated.doctorDecision)
+        );
+      });
+    } catch (error) {
+      const status = document.getElementById("cockpitAssistantStatus");
+      if (status) status.textContent = error?.message || label("Could not save decision.", "A döntés mentése sikertelen.");
+    } finally {
+      row?.querySelectorAll(".cockpit-decision").forEach((node) => {
+        node.disabled = false;
+      });
+    }
+  }
+
   function renderAssistantResponse(response) {
     const results = document.getElementById("cockpitAssistantResults");
     if (!results) return;
-    const blocks = Array.isArray(response?.blocks) ? response.blocks : [];
-    if (!blocks.length) {
-      results.innerHTML = `<div class="subtle">${esc(label("No citable suggestion was returned.", "Nem érkezett hivatkozható javaslat."))}</div>`;
+
+    const suggestions = Array.isArray(response?.suggestions)
+      ? response.suggestions
+      : [];
+    const count = document.getElementById("cockpitAssistantCount");
+    if (count) count.textContent = String(suggestions.length);
+
+    if (!suggestions.length) {
+      results.innerHTML = `<div class="subtle cockpit-empty-ai">${esc(label(
+        "No saved assistant list yet. Run analysis for this case.",
+        "Ehhez az esethez még nincs mentett asszisztenslista. Indítsa el az elemzést."
+      ))}</div>`;
       return;
     }
 
-    results.innerHTML = blocks.map((block, index) => {
-      const citations = Array.isArray(block.citations) ? block.citations : [];
-      const sourceLinks = citations.map((citation) => {
-        const title = citation.title || citation.url || "Source";
-        const url = String(citation.url || "");
+    const stale = response?.stale
+      ? `<div class="cockpit-stale-banner">⚠ ${esc(label(
+          "Case changed since this list was generated. Refresh recommended.",
+          "Az eset adatai az elemzés óta változtak. Frissítés javasolt."
+        ))}</div>`
+      : "";
+
+    results.innerHTML = stale + suggestions.map((item) => {
+      const meta = priorityMeta(item.priority);
+      const decision = decisionUiValue(item.doctorDecision);
+      const missing = Array.isArray(item.missingInformation)
+        ? item.missingInformation
+        : [];
+      const sources = Array.isArray(item.sources) ? item.sources : [];
+      const sourceLinks = sources.map((source) => {
+        const url = String(source?.url || "");
         if (!url.startsWith("https://")) return "";
-        return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>`;
-      }).filter(Boolean).join(" · ");
+        const title = source?.organization || source?.title || url;
+        const jurisdiction = source?.jurisdiction
+          ? ` · ${esc(source.jurisdiction)}`
+          : "";
+        return `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>${jurisdiction}`;
+      }).filter(Boolean).join("<br>");
 
       return `
-        <article class="cockpit-ai-result">
-          <div class="cockpit-ai-result-head">
-            <strong>${esc(label("Clinical review", "Klinikai áttekintés"))} ${index + 1}</strong>
-            <span>${esc(label("Advisory", "Javaslat"))}</span>
+        <article class="cockpit-todo-item priority-${esc(item.priority || "consider")}" data-item-id="${esc(item.id || "")}">
+          <div class="cockpit-todo-main">
+            <span class="cockpit-priority">${meta.icon} ${meta.label}</span>
+            <strong class="cockpit-todo-title">${esc(item.title || "")}</strong>
+            <details class="cockpit-todo-info">
+              <summary title="${esc(label("Why / source", "Indoklás / forrás"))}">ⓘ</summary>
+              <div class="cockpit-info-body">
+                ${item.reason ? `<div><b>${esc(label("Why", "Miért"))}:</b> ${esc(item.reason)}</div>` : ""}
+                ${missing.length ? `<div><b>${esc(label("Missing", "Hiányzik"))}:</b> ${missing.map(esc).join("; ")}</div>` : ""}
+                ${sourceLinks ? `<div class="cockpit-ai-sources"><b>${esc(label("Source", "Forrás"))}:</b><br>${sourceLinks}</div>` : ""}
+              </div>
+            </details>
           </div>
-          <div class="cockpit-ai-prose">${esc(block.text || "").replaceAll("\n", "<br>")}</div>
-          ${sourceLinks ? `<div class="cockpit-ai-sources">${sourceLinks}</div>` : ""}
           <div class="cockpit-decision-row">
-            <button type="button" class="cockpit-decision yes">${esc(label("YES", "IGEN"))}</button>
-            <button type="button" class="cockpit-decision no">${esc(label("NO", "NEM"))}</button>
-            <button type="button" class="cockpit-decision done">${esc(label("DONE", "KÉSZ"))}</button>
-            <button type="button" class="cockpit-decision na">N/A</button>
+            <button type="button" data-decision="yes" class="cockpit-decision yes ${decision === "yes" ? "selected" : ""}">YES</button>
+            <button type="button" data-decision="no" class="cockpit-decision no ${decision === "no" ? "selected" : ""}">NO</button>
+            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
+            <button type="button" data-decision="na" class="cockpit-decision na ${decision === "na" ? "selected" : ""}">N/A</button>
           </div>
         </article>
       `;
     }).join("");
 
-    results.querySelectorAll(".cockpit-decision-row").forEach((row) => {
-      row.addEventListener("click", (event) => {
-        const button = event.target.closest(".cockpit-decision");
-        if (!button) return;
-        row.querySelectorAll(".cockpit-decision").forEach((item) => item.classList.remove("selected"));
-        button.classList.add("selected");
-      });
+    results.querySelectorAll(".cockpit-decision").forEach((button) => {
+      button.addEventListener("click", () => saveAssistantDecision(button));
     });
+  }
+
+  async function loadAssistantStateForCurrentCase() {
+    const id = selectedCaseId();
+    const results = document.getElementById("cockpitAssistantResults");
+    const status = document.getElementById("cockpitAssistantStatus");
+    if (!id) {
+      if (results) results.innerHTML = "";
+      return;
+    }
+
+    const token = ++assistantLoadToken;
+    const cached = assistantStateByCase.get(id);
+    if (cached) renderAssistantResponse(cached);
+    if (status) status.textContent = label("Loading saved assistant…", "Mentett asszisztens betöltése…");
+
+    try {
+      const patient = await selectedPatient();
+      if (!patient || token !== assistantLoadToken || selectedCaseId() !== id) return;
+      if (!window.BachSBOBackend?.caseAssistantGetState) {
+        throw new Error(label("Assistant state backend unavailable.", "Az asszisztens állapot backend nem érhető el."));
+      }
+      const response = await window.BachSBOBackend.caseAssistantGetState(patient);
+      if (token !== assistantLoadToken || selectedCaseId() !== id) return;
+      assistantStateByCase.set(id, response);
+      renderAssistantResponse(response);
+      if (status) {
+        status.textContent = response?.run
+          ? label("Saved list restored for this case.", "Az eset mentett listája visszatöltve.")
+          : label("No assistant list yet.", "Még nincs asszisztenslista.");
+      }
+    } catch (error) {
+      if (token !== assistantLoadToken) return;
+      if (status) status.textContent = error?.message || label("Could not load assistant state.", "Az asszisztens állapot betöltése sikertelen.");
+    }
   }
 
   async function extractPastedText() {
@@ -432,25 +550,110 @@
   }
 
   function enhancePatientRows() {
-    const rows = document.querySelectorAll("#patientTbody tr[data-id]");
-    rows.forEach((row) => {
-      const cells = row.querySelectorAll("td");
-      const statusCell = cells[4];
-      if (!statusCell) return;
-      let next = statusCell.querySelector(".cockpit-next-action");
-      if (!next) {
-        next = document.createElement("div");
-        next.className = "cockpit-next-action";
-        statusCell.appendChild(next);
-      }
-      const firstWait = statusCell.querySelector(".wait-chip")?.textContent?.trim();
-      const completed = row.classList.contains("completed");
-      next.textContent = completed
-        ? label("NEXT: completed", "KÖV.: lezárva")
-        : firstWait
-          ? label(`NEXT: ${firstWait}`, `KÖV.: ${firstWait}`)
-          : label("NEXT: review case", "KÖV.: eset áttekintése");
+    document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
+      row.classList.add("cockpit-compact-patient");
+      row.querySelectorAll(".cockpit-next-action").forEach((node) => node.remove());
     });
+  }
+
+  const wardOptions = [
+    "Belgyógyászat",
+    "Kardiológia",
+    "Gasztroenterológia",
+    "Infektológia",
+    "SBO",
+    "Sebészet",
+    "Neurológia",
+    "Idegsebészet",
+    "Nefrológia"
+  ];
+
+  function enhanceClinicalHeader() {
+    const host = document.getElementById("inlineCaseEditor");
+    if (!host) return;
+    host.classList.add("cockpit-demographics-inline");
+    document.getElementById("iceArrival")?.closest(".field")?.classList.add("cockpit-arrival-field");
+    document.getElementById("iceArrivalOtherWrap")?.classList.add("cockpit-arrival-other");
+    host.querySelector(":scope > .toolbar")?.classList.add("cockpit-demographics-toolbar");
+  }
+
+  function ensureWardPicker() {
+    const source = document.getElementById("fWard");
+    if (!source || document.getElementById("cockpitWardSelect")) return;
+    source.classList.add("cockpit-ward-source");
+
+    const select = document.createElement("select");
+    select.id = "cockpitWardSelect";
+    select.innerHTML =
+      `<option value="">—</option>` +
+      wardOptions.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("") +
+      `<option value="__other__">Egyéb</option>`;
+
+    const other = document.createElement("input");
+    other.id = "cockpitWardOther";
+    other.placeholder = "Egyéb osztály / részleg";
+    other.className = "hidden";
+
+    source.insertAdjacentElement("afterend", other);
+    source.insertAdjacentElement("afterend", select);
+
+    const writeBack = () => {
+      if (select.value === "__other__") {
+        other.classList.remove("hidden");
+        source.value = other.value.trim();
+      } else {
+        other.classList.add("hidden");
+        source.value = select.value;
+      }
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      source.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    select.addEventListener("change", writeBack);
+    other.addEventListener("input", writeBack);
+    syncWardPicker();
+  }
+
+  function syncWardPicker() {
+    const source = document.getElementById("fWard");
+    const select = document.getElementById("cockpitWardSelect");
+    const other = document.getElementById("cockpitWardOther");
+    if (!source || !select || !other) return;
+    if ([select, other].includes(document.activeElement)) return;
+
+    const value = String(source.value || "").trim();
+    if (!value) {
+      select.value = "";
+      other.value = "";
+      other.classList.add("hidden");
+      return;
+    }
+    if (wardOptions.includes(value)) {
+      select.value = value;
+      other.value = "";
+      other.classList.add("hidden");
+      return;
+    }
+    select.value = "__other__";
+    other.value = value;
+    other.classList.remove("hidden");
+  }
+
+  function enhanceDispositionUi() {
+    ensureWardPicker();
+    syncWardPicker();
+
+    const note = document.getElementById("fAdmissionNote");
+    if (note) {
+      note.placeholder = "Milyen állapotban, szállítás?";
+      const labelNode = note.closest(".field")?.querySelector("label");
+      if (labelNode) {
+        labelNode.textContent = label(
+          "Additional note — condition / transport?",
+          "Kiegészítő megjegyzés — milyen állapotban, szállítás?"
+        );
+      }
+    }
   }
 
   function syncCaseSelection() {
@@ -462,17 +665,11 @@
         button.classList.toggle("active", button.dataset.cockpitTab === activeTab);
       });
       applyTabVisibility();
-      const results = document.getElementById("cockpitAssistantResults");
-      const status = document.getElementById("cockpitAssistantStatus");
+
       const extraction = document.getElementById("cockpitExtractPreview");
-      if (results) {
-        results.innerHTML = `<div class="subtle cockpit-empty-ai">${esc(label(
-          "Run the assistant for this case. Suggestions never change the chart automatically.",
-          "Indítsa el az asszisztenst ehhez az esethez. A javaslatok nem módosítják automatikusan a dokumentációt."
-        ))}</div>`;
-      }
-      if (status) status.textContent = "";
       if (extraction) extraction.innerHTML = "";
+      enhanceDispositionUi();
+      loadAssistantStateForCurrentCase();
     }
   }
 
@@ -515,13 +712,29 @@
 
     createTabBar();
     makeRail();
+    enhanceClinicalHeader();
+    enhanceDispositionUi();
     syncCaseSelection();
     enhancePatientRows();
     syncRailState();
   }
 
   function installSync() {
-    document.addEventListener("input", syncRailState, true);
+    document.addEventListener("input", (event) => {
+      syncRailState();
+      const id = selectedCaseId();
+      if (
+        id &&
+        event.target?.closest?.("#patientForm") &&
+        !event.target?.closest?.("#cockpitAiRail")
+      ) {
+        const cached = assistantStateByCase.get(id);
+        if (cached?.run) {
+          cached.stale = true;
+          renderAssistantResponse(cached);
+        }
+      }
+    }, true);
     document.addEventListener("change", syncRailState, true);
     document.addEventListener("click", (event) => {
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {

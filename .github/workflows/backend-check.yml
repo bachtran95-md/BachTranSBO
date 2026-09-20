@@ -68,7 +68,7 @@ jobs:
             echo "New Supabase API keys require in-function JWT validation; gateway verify_jwt must stay false."
             exit 1
           fi
-          for f in clinical-store generate-summary analyze-style analyze-skill learning-admin; do
+          for f in clinical-store generate-summary analyze-style analyze-skill learning-admin case-assistant; do
             if ! grep -q "APP_OWNER_USER_ID" "supabase/functions/$f/index.ts"; then
               echo "$f is missing the single-owner authorization check."
               exit 1
@@ -83,6 +83,7 @@ jobs:
           deno check supabase/functions/analyze-style/index.ts
           deno check supabase/functions/analyze-skill/index.ts
           deno check supabase/functions/learning-admin/index.ts
+          deno check supabase/functions/case-assistant/index.ts
 
       - name: Run privacy regression tests
         run: |

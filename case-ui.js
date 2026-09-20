@@ -323,8 +323,13 @@
   function ensureUi() {
     const form = document.getElementById("patientForm");
     const main = document.getElementById("fMainComplaint");
-    if (!form || form.classList.contains("hidden") || !main) return false;
+    if (!form || !main) return false;
+
+    // Beta ships the demographics editor as native markup so it is always
+    // present in Klinikum. Wire that existing editor even while patientForm is
+    // still hidden; Stable has no static editor and keeps the old lazy behavior.
     let host = inlineHost();
+    if (form.classList.contains("hidden") && !host) return false;
     if (!host) {
       host = document.createElement("div");
       host.id = "inlineCaseEditor";

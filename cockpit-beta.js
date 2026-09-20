@@ -48,8 +48,12 @@
     const body = String(entry?.bodyPart || "").trim();
     const modality = String(entry?.modality || "").trim();
     const other = String(entry?.otherTest || "").trim();
-    if (modality === "other") return [body, other].filter(Boolean).join(" — ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
-    return [body, modality].filter(Boolean).join(" ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
+    const detail = modality === "other"
+      ? [body, other].filter(Boolean).join(" — ")
+      : [body, modality].filter(Boolean).join(" ");
+    return detail
+      ? `${label("Radiology", "Radiológia")} · ${detail}`
+      : `${label("Radiology", "Radiológia")} ${index + 1}`;
   }
 
   function patientTestItems(patient) {
@@ -1113,8 +1117,12 @@
     if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
       const identity = document.createElement("div");
       identity.className = "cockpit-radiology-identity";
+      const prefix = document.createElement("span");
+      prefix.className = "cockpit-radiology-prefix";
+      prefix.textContent = label("Radiology", "Radiológia");
       const first = radiologyGrid.firstElementChild;
       if (first) radiologyGrid.insertBefore(identity, first);
+      identity.appendChild(prefix);
       ["[data-body]", "[data-modality]", "[data-other]"].forEach((selector) => {
         const control = radiologyGrid.querySelector(`:scope > ${selector}`);
         if (control) identity.appendChild(control);
@@ -1304,9 +1312,30 @@
     other.classList.remove("hidden");
   }
 
+  function syncDischargeConditionVisual() {
+    const disposition = document.getElementById("fDisposition")?.value || "";
+    const wrap = document.getElementById("dischargeConditionWrap");
+    const field = document.getElementById("fDischargeCondition");
+    const state = document.getElementById("dischargeConditionState");
+    if (!wrap || !field || !state) return;
+
+    const visible = disposition === "discharged";
+    const complete = Boolean(String(field.value || "").trim());
+
+    wrap.classList.toggle("hidden", !visible);
+    wrap.classList.toggle("waiting", visible && !complete);
+    wrap.classList.toggle("result", visible && complete);
+
+    state.textContent = complete
+      ? label("COMPLETE", "KÉSZ")
+      : label("REQUIRED", "KÖTELEZŐ");
+    state.className = `field-state ${complete ? "result" : "waiting"}`;
+  }
+
   function enhanceDispositionUi() {
     ensureWardPicker();
     syncWardPicker();
+    syncDischargeConditionVisual();
 
     const note = document.getElementById("fAdmissionNote");
     if (note) {
@@ -1389,6 +1418,7 @@
 
   function installSync() {
     document.addEventListener("input", (event) => {
+      if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
       setTimeout(syncRailState, 0);
       const id = selectedCaseId();
       if (
@@ -1403,7 +1433,12 @@
         }
       }
     }, true);
-    document.addEventListener("change", () => setTimeout(syncRailState, 0), true);
+    document.addEventListener("change", (event) => {
+      if (event.target?.id === "fDisposition" || event.target?.id === "fDischargeCondition") {
+        syncDischargeConditionVisual();
+      }
+      setTimeout(syncRailState, 0);
+    }, true);
     document.addEventListener("click", (event) => {
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
         setTimeout(updateTabLabels, 0);

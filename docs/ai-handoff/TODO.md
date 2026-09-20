@@ -6,11 +6,11 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 - [ ] Inspect/export the currently deployed `case-assistant` source and reconcile it into GitHub before changing it.
 - [ ] Compare deployed `generate-summary` with repo source so production-only logic is not lost.
-- [ ] Define the Summary Assistant UI inside/next to the Case Summary section.
-- [ ] Add optional paste-text input for physician notes / Heidi text.
-- [ ] Call `case-assistant` to extract only explicitly documented facts.
-- [ ] Show an extraction preview with evidence/traceability before applying anything.
-- [ ] Allow doctor to accept/reject individual extracted items; never auto-overwrite case fields.
+- [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).
+- [x] Add optional paste-text input for physician notes / Heidi text (preview UI implemented on `ui-compact-cockpit`).
+- [x] Call `case-assistant` to extract only explicitly documented facts (wired on `ui-compact-cockpit`).
+- [x] Show an extraction preview with evidence/traceability before applying anything (wired on `ui-compact-cockpit`).
+- [ ] Persist/apply explicitly accepted extracted items to the correct clinical fields; current branch only records local Accept/Ignore UI decisions and never auto-overwrites.
 - [ ] Show missing/conflicting/unresolved information that may affect documentation.
 - [ ] Show investigation suggestions separately from documented/ordered tests.
 - [ ] Show therapy suggestions separately from therapy already administered.

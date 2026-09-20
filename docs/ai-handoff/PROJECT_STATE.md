@@ -198,6 +198,8 @@ Branch `ui-compact-cockpit` / draft PR #2 now contains the first merge of the ex
 
 The extraction preview does **not** yet write accepted items back into clinical fields. Case Assistant YES/NO/DONE/N/A choices are currently local UI decisions only; persistence and structured suggestion semantics should be designed before saving them.
 
+Delete Case has now been moved behind the authenticated `clinical-store` Edge Function via a `delete_case` action. Browser code no longer issues direct case DELETE queries. Production foreign keys for `test_entries`, `summaries`, and `summary_revisions` use ON DELETE CASCADE. A synthetic production-database add/delete test verified case creation, deletion, all three cascades, and zero retained synthetic rows. GitHub Backend checks pass with a new invariant that rejects direct browser case deletion.
+
 ## Resume here
 
 **Start with AI Assistance in the Summary workflow.**

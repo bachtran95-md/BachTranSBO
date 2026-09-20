@@ -1,24 +1,48 @@
 # Active TODO
 
-Keep this list short. Move completed work into `PROJECT_STATE.md` instead of allowing this file to become a long archive.
+Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` instead of turning this file into a historical log.
 
-## Now
+## NOW — AI Assistance for Summary
 
-- [ ] Run end-to-end testing against the real Supabase project.
-- [ ] Verify the deployed GitHub Pages frontend against the current backend.
-- [ ] Test the full path: case entry → de-identification → Generate Summary → doctor edit → Finalize Summary → finalized revision storage.
-- [ ] Validate retrieval/style-learning behavior using multiple de-identified finalized cases.
-- [ ] Verify failure handling for AI/API/Supabase errors without losing clinician-entered data.
+- [ ] Inspect/export the currently deployed `case-assistant` source and reconcile it into GitHub before changing it.
+- [ ] Compare deployed `generate-summary` with repo source so production-only logic is not lost.
+- [ ] Define the Summary Assistant UI inside/next to the Case Summary section.
+- [ ] Add optional paste-text input for physician notes / Heidi text.
+- [ ] Call `case-assistant` to extract only explicitly documented facts.
+- [ ] Show an extraction preview with evidence/traceability before applying anything.
+- [ ] Allow doctor to accept/reject individual extracted items; never auto-overwrite case fields.
+- [ ] Show missing/conflicting/unresolved information that may affect documentation.
+- [ ] Show investigation suggestions separately from documented/ordered tests.
+- [ ] Show therapy suggestions separately from therapy already administered.
+- [ ] Make it visually explicit that suggestions are advisory and require physician judgment.
+- [ ] Preserve the existing Generate Summary → edit → Finalize Summary path as authoritative.
+- [ ] Test that AI failure never destroys or overwrites clinician-entered data.
 
-## Next
+## NEXT — source-of-truth / privacy cleanup
 
-- [ ] Review production hardening: auth/session handling, RLS, Edge Function authorization, CORS/origin checks, rate/error handling.
-- [ ] Add lightweight operational monitoring/logging where useful without storing patient identifiers.
-- [ ] Keep documentation aligned with migrations and deployed Edge Functions.
+- [ ] Reconcile production Supabase migrations with GitHub `main`.
+- [ ] Commit production-only Edge Function source, especially `case-assistant` and `backend-diagnostics`.
+- [ ] Reconcile `summary-standardization-sync` with `main`.
+- [ ] Move direct clinical free-text updates in `config.js` behind `clinical-store`.
+- [ ] Move Delete Case to a server-authorized backend action.
+- [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
+- [ ] Confirm whether `case_patch.js` is dead code, then remove or integrate it.
+- [ ] Update stale GitHub Pages URLs and outdated privacy/learning documentation.
+- [ ] Close/delete the Codex write-test PR/branch when no longer needed.
+
+## LATER — learning / production hardening
+
+- [ ] Expose corpus approve/exclude review cleanly in AI Learning.
+- [ ] Run and review the new Style Coach workflow; currently there are no Style Coach runs.
+- [ ] Review/activate a style profile only after explicit human approval.
+- [ ] Enable Supabase leaked-password protection.
+- [ ] Run full end-to-end regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning.
+- [ ] Review auth/session, RLS, Edge Function authorization, CORS/origin, error handling and operational logging.
 
 ## Rules for agents
 
 - Do not mark an item complete unless it was actually verified.
-- Add newly discovered bugs here only if they are still unresolved at handoff.
-- Prefer one specific next action over a large speculative backlog.
-- Never store secrets or identifiable patient information here.
+- Never silently convert an AI suggestion into a clinical fact, diagnosis, ordered test, administered therapy, disposition, or finalized text.
+- Preserve evidence/traceability for extracted facts where feasible.
+- Never store secrets or identifiable patient information in handoff docs.
+- Keep `main` deployable and update `PROJECT_STATE.md` after meaningful milestones.

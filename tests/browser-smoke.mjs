@@ -438,6 +438,20 @@ if (/\+\d+/.test(pendingSummary)) {
   throw new Error(`Case list still truncates waiting tests with +N: ${pendingSummary}`);
 }
 
+// Beta case tabs must be five distinct workflow steps in the requested order.
+const tabOrder = await beta.locator("#cockpitCaseTabs [data-cockpit-tab]").evaluateAll((nodes) =>
+  nodes.map((node) => node.dataset.cockpitTab)
+);
+const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary"];
+if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
+  throw new Error(`Unexpected Beta tab order: ${JSON.stringify(tabOrder)}`);
+}
+
+// Klinikum demographics must be native-visible markup, not a late dynamic insertion.
+if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() !== 1) {
+  throw new Error("Klinikum demographics editor is not mounted in the Beta clinical section");
+}
+
 // Klinikum demographics must stay visible and editable.
 await beta.locator('[data-cockpit-tab="clinical"]').click();
 await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
@@ -452,6 +466,20 @@ const expectedYob = String(new Date().getFullYear() - 44);
 await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
+}
+
+// Section 2 wording and the dedicated third Therapy/Course tab.
+await beta.locator("#langHuBtn").click();
+await beta.waitForFunction(() =>
+  (document.querySelector('[data-cockpit-panel="tests"] .section-title')?.textContent || "").includes("Fizikális státusz és vizsgálatok")
+);
+
+await beta.locator('[data-cockpit-tab="course"]').click();
+await beta.locator('[data-cockpit-panel="course"]:not(.cockpit-panel-hidden)').waitFor();
+await beta.locator('[data-cockpit-panel="course"] #fTherapy').waitFor({ state: "visible" });
+await beta.locator('[data-cockpit-panel="course"] #fCourse').waitFor({ state: "visible" });
+if (await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)').count()) {
+  throw new Error("Tests panel remained visible while Therapy/Course tab was active");
 }
 
 // Regression from the uploaded recording: typing into a result must not remove

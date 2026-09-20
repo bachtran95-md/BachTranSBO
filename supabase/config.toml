@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.learning-admin]
 verify_jwt = false
+
+[functions.case-assistant]
+verify_jwt = false

@@ -234,8 +234,35 @@ const backendMock = String.raw`
     async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
     async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
     async caseAssistantExtract(_caseId, source) {
+      if (/troponin/i.test(source)) {
+        return {
+          source,
+          items: [{
+            target: "lab",
+            status: "result",
+            text: "Troponin 46 ng/L",
+            evidence: "Troponin 46 ng/L",
+            label: "Lab"
+          }],
+          warnings: []
+        };
+      }
+      if (/cardiology/i.test(source)) {
+        return {
+          source,
+          items: [{
+            target: "consultation",
+            status: "result",
+            text: "CCU admission recommended",
+            evidence: "CCU admission recommended",
+            label: "Cardiology consultation"
+          }],
+          warnings: []
+        };
+      }
       if (/hypertonia/i.test(source)) {
         return {
+          source,
           items: [{
             target: "history",
             status: "documented",
@@ -247,6 +274,7 @@ const backendMock = String.raw`
         };
       }
       return {
+        source,
         items: [{
           target: "complaint",
           status: "documented",
@@ -393,6 +421,17 @@ await page.evaluate(() => {
     entry.mode = "waiting";
     entry.text = "";
     entry.savedText = "";
+  }
+  if (p.tests?.labs?.[0]) {
+    p.tests.labs[0].mode = "waiting";
+    p.tests.labs[0].text = "";
+    p.tests.labs[0].savedText = "";
+  }
+  if (p.tests?.consultations?.[0]) {
+    p.tests.consultations[0].type = "Cardiology";
+    p.tests.consultations[0].mode = "waiting";
+    p.tests.consultations[0].text = "";
+    p.tests.consultations[0].savedText = "";
   }
   if (p.tests?.radiology?.[0]) {
     p.tests.radiology[0].bodyPart = "koponya";
@@ -551,11 +590,60 @@ if (!persistedComplaint.includes("mellkasi fájdalom")) {
   throw new Error("Accepted extracted complaint was not persisted");
 }
 
+await beta.locator("#cockpitPasteText").fill("Troponin 46 ng/L");
+await beta.locator("#cockpitExtractText").click();
+const labUpdate = beta.locator(".cockpit-extract-item", { hasText: "Troponin 46 ng/L" });
+await labUpdate.waitFor();
+if (!(await labUpdate.getAttribute("class")).includes("action-update")) {
+  throw new Error("Waiting Lab result was not classified as an update");
+}
+await labUpdate.locator(".cockpit-decision.yes").click();
+await beta.locator("#cockpitApplyAccepted").click();
+await beta.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  return state?.patients?.[0]?.tests?.labs?.[0]?.savedText === "Troponin 46 ng/L";
+});
+const labsAfterUpdate = await beta.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  return state?.patients?.[0]?.tests?.labs || [];
+});
+if (labsAfterUpdate.length !== 1 || labsAfterUpdate[0].id !== "30000000-0000-4000-8000-000000000001") {
+  throw new Error("Lab update created a duplicate card instead of preserving the waiting Lab identity");
+}
+
+await beta.locator("#cockpitPasteText").fill("Troponin 46 ng/L");
+await beta.locator("#cockpitExtractText").click();
+const duplicateLab = beta.locator(".cockpit-extract-item", { hasText: "Troponin 46 ng/L" });
+await duplicateLab.waitFor();
+if (!(await duplicateLab.getAttribute("class")).includes("action-duplicate")) {
+  throw new Error("Repeated Lab result was not classified as already documented");
+}
+if (!(await duplicateLab.locator(".cockpit-decision.yes").isDisabled())) {
+  throw new Error("Duplicate Lab result remained applicable");
+}
+
+await beta.locator("#cockpitPasteText").fill("Cardiology: CCU admission recommended");
+await beta.locator("#cockpitExtractText").click();
+const consultationUpdate = beta.locator(".cockpit-extract-item", { hasText: "CCU admission recommended" });
+await consultationUpdate.waitFor();
+if (!(await consultationUpdate.getAttribute("class")).includes("action-update")) {
+  throw new Error("Named consultation result was not matched to the waiting consultation");
+}
+await consultationUpdate.locator(".cockpit-decision.yes").click();
+await beta.locator("#cockpitApplyAccepted").click();
+await beta.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  return state?.patients?.[0]?.tests?.consultations?.[0]?.savedText === "CCU admission recommended";
+});
+
 await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
+if (!(await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).getAttribute("class")).includes("action-update")) {
+  throw new Error("Later patient history was not classified as an append update");
+}
 await beta.waitForFunction(() =>
   (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Conflicting timing in source")
 );

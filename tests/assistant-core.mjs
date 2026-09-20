@@ -46,6 +46,17 @@ const validated = core.validateProposal({
 }, "Anamnézis: hypertonia.");
 assert.equal(validated.items[0].target, "history");
 
+const reconciledHistory = core.reconcileItems({ ...patient, historySkipped: false }, validated.items)[0];
+assert.equal(reconciledHistory.action, "add");
+assert.equal(reconciledHistory.mode, "append");
+
+const duplicateHistory = core.reconcileItems({ ...patient, history: "Hypertonia" }, validated.items)[0];
+assert.equal(duplicateHistory.action, "duplicate");
+
+const skippedHistory = core.reconcileItems({ ...patient, historySkipped: true }, validated.items)[0];
+assert.equal(skippedHistory.action, "update");
+assert.equal(skippedHistory.currentStatus, "none");
+
 const appended = core.applyItems(patient, [{
   target: "complaint",
   status: "documented",
@@ -62,6 +73,67 @@ const replaced = core.applyItems(patient, [{
   mode: "replace"
 }], () => "uuid-2");
 assert.equal(replaced.complaint, "Replacement");
+
+const waitingLabResult = {
+  target: "lab",
+  status: "result",
+  text: "Troponin 46 ng/L",
+  evidence: "Troponin 46 ng/L",
+  label: "Lab"
+};
+const reconciledLab = core.reconcileItems(patient, [waitingLabResult])[0];
+assert.equal(reconciledLab.action, "update");
+assert.equal(reconciledLab.matchId, "lab-1");
+
+const updatedLabPatient = core.applyItems(patient, [reconciledLab], () => "unused");
+assert.equal(updatedLabPatient.tests.labs.length, 1);
+assert.equal(updatedLabPatient.tests.labs[0].id, "lab-1");
+assert.equal(updatedLabPatient.tests.labs[0].savedText, "Troponin 46 ng/L");
+
+const duplicateLab = core.reconcileItems(updatedLabPatient, [waitingLabResult])[0];
+assert.equal(duplicateLab.action, "duplicate");
+
+const ambiguousLabs = core.reconcileItems({
+  ...patient,
+  tests: {
+    ...patient.tests,
+    labs: [
+      { id: "lab-a", type: "", mode: "waiting", text: "", savedText: "" },
+      { id: "lab-b", type: "", mode: "waiting", text: "", savedText: "" }
+    ]
+  }
+}, [waitingLabResult])[0];
+assert.equal(ambiguousLabs.action, "conflict");
+
+const consultationPatient = {
+  ...patient,
+  tests: {
+    ...patient.tests,
+    consultations: [
+      { id: "consult-cardio", type: "Cardiology", mode: "waiting", text: "", savedText: "" },
+      { id: "consult-neuro", type: "Neurology", mode: "waiting", text: "", savedText: "" }
+    ]
+  }
+};
+const consultationUpdate = core.reconcileItems(consultationPatient, [{
+  target: "consultation",
+  status: "result",
+  text: "CCU admission recommended",
+  evidence: "CCU admission recommended",
+  label: "Cardiology consultation"
+}])[0];
+assert.equal(consultationUpdate.action, "update");
+assert.equal(consultationUpdate.matchId, "consult-cardio");
+
+const newHistory = core.reconcileItems({ ...patient, history: "Known hypertension", historySkipped: false }, [{
+  target: "history",
+  status: "documented",
+  text: "Takes apixaban at home",
+  evidence: "Takes apixaban at home",
+  label: "Medication history"
+}])[0];
+assert.equal(newHistory.action, "update");
+assert.equal(newHistory.mode, "append");
 
 assert.throws(() => core.applyItems({
   ...patient,

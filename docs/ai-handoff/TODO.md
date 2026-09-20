@@ -14,7 +14,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Call `case-assistant` to extract only explicitly documented facts in the beta cockpit.
 - [x] Show an extraction preview with evidence/traceability before applying anything in the beta cockpit.
 - [x] Persist/apply explicitly accepted extracted items via a two-step Accept → Apply Accepted flow in Beta; Append is default, Replace is explicit, stale-case apply is blocked, and persistence uses the existing privacy-gated save path.
-- [ ] Show missing/conflicting/unresolved information that may affect documentation.
+- [x] Show required, pending, missing, conflicting/warning information in the Beta Documentation Review panel.
 - [x] Keep investigation suggestions in the separate Case Assistant rail/to-do list, never in documented/ordered test fields.
 - [x] Keep therapy suggestions in the separate Case Assistant rail/to-do list, never in administered-therapy fields.
 - [x] Make Assistant suggestions advisory, priority-ranked, source-traceable, and physician-decided with persisted YES/NO/DONE/N/A state.
@@ -30,7 +30,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Reconcile the needed migration/runtime work without merging stale `summary-standardization-sync` wholesale.
 - [x] Move direct case metadata/free-text updates behind `clinical-store/update_case_metadata` and revoke authenticated browser UPDATE on `cases`.
 - [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
-- [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
+- [x] Refactor `config.js` back to configuration-only; runtime case UI logic now lives in `case-ui.js`, with a CI invariant preventing regression.
 - [x] Confirm `case_patch.js` is dead code and remove it.
 - [x] Update stale GitHub Pages URLs.
 - [ ] Continue pruning older documentation sections as features evolve; `PROJECT_STATE.md` hardening section is the current source of truth.
@@ -39,7 +39,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## LATER — learning / production hardening
 
-- [ ] Expose corpus approve/exclude review cleanly in AI Learning.
+- [x] Expose finalized corpus approve/exclude review in AI Learning through owner-scoped `learning-admin`; Chromium + rollback-only production verification passed.
 - [ ] Run and review the new Style Coach workflow; currently there are no Style Coach runs.
 - [ ] Review/activate a style profile only after explicit human approval.
 - [ ] Enable Supabase leaked-password protection.

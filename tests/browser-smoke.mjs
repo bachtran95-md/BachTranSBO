@@ -165,7 +165,24 @@ const backendMock = String.raw`
     },
     async appendSummaryRevision() { return { removed: 0, embedded: true }; },
     async generateSummary() { return { summary: "Mock summary", generatedAt: new Date().toISOString(), model: "mock", skillVersion: "1", similarCasesUsed: [] }; },
-    async caseAssistantSuggest(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
+    async caseAssistantSuggest(patient) {
+      return {
+        run: { id: "55555555-5555-4555-8555-555555555555" },
+        caseId: patient.id,
+        stale: false,
+        suggestions: [{
+          id: "66666666-6666-4666-8666-666666666666",
+          itemKey: "item-01",
+          priority: "next",
+          category: "missing_information",
+          title: "Allergy status unknown",
+          reason: "Medication allergy status is not documented.",
+          missingInformation: ["Gyógyszerallergia"],
+          sources: [],
+          doctorDecision: "pending"
+        }]
+      };
+    },
     async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
     async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
     async caseAssistantExtract(_caseId, source) {
@@ -178,7 +195,7 @@ const backendMock = String.raw`
             evidence: "hypertonia",
             label: "History"
           }],
-          warnings: []
+          warnings: ["Conflicting timing in source"]
         };
       }
       return {
@@ -287,6 +304,16 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
 await beta.locator("#cockpitPasteText").waitFor();
+await beta.locator("#cockpitDocumentationReview").waitFor();
+
+await beta.locator("#cockpitAnalyzeCase").click();
+await beta.waitForFunction(() =>
+  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Gyógyszerallergia")
+);
+const documentationAfterAssistant = await beta.locator("#cockpitDocumentationReview").textContent();
+if (!documentationAfterAssistant.includes("Gyógyszerallergia")) {
+  throw new Error("Documentation review did not surface assistant missing information");
+}
 
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
 await beta.locator("#cockpitExtractText").click();
@@ -312,6 +339,13 @@ await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
+await beta.waitForFunction(() =>
+  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Conflicting timing in source")
+);
+const documentationAfterWarning = await beta.locator("#cockpitDocumentationReview").textContent();
+if (!documentationAfterWarning.includes("Conflicting timing in source")) {
+  throw new Error("Documentation review did not surface extraction warning");
+}
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
 await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
 await beta.locator("#cockpitApplyAccepted").click();

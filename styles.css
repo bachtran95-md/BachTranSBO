@@ -1483,3 +1483,44 @@ body.cockpit-ui .cockpit-radiology-identity [data-other]:not(.hidden){flex-basis
       "result result result";
   }
 }
+
+body.cockpit-ui .cockpit-documentation-review{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+body.cockpit-ui .cockpit-doc-issue{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:6px;
+  align-items:start;
+  padding:5px 6px;
+  border:1px solid #e4e7ec;
+  border-radius:7px;
+  background:#fff;
+}
+body.cockpit-ui .cockpit-doc-kind{
+  white-space:nowrap;
+  font-size:8px;
+  font-weight:850;
+  color:#475467;
+}
+body.cockpit-ui .cockpit-doc-text{
+  min-width:0;
+  font-size:10px;
+  line-height:1.3;
+  color:#344054;
+}
+body.cockpit-ui .cockpit-doc-issue.kind-required{border-color:#fedf89;background:#fffaeb}
+body.cockpit-ui .cockpit-doc-issue.kind-pending{border-color:#b2ddff;background:#eff8ff}
+body.cockpit-ui .cockpit-doc-issue.kind-missing{border-color:#fec84b;background:#fff7ed}
+body.cockpit-ui .cockpit-doc-issue.kind-warning{border-color:#fecdca;background:#fef3f2}
+body.cockpit-ui .cockpit-doc-clear{
+  border:1px solid #abefc6;
+  border-radius:7px;
+  padding:6px;
+  background:#ecfdf3;
+  color:#067647;
+  font-size:10px;
+  font-weight:700;
+}

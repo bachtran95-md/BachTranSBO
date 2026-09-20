@@ -224,6 +224,19 @@
         </div>
       </div>
 
+      <div class="cockpit-rail-card cockpit-doc-review-card">
+        <div class="cockpit-rail-head">
+          <div>
+            <strong id="cockpitDocumentationTitle">🔎 Documentation review</strong>
+            <div class="cockpit-rail-sub" id="cockpitDocumentationSub"></div>
+          </div>
+          <span id="cockpitDocumentationCount" class="cockpit-summary-badge neutral">0</span>
+        </div>
+        <div class="cockpit-rail-body">
+          <div id="cockpitDocumentationReview" class="cockpit-documentation-review"></div>
+        </div>
+      </div>
+
       <div class="cockpit-rail-card">
         <div class="cockpit-rail-head">
           <div>
@@ -309,6 +322,14 @@
       "cockpitSummarySub",
       label("Confirmed facts only", "Csak dokumentált tények")
     );
+    set("cockpitDocumentationTitle", label("🔎 Documentation review", "🔎 Dokumentációs ellenőrzés"));
+    set(
+      "cockpitDocumentationSub",
+      label(
+        "Required, missing, pending and conflicting information. Review only; nothing is written from this panel.",
+        "Kötelező, hiányzó, függő és ellentmondásos információk. Csak ellenőrzés; ez a panel nem ír adatot."
+      )
+    );
     set("cockpitOpenSummary", label("OPEN", "MEGNYITÁS"));
     set("cockpitGenerateSummary", label("GENERATE", "GENERÁLÁS"));
     set("cockpitFinalizeSummary", label("FINALIZE SUMMARY", "ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE"));
@@ -371,6 +392,109 @@
     `;
   }
 
+  function documentationReviewEntries() {
+    const caseId = selectedCaseId();
+    if (!caseId) return [];
+
+    const entries = [];
+    const seen = new Set();
+    const add = (kind, text) => {
+      const normalized = String(text || "").trim();
+      if (!normalized) return;
+      const key = kind + "::" + normalized.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      entries.push({ kind, text: normalized });
+    };
+
+    const progress = progressFromVisibleForm() || patientProgressByCase.get(caseId) || null;
+    (progress?.incompleteClinical || []).forEach((item) =>
+      add("required", item.name)
+    );
+    (progress?.waitingTests || []).forEach((item) =>
+      add("pending", item.name)
+    );
+
+    const assistant = assistantStateByCase.get(caseId);
+    for (const item of assistant?.suggestions || []) {
+      if (item?.category === "missing_information") {
+        add("missing", item.title || item.reason);
+      }
+      for (const missing of item?.missingInformation || []) {
+        add("missing", missing);
+      }
+    }
+
+    if (extractionPreviewState?.caseId === caseId) {
+      for (const warning of extractionPreviewState.warnings || []) {
+        add("warning", warning);
+      }
+    }
+
+    return entries.slice(0, 18);
+  }
+
+  function documentationKindMeta(kind) {
+    const values = {
+      required: {
+        label: label("REQUIRED", "KÖTELEZŐ"),
+        icon: "○"
+      },
+      pending: {
+        label: label("PENDING", "FÜGGŐ"),
+        icon: "●"
+      },
+      missing: {
+        label: label("MISSING", "HIÁNYZIK"),
+        icon: "?"
+      },
+      warning: {
+        label: label("WARNING", "FIGYELEM"),
+        icon: "⚠"
+      }
+    };
+    return values[kind] || values.warning;
+  }
+
+  function renderDocumentationReview() {
+    const host = document.getElementById("cockpitDocumentationReview");
+    const count = document.getElementById("cockpitDocumentationCount");
+    if (!host || !count) return;
+
+    const caseId = selectedCaseId();
+    if (!caseId) {
+      count.textContent = "0";
+      count.className = "cockpit-summary-badge neutral";
+      host.innerHTML = `<div class="subtle cockpit-empty-ai">${esc(label(
+        "Select a case to review documentation gaps.",
+        "Válasszon esetet a dokumentációs hiányok ellenőrzéséhez."
+      ))}</div>`;
+      return;
+    }
+
+    const entries = documentationReviewEntries();
+    count.textContent = String(entries.length);
+    count.className = "cockpit-summary-badge " + (entries.length ? "blocked" : "ready");
+
+    if (!entries.length) {
+      host.innerHTML = `<div class="cockpit-doc-clear">✓ ${esc(label(
+        "No currently surfaced documentation gaps.",
+        "Jelenleg nincs jelzett dokumentációs hiány."
+      ))}</div>`;
+      return;
+    }
+
+    host.innerHTML = entries.map((entry) => {
+      const meta = documentationKindMeta(entry.kind);
+      return `
+        <div class="cockpit-doc-issue kind-${esc(entry.kind)}">
+          <span class="cockpit-doc-kind">${meta.icon} ${esc(meta.label)}</span>
+          <span class="cockpit-doc-text">${esc(entry.text)}</span>
+        </div>
+      `;
+    }).join("");
+  }
+
   function syncRailState() {
     const form = document.getElementById("patientForm");
     const tabs = document.getElementById("cockpitCaseTabs");
@@ -387,6 +511,7 @@
 
     if (analyze) analyze.disabled = !hasCase || assistantBusy;
     if (extract) extract.disabled = !hasCase || assistantBusy;
+    renderDocumentationReview();
 
     if (!hasCase) {
       if (badge) {
@@ -512,6 +637,7 @@
     const results = document.getElementById("cockpitAssistantResults");
     if (!results) return;
 
+    renderDocumentationReview();
     const suggestions = Array.isArray(response?.suggestions)
       ? response.suggestions
       : [];
@@ -758,7 +884,7 @@
     const validated = window.BachAssistantCore.validateProposal(response, sourceText);
     const items = validated.items;
     const warnings = validated.warnings;
-    extractionPreviewState = { caseId, items };
+    extractionPreviewState = { caseId, items, warnings };
 
     const itemHtml = items.map((item, index) => `
       <div class="cockpit-extract-item" data-index="${index}" data-decision="">
@@ -809,6 +935,7 @@
     });
 
     document.getElementById("cockpitApplyAccepted")?.addEventListener("click", applyAcceptedExtraction);
+    renderDocumentationReview();
     refreshExtractionApplyButton();
   }
 
@@ -1140,6 +1267,7 @@
       const extraction = document.getElementById("cockpitExtractPreview");
       if (extraction) extraction.innerHTML = "";
       extractionPreviewState = null;
+      renderDocumentationReview();
       enhanceDispositionUi();
       loadAssistantStateForCurrentCase();
     }

@@ -62,10 +62,15 @@
         name: /\bVVG\b/i.test(String(tests.gas.text || "")) ? "VVG" : "AVG"
       }] : []),
       ...(tests.radiology || []).map((entry, index) => ({ entry, name: radiologyLabel(entry, index) })),
-      ...(tests.consultations || []).map((entry, index) => ({
-        entry,
-        name: String(entry?.type || "").trim() || `${label("Consultation", "Konzílium")} ${index + 1}`
-      }))
+      ...(tests.consultations || []).map((entry, index) => {
+        const specialty = String(entry?.type || "").trim();
+        return {
+          entry,
+          name: specialty
+            ? `${label("Consultation", "Konzílium")} · ${specialty}`
+            : `${label("Consultation", "Konzílium")} ${index + 1}`
+        };
+      })
     ].map((item) => ({ ...item, status: testEntryStatus(item.entry) }));
   }
 
@@ -617,12 +622,16 @@
         suggestion.doctorDecision = updated.doctorDecision;
         suggestion.decidedAt = updated.decidedAt;
       }
+      const uiDecision = decisionUiValue(updated.doctorDecision);
       row?.querySelectorAll(".cockpit-decision").forEach((node) => {
-        node.classList.toggle(
-          "selected",
-          node.dataset.decision === decisionUiValue(updated.doctorDecision)
-        );
+        node.classList.toggle("selected", node.dataset.decision === uiDecision);
       });
+      if (item) {
+        ["yes", "no", "done", "na"].forEach((value) => {
+          item.classList.toggle("decision-" + value, value === uiDecision);
+        });
+        item.dataset.doctorDecision = uiDecision;
+      }
     } catch (error) {
       if (selectedCaseId() === caseId) {
         const status = document.getElementById("cockpitAssistantStatus");
@@ -685,7 +694,7 @@
       }).filter(Boolean).join("<br>");
 
       return `
-        <article class="cockpit-todo-item priority-${esc(item.priority || "consider")}" data-item-id="${esc(item.id || "")}">
+        <article class="cockpit-todo-item priority-${esc(item.priority || "consider")} ${decision !== "pending" ? "decision-" + esc(decision) : ""}" data-item-id="${esc(item.id || "")}" data-doctor-decision="${esc(decision)}">
           <div class="cockpit-todo-main">
             <span class="cockpit-priority">${meta.icon} ${meta.label}</span>
             <strong class="cockpit-todo-title">${esc(item.title || "")}</strong>
@@ -1050,7 +1059,7 @@
     }
   }
 
-  function decorateTestCard(card) {
+  function decorateTestCard(card, context = {}) {
     if (!card) return;
     card.classList.add("cockpit-test-row");
 
@@ -1076,6 +1085,23 @@
       dots.dataset.cockpitOrdered = "true";
     }
 
+    const dynamicGrid = card.querySelector(".dynamic-grid");
+    const typeInput = dynamicGrid?.querySelector(":scope > [data-type]");
+    if (
+      dynamicGrid &&
+      typeInput &&
+      String(context?.key || "").startsWith("consultations-") &&
+      !dynamicGrid.querySelector(":scope > .cockpit-consultation-identity")
+    ) {
+      const identity = document.createElement("div");
+      identity.className = "cockpit-consultation-identity";
+      const prefix = document.createElement("span");
+      prefix.className = "cockpit-consultation-prefix";
+      prefix.textContent = label("Consultation", "Konzílium");
+      dynamicGrid.insertBefore(identity, typeInput);
+      identity.append(prefix, typeInput);
+    }
+
     const radiologyGrid = card.querySelector(".radiology-grid");
     if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
       const identity = document.createElement("div");
@@ -1091,11 +1117,17 @@
 
   function installTestCardHook() {
     window.BachSBOUiHooks ||= {};
-    window.BachSBOUiHooks.decorateTestCard = (card) => decorateTestCard(card);
+    window.BachSBOUiHooks.decorateTestCard = (card, context) => decorateTestCard(card, context);
   }
 
   function compactTestCards(panel) {
-    panel.querySelectorAll(".test-card").forEach((card) => decorateTestCard(card));
+    panel.querySelectorAll(".test-card").forEach((card) => {
+      const key = card.dataset.card || "";
+      decorateTestCard(card, {
+        key,
+        kind: key.startsWith("consultations-") ? "dynamic" : ""
+      });
+    });
   }
 
   function addUnifiedTest() {

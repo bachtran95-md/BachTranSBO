@@ -10,6 +10,7 @@
   const DISCHARGE_PREFIX = "Otthonába bocsátáskor: ";
   let lastLoadedCaseId = "";
   let lastSaveFailedAt = 0;
+  let metadataDirtyCaseId = "";
 
   const ARRIVAL_OPTIONS = [
     ["", "— select —", "— válasszon —"],
@@ -418,6 +419,11 @@
     const id = selectedId();
     if (!id) return;
     const host = inlineHost();
+
+    // Once the authoritative row for this case has loaded, clinician edits are
+    // the local source of truth until the metadata save resolves. Timers and
+    // retry refreshes must not overwrite Sex/YOB/Age/Arrival with stale DB data.
+    if (metadataDirtyCaseId === id && inlineDetailsLoadedFor(id)) return;
     if (host && host.dataset.pendingCaseId !== id && host.dataset.loadedCaseId !== id) {
       clearInlineDetails(id);
     }
@@ -666,11 +672,15 @@
         const arrivalOther = document.getElementById("iceArrivalOther");
         if (arrivalOther) arrivalOther.value = saved.arrival_other || "";
       }
-      rowUpdate(Object.keys(saved).length ? saved : payload);
+      const authoritative = Object.keys(saved).length ? saved : payload;
+      window.BachSBOClinicalUi?.applyCaseMetadata?.(id, authoritative);
+      rowUpdate(authoritative);
+      metadataDirtyCaseId = "";
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
       loadSelected({ force: true });
     } catch (error) {
+      metadataDirtyCaseId = id;
       lastSaveFailedAt = Date.now();
       const detail = error?.message ? ` (${error.message})` : "";
       setStatus(`Could not save case details${detail}.`, `Nem sikerült menteni az esetadatokat${detail}.`, true);
@@ -720,6 +730,7 @@
       if (!el || el.dataset.iceWired === "true") return;
       el.dataset.iceWired = "true";
       const handler = () => {
+        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
         const yob = document.getElementById("iceYob");
         const age = document.getElementById("iceAge");
         const arrival = document.getElementById("iceArrival");

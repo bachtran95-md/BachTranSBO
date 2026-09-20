@@ -262,3 +262,483 @@ textarea{min-height:92px;resize:vertical}
 .radiology-grid.has-other{grid-template-columns:150px 140px minmax(180px,1fr) minmax(220px,1fr) 120px}
 .diagnoses-note{margin-top:6px}
 @media (max-width:760px){.radiology-grid{grid-template-columns:1fr}.radiology-grid.has-other{grid-template-columns:1fr}}
+
+
+/* Compact ER cockpit ------------------------------------------------------- */
+body.cockpit-ui{
+  overflow:hidden;
+  background:#eef2f6;
+}
+body.cockpit-ui .topbar{
+  min-height:48px;
+  padding:6px 12px;
+  position:relative;
+  z-index:30;
+  gap:10px;
+}
+body.cockpit-ui .brand{font-size:15px;letter-spacing:.02em}
+body.cockpit-ui .shift-meta{gap:8px}
+body.cockpit-ui .shift-pill{padding:4px 8px;font-size:11px}
+body.cockpit-ui .metric{font-size:11px}
+body.cockpit-ui .topbar-tools{gap:6px}
+body.cockpit-ui .topbar .btn,
+body.cockpit-ui .lang-btn{min-height:28px;padding:5px 8px;font-size:11px;border-radius:7px}
+
+body.cockpit-ui .workspace-nav{
+  min-height:38px;
+  padding:4px 12px;
+  gap:8px;
+}
+body.cockpit-ui .nav-item{padding:6px 9px;border-radius:7px;font-size:11px}
+body.cockpit-ui .workspace-nav-future{display:none}
+
+body.cockpit-ui .main{
+  height:calc(100vh - 88px);
+  min-height:0;
+  padding:8px;
+  overflow:auto;
+}
+body.cockpit-ui #patientsView{
+  height:100%;
+  min-height:0;
+}
+body.cockpit-ui #patientsView > .grid2{
+  height:100%;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(330px,400px) minmax(600px,1fr) minmax(340px,390px);
+  gap:8px;
+}
+body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
+
+.cockpit-board-column{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+}
+.cockpit-board-column .card{
+  border-radius:9px;
+  box-shadow:0 2px 9px rgba(15,23,42,.05);
+}
+.cockpit-new-case{flex:0 0 auto}
+.cockpit-new-case .card-h{padding:8px 10px}
+.cockpit-new-case .card-h .subtle{display:none}
+.cockpit-new-case .card-b{padding:8px 10px}
+.cockpit-new-case .inline3{gap:6px}
+.cockpit-new-case .field{margin-bottom:6px}
+.cockpit-new-case .field label{font-size:9px;margin-bottom:3px}
+.cockpit-new-case input,
+.cockpit-new-case select{height:30px;padding:5px 7px;font-size:11px;border-radius:7px}
+.cockpit-new-case #addPatientBtn{width:100%;padding:7px 9px;font-size:10px;border-radius:7px}
+
+.cockpit-case-list{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  margin-top:0!important;
+  overflow:hidden;
+}
+.cockpit-case-list .card-h{padding:8px 10px;flex:0 0 auto}
+.cockpit-case-list .card-h .subtle{font-size:10px}
+.cockpit-case-list .card-b.table-wrap{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  padding:0;
+}
+.cockpit-case-list .patient-table{font-size:11px}
+.cockpit-case-list .patient-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  color:#64748b;
+  font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  padding:6px 5px;
+}
+.cockpit-case-list .patient-table th,
+.cockpit-case-list .patient-table td{padding:6px 5px}
+.cockpit-case-list .patient-table th:nth-child(1),
+.cockpit-case-list .patient-table td:nth-child(1){width:34px;font-weight:850}
+.cockpit-case-list .patient-table th:nth-child(2),
+.cockpit-case-list .patient-table td:nth-child(2){width:44px}
+.cockpit-case-list .patient-table th:nth-child(3),
+.cockpit-case-list .patient-table td:nth-child(3){width:42px}
+.cockpit-case-list .patient-table th:nth-child(5),
+.cockpit-case-list .patient-table td:nth-child(5){width:135px}
+.cockpit-case-list .wait-stack{gap:2px;max-width:130px}
+.cockpit-case-list .wait-chip{font-size:8px;padding:2px 4px}
+.cockpit-case-list .badge{font-size:9px;padding:3px 5px}
+.cockpit-next-action{
+  margin-top:3px;
+  font-size:8px;
+  line-height:1.2;
+  font-weight:800;
+  color:#475467;
+  white-space:normal;
+}
+
+.cockpit-case-column{
+  height:100%;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:9px;
+  box-shadow:0 2px 9px rgba(15,23,42,.05);
+}
+.cockpit-case-column > .card-h{
+  flex:0 0 auto;
+  min-height:44px;
+  padding:7px 10px;
+}
+.cockpit-case-column > .card-h h3{font-size:13px}
+.cockpit-case-column > .card-h .subtle{font-size:10px}
+.cockpit-case-column > .card-b{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  padding:8px;
+}
+.cockpit-case-column .section{
+  margin-top:8px;
+  padding-top:8px;
+  border-top:0;
+}
+.cockpit-case-column .section-title{
+  font-size:11px;
+  margin-bottom:7px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#344054;
+}
+.cockpit-case-column .field{margin-bottom:8px}
+.cockpit-case-column .field label{font-size:9px;margin-bottom:3px}
+.cockpit-case-column input,
+.cockpit-case-column select,
+.cockpit-case-column textarea{
+  border-radius:7px;
+  padding:7px 8px;
+  font-size:11px;
+}
+.cockpit-case-column textarea{min-height:68px;line-height:1.35}
+.cockpit-case-column .narrative-field{
+  padding:7px;
+  border-radius:8px;
+}
+.cockpit-case-column .narrative-head{margin-bottom:4px}
+.cockpit-case-column .field-state{padding:2px 5px;font-size:8px}
+.cockpit-case-column .none-toggle{padding:4px 6px;font-size:9px}
+.cockpit-case-column .info-bar{
+  padding:6px 8px;
+  margin-bottom:8px;
+  font-size:10px;
+  border-radius:7px;
+}
+.cockpit-case-column .btn.small{padding:5px 7px;font-size:9px;border-radius:6px}
+
+.cockpit-case-tabs{
+  position:sticky;
+  top:-8px;
+  z-index:8;
+  display:flex;
+  gap:3px;
+  margin:-8px -8px 8px;
+  padding:5px 8px;
+  background:#f7f9fb;
+  border-bottom:1px solid var(--line);
+}
+.cockpit-tab{
+  border:1px solid transparent;
+  background:transparent;
+  color:#667085;
+  border-radius:7px;
+  padding:6px 10px;
+  font-size:10px;
+  font-weight:800;
+}
+.cockpit-tab:hover{background:#fff}
+.cockpit-tab.active{
+  background:#fff;
+  color:#1d4ed8;
+  border-color:#dbe3ed;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.cockpit-panel-hidden{display:none!important}
+
+.cockpit-clinical-primary,
+.cockpit-clinical-course{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:7px;
+}
+.cockpit-clinical-primary > .section-title,
+.cockpit-clinical-course > .section-title{grid-column:1/-1}
+.cockpit-clinical-primary > .field:first-of-type{grid-column:1/-1}
+.cockpit-clinical-primary #inlineCaseEditor{grid-column:1/-1}
+#inlineCaseEditor{
+  margin:0 0 2px!important;
+  padding:7px;
+  border:1px solid #dfe4ea;
+  border-radius:8px;
+  background:#f8fafc;
+}
+#inlineCaseEditor .inline3{gap:6px}
+#inlineCaseEditor .field{margin-bottom:5px}
+#inlineCaseEditor .toolbar{margin-top:4px!important}
+
+.cockpit-case-column [data-cockpit-panel="tests"] .test-group-toolbar{margin:8px 0 5px}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-group-title{font-size:10px}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-card{
+  padding:7px;
+  margin-bottom:6px;
+  border-radius:8px;
+}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-head{margin-bottom:5px}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-name{font-size:10px}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-status{padding:2px 5px;font-size:8px}
+.cockpit-case-column [data-cockpit-panel="tests"] textarea{min-height:52px}
+.cockpit-case-column [data-cockpit-panel="tests"] .test-grid{
+  grid-template-columns:minmax(180px,1fr) 95px;
+  gap:6px;
+}
+.cockpit-case-column [data-cockpit-panel="tests"] .dynamic-grid{
+  grid-template-columns:135px minmax(180px,1fr) 95px;
+  gap:6px;
+}
+.cockpit-case-column [data-cockpit-panel="tests"] .radiology-grid{
+  grid-template-columns:120px 105px minmax(170px,1fr) 95px;
+  gap:6px;
+}
+.cockpit-case-column [data-cockpit-panel="tests"] .radiology-grid.has-other{
+  grid-template-columns:115px 100px minmax(130px,1fr) minmax(160px,1fr) 90px;
+}
+.cockpit-case-column .summary-box{min-height:280px}
+.cockpit-case-column .sticky-actions{
+  margin-top:8px;
+  padding-top:6px;
+  bottom:-8px;
+}
+.cockpit-case-column .sticky-actions .btn{padding:7px 10px;font-size:10px}
+
+.cockpit-ai-rail{
+  height:100%;
+  min-height:0;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-right:1px;
+}
+.cockpit-rail-card{
+  flex:0 0 auto;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:9px;
+  box-shadow:0 2px 9px rgba(15,23,42,.05);
+  overflow:hidden;
+}
+.cockpit-rail-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+  padding:8px 9px;
+  border-bottom:1px solid #edf0f3;
+  background:#fbfcfd;
+}
+.cockpit-rail-head strong{font-size:11px}
+.cockpit-rail-sub{font-size:9px;color:#667085;margin-top:2px;line-height:1.25}
+.cockpit-ai-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:25px;
+  height:20px;
+  padding:0 6px;
+  border-radius:999px;
+  background:#eff8ff;
+  color:#175cd3;
+  font-size:8px;
+  font-weight:850;
+}
+.cockpit-rail-body{padding:8px}
+.cockpit-wide-btn{width:100%;padding:7px 8px!important;font-size:9px!important}
+.cockpit-status{
+  min-height:16px;
+  margin:5px 0;
+  font-size:9px;
+  color:#667085;
+  line-height:1.3;
+}
+.cockpit-empty-ai{font-size:9px;line-height:1.35;padding:5px 0}
+.cockpit-ai-result,
+.cockpit-extract-item{
+  border:1px solid #dfe4ea;
+  border-radius:8px;
+  padding:7px;
+  margin-top:6px;
+  background:#fcfdfd;
+}
+.cockpit-ai-result-head,
+.cockpit-extract-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:4px;
+  font-size:9px;
+}
+.cockpit-ai-result-head span,
+.cockpit-extract-head span{
+  padding:2px 5px;
+  border-radius:999px;
+  background:#eff8ff;
+  color:#175cd3;
+  font-size:8px;
+  font-weight:800;
+}
+.cockpit-ai-prose,
+.cockpit-extract-text{
+  font-size:9px;
+  line-height:1.42;
+  color:#344054;
+}
+.cockpit-ai-sources{
+  margin-top:5px;
+  font-size:8px;
+  line-height:1.3;
+}
+.cockpit-ai-sources a{color:#175cd3;text-decoration:none}
+.cockpit-ai-sources a:hover{text-decoration:underline}
+.cockpit-ai-error{
+  border:1px solid #fecdca;
+  background:#fef3f2;
+  color:#b42318;
+  border-radius:7px;
+  padding:7px;
+  font-size:9px;
+}
+.cockpit-decision-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  margin-top:6px;
+}
+.cockpit-decision{
+  border:1px solid #d0d5dd;
+  background:#fff;
+  border-radius:6px;
+  padding:4px 6px;
+  font-size:8px;
+  font-weight:800;
+  color:#475467;
+}
+.cockpit-decision.yes{border-color:#abefc6;color:#067647;background:#ecfdf3}
+.cockpit-decision.no{border-color:#fecdca;color:#b42318;background:#fef3f2}
+.cockpit-decision.done{border-color:#b2ddff;color:#175cd3;background:#eff8ff}
+.cockpit-decision.selected{box-shadow:0 0 0 2px rgba(37,99,235,.18)}
+.cockpit-summary-badge{
+  padding:3px 6px;
+  border-radius:999px;
+  font-size:8px;
+  font-weight:850;
+}
+.cockpit-summary-badge.ready{background:#ecfdf3;color:#067647}
+.cockpit-summary-badge.blocked{background:#fff7ed;color:#b54708}
+.cockpit-summary-badge.neutral{background:#f2f4f7;color:#667085}
+.cockpit-readiness{
+  min-height:32px;
+  padding:6px;
+  border:1px solid #e4e7ec;
+  border-radius:7px;
+  background:#f9fafb;
+  color:#475467;
+  font-size:9px;
+  line-height:1.35;
+}
+.cockpit-rail-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px;
+  margin:6px 0;
+}
+.cockpit-rail-actions .btn{padding:6px 7px;font-size:9px;border-radius:6px}
+.cockpit-paste-text{
+  min-height:70px!important;
+  max-height:150px;
+  font-size:10px!important;
+  margin-bottom:5px;
+}
+.cockpit-extract-item details{margin-top:5px;font-size:8px;color:#667085}
+.cockpit-evidence{
+  margin-top:3px;
+  padding:5px;
+  border-radius:5px;
+  background:#f8fafc;
+  color:#475467;
+  line-height:1.35;
+}
+.cockpit-extract-warnings{
+  border:1px solid #fedf89;
+  background:#fffaeb;
+  color:#93370d;
+  padding:6px;
+  border-radius:7px;
+  font-size:8px;
+  line-height:1.35;
+  margin-top:5px;
+}
+.cockpit-ai-toggle{display:none}
+
+@media (max-width:1500px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:340px minmax(540px,1fr) 320px;
+  }
+  .cockpit-new-case .inline3{grid-template-columns:70px 75px 1fr}
+  .cockpit-case-list .patient-table th:nth-child(5),
+  .cockpit-case-list .patient-table td:nth-child(5){width:115px}
+  .cockpit-case-column [data-cockpit-panel="tests"] .radiology-grid,
+  .cockpit-case-column [data-cockpit-panel="tests"] .radiology-grid.has-other{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+@media (max-width:1180px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:320px minmax(0,1fr);
+  }
+  .cockpit-ai-rail{
+    position:fixed;
+    top:88px;
+    right:0;
+    bottom:0;
+    width:min(370px,92vw);
+    height:auto;
+    z-index:50;
+    padding:8px;
+    background:#f5f7fa;
+    border-left:1px solid var(--line);
+    box-shadow:-12px 0 28px rgba(15,23,42,.16);
+    transform:translateX(105%);
+    transition:transform .18s ease;
+  }
+  body.cockpit-ai-open .cockpit-ai-rail{transform:translateX(0)}
+  .cockpit-ai-toggle{display:inline-flex!important}
+}
+
+@media (max-width:820px){
+  body.cockpit-ui{overflow:auto}
+  body.cockpit-ui .main{height:auto;min-height:calc(100vh - 88px);overflow:visible}
+  body.cockpit-ui #patientsView{height:auto}
+  body.cockpit-ui #patientsView > .grid2{height:auto;grid-template-columns:1fr}
+  .cockpit-board-column,.cockpit-case-column{height:auto;min-height:0}
+  .cockpit-case-list{max-height:320px}
+  .cockpit-clinical-primary,.cockpit-clinical-course{grid-template-columns:1fr}
+  .cockpit-clinical-primary > *,
+  .cockpit-clinical-course > *{grid-column:1!important}
+}

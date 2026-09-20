@@ -1495,7 +1495,8 @@
         event.target?.matches?.("#patientForm textarea") &&
         !event.target.disabled
       ) {
-        scheduleCaseAutosave(80);
+        clearTimeout(caseAutosaveTimer);
+        void runCaseAutosave();
       }
     }, true);
     document.addEventListener("click", (event) => {

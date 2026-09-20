@@ -407,9 +407,11 @@ await beta.locator("#cockpitDocumentationReview").waitFor();
 // or push neighbouring cases down while app.js rewrites the status cell.
 const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 const initialCaseRowHeight = await caseRow.evaluate((node) => node.getBoundingClientRect().height);
-for (const field of ["complaint", "history", "physical", "therapy", "course"]) {
-  await beta.locator(`[data-none-toggle="${field}"]`).click();
-}
+await beta.evaluate(() => {
+  for (const field of ["complaint", "history", "physical", "therapy", "course"]) {
+    document.querySelector(`[data-none-toggle="${field}"]`)?.click();
+  }
+});
 await beta.waitForTimeout(80);
 const blockedCaseRowHeight = await caseRow.evaluate((node) => node.getBoundingClientRect().height);
 if (Math.abs(blockedCaseRowHeight - initialCaseRowHeight) > 1.5 || blockedCaseRowHeight > 56) {
@@ -418,9 +420,11 @@ if (Math.abs(blockedCaseRowHeight - initialCaseRowHeight) > 1.5 || blockedCaseRo
   );
 }
 // Restore the seeded "none" state for the remainder of the smoke flow.
-for (const field of ["complaint", "history", "physical", "therapy", "course"]) {
-  await beta.locator(`[data-none-toggle="${field}"]`).click();
-}
+await beta.evaluate(() => {
+  for (const field of ["complaint", "history", "physical", "therapy", "course"]) {
+    document.querySelector(`[data-none-toggle="${field}"]`)?.click();
+  }
+});
 
 await beta.locator("#cockpitAnalyzeCase").click();
 await beta.waitForFunction(() =>

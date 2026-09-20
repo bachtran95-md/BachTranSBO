@@ -228,11 +228,28 @@ const backendMock = String.raw`
           missingInformation: ["Gyógyszerallergia"],
           sources: [],
           doctorDecision: "pending"
+        }, {
+          id: "66666666-6666-4666-8666-666666666667",
+          itemKey: "item-02",
+          priority: "consider",
+          category: "documentation",
+          title: "Document reassessment",
+          reason: "Reassessment can clarify the course.",
+          missingInformation: [],
+          sources: [],
+          doctorDecision: "pending"
         }]
       };
     },
     async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
-    async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
+    async caseAssistantDecide(_caseId, _itemId, decision) {
+      const doctorDecision = decision === "done"
+        ? "already_done"
+        : decision === "na"
+        ? "not_applicable"
+        : decision;
+      return { doctorDecision, decidedAt: new Date().toISOString() };
+    },
     async caseAssistantExtract(_caseId, source) {
       if (/hypertonia/i.test(source)) {
         return {
@@ -400,6 +417,12 @@ await page.evaluate(() => {
     p.tests.radiology[0].otherTest = "";
     p.tests.radiology[0].type = "koponya Native CT";
   }
+  if (p.tests?.consultations?.[0]) {
+    p.tests.consultations[0].type = "Kardiológia";
+    p.tests.consultations[0].mode = "waiting";
+    p.tests.consultations[0].text = "";
+    p.tests.consultations[0].savedText = "";
+  }
   localStorage.setItem(key, JSON.stringify(state));
 });
 
@@ -429,7 +452,7 @@ await beta.waitForFunction(() =>
   Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))
 );
 const pendingSummary = await caseRow.locator(".cockpit-test-summary").textContent();
-for (const expected of ["EKG", "AVG", "koponya Native CT"]) {
+for (const expected of ["EKG", "AVG", "koponya Native CT", "Consultation · Kardiológia"]) {
   if (!pendingSummary.includes(expected)) {
     throw new Error(`Case list hid pending test ${expected}: ${pendingSummary}`);
   }
@@ -460,6 +483,7 @@ await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "vi
 if (await beta.locator("#iceAge").isDisabled()) {
   throw new Error("Klinikum Age input is disabled");
 }
+await beta.locator("#iceSex").selectOption("F");
 await beta.locator("#iceAge").fill("44");
 await beta.locator("#iceAge").dispatchEvent("change");
 const expectedYob = String(new Date().getFullYear() - 44);
@@ -467,6 +491,16 @@ await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.valu
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
+await beta.waitForFunction(({ expectedYob }) => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  const patient = state?.patients?.[0];
+  return patient?.sex === "F" && patient?.yob === expectedYob;
+}, { expectedYob });
+await beta.waitForFunction(() => {
+  const row = document.querySelector("#patientTbody tr[data-id]");
+  return row?.querySelector('td:nth-child(2) [data-sex-badge="F"]') &&
+    row?.querySelector("td:nth-child(3)")?.textContent?.trim() === "44";
+});
 
 // Section 2 wording and the dedicated third Therapy/Course tab.
 await beta.locator("#langHuBtn").click();
@@ -499,6 +533,14 @@ if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);
 }
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
+const consultationPrefix = beta.locator('#consultCards [data-card="consultations-0"] .cockpit-consultation-prefix');
+await consultationPrefix.waitFor({ state: "visible" });
+if (!/Consultation|Konzílium/.test(await consultationPrefix.textContent())) {
+  throw new Error("Consultation card does not show a generic consultation label");
+}
+if ((await beta.locator('#consultCards [data-type="consultations-0"]').inputValue()) !== "Kardiológia") {
+  throw new Error("Consultation specialty was lost");
+}
 await beta.locator('[data-cockpit-tab="clinical"]').click();
 
 // Regression: a case with many unresolved fields must not expand the Case list row
@@ -530,6 +572,28 @@ await beta.waitForFunction(() =>
 const documentationAfterAssistant = await beta.locator("#cockpitDocumentationReview").textContent();
 if (!documentationAfterAssistant.includes("Gyógyszerallergia")) {
   throw new Error("Documentation review did not surface assistant missing information");
+}
+
+const assistantOrderBefore = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
+  nodes.map((node) => node.dataset.itemId)
+);
+const firstAssistantItem = beta.locator('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]');
+await firstAssistantItem.locator('.cockpit-decision.no').click();
+await beta.waitForFunction(() =>
+  document.querySelector('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]')?.classList.contains("decision-no")
+);
+const assistantOrderAfter = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
+  nodes.map((node) => node.dataset.itemId)
+);
+if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)) {
+  throw new Error("Case Assistant reordered items after doctor decision");
+}
+const selectedDecisionStyle = await firstAssistantItem.locator('.cockpit-decision.no.selected').evaluate((node) => {
+  const style = getComputedStyle(node);
+  return { background: style.backgroundColor, color: style.color };
+});
+if (selectedDecisionStyle.background !== "rgb(180, 35, 24)" || selectedDecisionStyle.color !== "rgb(255, 255, 255)") {
+  throw new Error("Selected Case Assistant decision is not visually emphasized");
 }
 
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");

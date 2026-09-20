@@ -1012,3 +1012,70 @@ body.cockpit-ui .cockpit-status-more{
   font-size:9px;
   font-weight:800;
 }
+
+
+/* Beta cockpit readability pass — +2px typography without changing stable UI */
+body.cockpit-ui .brand{font-size:17px}
+body.cockpit-ui .shift-pill,
+body.cockpit-ui .metric{font-size:13px}
+body.cockpit-ui .topbar .btn,
+body.cockpit-ui .lang-btn,
+body.cockpit-ui .nav-item{font-size:13px}
+body.cockpit-ui .cockpit-new-case .field label{font-size:11px}
+body.cockpit-ui .cockpit-new-case input,
+body.cockpit-ui .cockpit-new-case select{font-size:13px}
+body.cockpit-ui .cockpit-new-case #addPatientBtn{font-size:12px}
+body.cockpit-ui .cockpit-case-list .card-h .subtle{font-size:12px}
+body.cockpit-ui .cockpit-case-column > .card-h h3{font-size:15px}
+body.cockpit-ui .cockpit-case-column > .card-h .subtle{font-size:12px}
+body.cockpit-ui .cockpit-case-column .section-title{font-size:13px}
+body.cockpit-ui .cockpit-case-column .field label{font-size:11px}
+body.cockpit-ui .cockpit-case-column input,
+body.cockpit-ui .cockpit-case-column select,
+body.cockpit-ui .cockpit-case-column textarea{font-size:13px}
+body.cockpit-ui .cockpit-case-column .info-bar{font-size:12px}
+body.cockpit-ui .cockpit-tab{font-size:12px}
+
+body.cockpit-ui #patientsView > .grid2{
+  grid-template-columns:minmax(258px,278px) minmax(640px,1fr) minmax(340px,380px);
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(1){font-size:14px}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(2){font-size:13px}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(3){font-size:14px}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(4){font-size:14px}
+body.cockpit-ui .cockpit-case-list .wait-chip{font-size:11px}
+body.cockpit-ui .cockpit-case-list .badge,
+body.cockpit-ui .cockpit-case-list .wait-none{font-size:12px}
+body.cockpit-ui .cockpit-status-more{font-size:11px}
+
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline label{font-size:12px}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline input,
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline select{font-size:13px}
+
+body.cockpit-ui .cockpit-rail-head strong{font-size:13px}
+body.cockpit-ui .cockpit-rail-sub,
+body.cockpit-ui .cockpit-status,
+body.cockpit-ui .cockpit-empty-ai{font-size:11px}
+body.cockpit-ui .cockpit-ai-badge{font-size:10px}
+body.cockpit-ui .cockpit-wide-btn,
+body.cockpit-ui .cockpit-rail-actions .btn{font-size:11px!important}
+body.cockpit-ui .cockpit-priority{font-size:11px}
+body.cockpit-ui .cockpit-todo-title{font-size:14px}
+body.cockpit-ui .cockpit-todo-info > summary{font-size:15px}
+body.cockpit-ui .cockpit-info-body{font-size:12px}
+body.cockpit-ui .cockpit-todo-item .cockpit-decision{font-size:10px}
+body.cockpit-ui .cockpit-stale-banner{font-size:12px}
+body.cockpit-ui .cockpit-readiness{font-size:11px}
+body.cockpit-ui .cockpit-extract-text,
+body.cockpit-ui .cockpit-ai-prose{font-size:11px}
+
+@media (max-width:1500px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:258px minmax(560px,1fr) 320px;
+  }
+}
+@media (max-width:1180px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:258px minmax(0,1fr);
+  }
+}

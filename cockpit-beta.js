@@ -583,8 +583,8 @@
 
   function decisionUiValue(value) {
     if (value === "already_done") return "done";
-    if (value === "not_applicable") return "na";
-    return value || "pending";
+    if (value === "not_applicable") return "pending";
+    return ["done", "yes", "no"].includes(value) ? value : "pending";
   }
 
   function priorityMeta(priority) {
@@ -622,7 +622,7 @@
         node.classList.toggle("selected", node.dataset.decision === uiDecision);
       });
       if (item) {
-        ["yes", "no", "done", "na"].forEach((value) => {
+        ["done", "yes", "no"].forEach((value) => {
           item.classList.toggle("decision-" + value, value === uiDecision);
         });
         item.dataset.doctorDecision = uiDecision;
@@ -703,10 +703,9 @@
             </details>
           </div>
           <div class="cockpit-decision-row">
+            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
             <button type="button" data-decision="yes" class="cockpit-decision yes ${decision === "yes" ? "selected" : ""}">YES</button>
             <button type="button" data-decision="no" class="cockpit-decision no ${decision === "no" ? "selected" : ""}">NO</button>
-            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
-            <button type="button" data-decision="na" class="cockpit-decision na ${decision === "na" ? "selected" : ""}">N/A</button>
           </div>
         </article>
       `;

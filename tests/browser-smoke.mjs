@@ -406,6 +406,7 @@ await page.evaluate(() => {
   localStorage.setItem(key, JSON.stringify(state));
 });
 
+// Case-list / Klinikum / test-card regressions are intentionally covered below.
 const beta = await context.newPage();
 let cancelNextBetaDialog = false;
 beta.on("dialog", async (dialog) => {

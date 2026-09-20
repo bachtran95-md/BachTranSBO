@@ -53,6 +53,22 @@ Verified behavior:
 
 Stable `/` remains unchanged. This workflow is available only on `/beta.html` until Beta is explicitly approved for promotion.
 
+## Corpus review milestone — 2026-09-20
+
+Doctor-controlled finalized-corpus review is now implemented and deployed.
+
+Verified behavior:
+
+- AI Learning lists the 20 most recent finalized revisions for review;
+- each revision can be explicitly marked **APPROVED** or **EXCLUDED** for future AI learning;
+- review changes only `summary_revisions.learning_status`, `learning_note`, and `learning_reviewed_at`;
+- clinical cases and finalized summary text are not modified by corpus review;
+- the action is owner-scoped inside the authenticated `learning-admin` Edge Function;
+- `learning-admin` production is active at version **7**;
+- Chromium smoke covers the EXCLUDE flow;
+- a rollback-only production transaction verified status/note/review timestamp mutation and left the corpus unchanged afterwards;
+- production corpus remained **15 approved / 0 excluded** after rollback verification.
+
 ## Primary focus now
 
 **AI Assistance while writing/finalizing the Summary.**
@@ -104,10 +120,10 @@ Core ER workflow is largely implemented:
 
 Frontend debt / missing work:
 
-- `config.js` is no longer config-only; it still contains substantial runtime UI/persistence bridge logic and should be refactored into maintained frontend modules.
-- Accepted extraction items are still preview-only; explicit apply-to-field behavior remains to be implemented.
-- Missing/conflicting/unresolved documentation guidance is not yet complete.
-- Newer learning/corpus review capabilities are not fully surfaced in the frontend.
+- `config.js` is configuration-only again; runtime case UI behavior was moved into `case-ui.js` and CI enforces this invariant.
+- Accepted extraction items can be applied explicitly in Beta via the two-step Accept → Apply Accepted workflow.
+- Missing/conflicting/unresolved documentation information is surfaced in the Beta Documentation Review panel.
+- Finalized corpus approve/exclude review is now available in AI Learning.
 - Stable `/` and beta `/beta.html` remain intentionally separate until hands-on approval.
 
 ### Backend status
@@ -195,7 +211,7 @@ Performance advisor only reported informational unused indexes; this is not curr
 - `README.md` — product/architecture overview.
 - `app.js` — main frontend behavior.
 - `backend.js` — frontend/backend integration.
-- `config.js` — currently contains configuration plus runtime patch logic; should be refactored.
+- `config.js` — public browser configuration only. Runtime case-detail logic lives in `case-ui.js`.
 - `supabase/functions/generate-summary/` — summary generation source currently in repo; compare with deployed version before modifying.
 - `docs/PROJECT_SPEC.md` — product specification.
 - `docs/BACKEND_SETUP.md` — backend setup; currently partly stale.
@@ -205,10 +221,10 @@ Performance advisor only reported informational unused indexes; this is not curr
 
 ## Current milestones
 
-1. **AI Assistance for Summary** — improve missing/conflicting/unresolved documentation guidance now that explicit apply-to-field is implemented in Beta.
-2. Refactor frontend patch logic out of `config.js`.
-3. Exercise the Style Coach/corpus-review workflows and activate a style profile only after explicit human review.
-4. Run a full authenticated live workflow regression covering Assistant -> Generate Summary -> doctor edit -> Finalize -> retrieval/learning.
+1. **AI Assistance for Summary** — continue refining doctor-controlled assistance now that extraction apply + documentation review are implemented in Beta.
+2. Exercise the Style Coach workflow and activate a style profile only after explicit human review.
+3. Run a full authenticated live workflow regression covering Assistant -> Generate Summary -> doctor edit -> Finalize -> retrieval/learning.
+4. Continue documentation cleanup and operational/security review.
 5. Keep Stable `/` as default until beta is explicitly approved for promotion.
 
 ## Verification status
@@ -237,7 +253,7 @@ The original `ui-compact-cockpit` work was merged, rolled back from production a
 - Summary rail reuses the existing Generate Summary / Finalize Summary controls;
 - GitHub Backend checks pass, including browser JavaScript syntax and privacy regression tests.
 
-The extraction preview does **not** yet write accepted items back into clinical fields. Case Assistant YES/NO/DONE/N/A choices are currently local UI decisions only; persistence and structured suggestion semantics should be designed before saving them.
+The extraction preview supports explicit doctor-controlled apply via **Accept → Apply Accepted** in Beta. Case Assistant YES/NO/DONE/N/A choices persist server-side and remain advisory; they do not silently mutate clinical fields.
 
 Delete Case has now been moved behind the authenticated `clinical-store` Edge Function via a `delete_case` action. Browser code no longer issues direct case DELETE queries. Production foreign keys for `test_entries`, `summaries`, and `summary_revisions` use ON DELETE CASCADE. A synthetic production-database add/delete test verified case creation, deletion, all three cascades, and zero retained synthetic rows. GitHub Backend checks pass with a new invariant that rejects direct browser case deletion.
 

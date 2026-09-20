@@ -1228,6 +1228,18 @@
       document.getElementById("fOthers")?.closest(".field")?.classList.add("cockpit-legacy-others");
     }
 
+    let legend = document.getElementById("cockpitInvestigationsLegend");
+    if (!legend) {
+      legend = document.createElement("div");
+      legend.id = "cockpitInvestigationsLegend";
+      legend.className = "cockpit-investigations-legend";
+      list.insertAdjacentElement("afterend", legend);
+    }
+    legend.innerHTML = label(
+      '<span class="legend-item"><span class="legend-dot grey"></span>Grey = not ordered</span><span class="legend-item"><span class="legend-dot orange"></span>Orange = waiting / pending</span><span class="legend-item"><span class="legend-dot green"></span>Green = result available / completed</span>',
+      '<span class="legend-item"><span class="legend-dot grey"></span>Szürke = nem történt</span><span class="legend-item"><span class="legend-dot orange"></span>Narancs = függő / eredményre vár</span><span class="legend-item"><span class="legend-dot green"></span>Zöld = eredmény rendelkezésre áll / kész</span>'
+    );
+
     syncUnifiedTestLabels();
     compactTestCards(panel);
   }

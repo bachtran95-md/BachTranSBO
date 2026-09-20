@@ -491,11 +491,27 @@ if (await beta.locator("#iceAge").isDisabled()) {
 await beta.locator("#iceSex").selectOption("F");
 await beta.locator("#iceAge").fill("44");
 await beta.locator("#iceAge").dispatchEvent("change");
+await beta.locator("#iceArrival").selectOption("omsz");
 const expectedYob = String(new Date().getFullYear() - 44);
 await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
+
+// Single-source invariant: the app patient model and Esetlista must change
+// immediately, before the 900ms autosave reaches the backend.
+await beta.waitForFunction(({ expectedYob }) => {
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  const rowSex = row?.querySelector('td:nth-child(2) [data-sex-badge="F"]');
+  const rowAge = row?.querySelector("td:nth-child(3)")?.textContent?.trim();
+  return meta?.sex === "F" &&
+    String(meta?.year_of_birth || "") === expectedYob &&
+    meta?.arrival_mode === "omsz" &&
+    Boolean(rowSex) &&
+    rowAge === "44";
+}, { expectedYob });
+
 await beta.waitForTimeout(1600);
 const demographicSaveDiagnostic = await beta.evaluate(({ expectedYob }) => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
@@ -506,6 +522,7 @@ const demographicSaveDiagnostic = await beta.evaluate(({ expectedYob }) => {
     expectedYob,
     persistedSex: patient?.sex || "",
     persistedYob: patient?.yob || "",
+    persistedArrival: patient?.arrivalMode || "",
     status: document.querySelector("#iceStatus")?.textContent || "",
     loadedCaseId: editor?.dataset.loadedCaseId || "",
     selectedCaseId: row?.dataset.id || ""
@@ -513,7 +530,8 @@ const demographicSaveDiagnostic = await beta.evaluate(({ expectedYob }) => {
 }, { expectedYob });
 if (
   demographicSaveDiagnostic.persistedSex !== "F" ||
-  demographicSaveDiagnostic.persistedYob !== expectedYob
+  demographicSaveDiagnostic.persistedYob !== expectedYob ||
+  demographicSaveDiagnostic.persistedArrival !== "omsz"
 ) {
   throw new Error("Demographic metadata did not persist: " + JSON.stringify(demographicSaveDiagnostic));
 }
@@ -522,6 +540,16 @@ await beta.waitForFunction(() => {
   return row?.querySelector('td:nth-child(2) [data-sex-badge="F"]') &&
     row?.querySelector("td:nth-child(3)")?.textContent?.trim() === "44";
 });
+
+await beta.reload({ waitUntil: "domcontentloaded" });
+await beta.locator("#patientsView:not(.hidden)").waitFor();
+await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await beta.waitForFunction(({ expectedYob }) => {
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  return meta?.sex === "F" &&
+    String(meta?.year_of_birth || "") === expectedYob &&
+    meta?.arrival_mode === "omsz";
+}, { expectedYob });
 
 // Section 2 wording and the dedicated third Therapy/Course tab.
 await beta.locator("#langHuBtn").click();

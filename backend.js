@@ -580,6 +580,15 @@
     );
   }
 
+  async function rejectStyle(profileId) {
+    if (!profileId) throw new Error("Missing style profile.");
+    return invokeAuthedFunction(
+      "analyze-style",
+      { action: "reject", profileId },
+      "Style rejection"
+    );
+  }
+
   async function analyzeSkill() {
     return invokeAuthedFunction(
       "analyze-skill",
@@ -623,6 +632,7 @@
     reviewCorpusRevision,
     analyzeStyle,
     activateStyle,
+    rejectStyle,
     analyzeSkill,
     reviewSkillSuggestion
   };

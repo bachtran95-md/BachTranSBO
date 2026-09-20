@@ -86,6 +86,52 @@ const backendMock = String.raw`
   window.__BACH_E2E_FAIL_NEXT_SAVE = false;
   let corpusStatus = "approved";
   let corpusNote = "";
+  let styleProfiles = [
+    {
+      id: "88888888-8888-4888-8888-888888888881",
+      version: 1,
+      profile_text: "Concise legacy candidate.",
+      is_active: false,
+      source_revision_count: 5,
+      model: "mock"
+    },
+    {
+      id: "88888888-8888-4888-8888-888888888882",
+      version: 2,
+      profile_text: "Short chronological Hungarian SBO style.",
+      is_active: false,
+      source_revision_count: 5,
+      model: "mock"
+    }
+  ];
+  let styleCoachRuns = [
+    {
+      id: "99999999-9999-4999-8999-999999999991",
+      candidate_profile_id: "88888888-8888-4888-8888-888888888881",
+      source_revision_count: 5,
+      official_rule_count: 12,
+      corpus_maturity: "early",
+      analysis_text: "Candidate one analysis.",
+      candidate_profile_text: "Concise legacy candidate.",
+      status: "pending",
+      model: "mock",
+      generated_at: new Date().toISOString(),
+      reviewed_at: null
+    },
+    {
+      id: "99999999-9999-4999-8999-999999999992",
+      candidate_profile_id: "88888888-8888-4888-8888-888888888882",
+      source_revision_count: 5,
+      official_rule_count: 12,
+      corpus_maturity: "early",
+      analysis_text: "Candidate two analysis.",
+      candidate_profile_text: "Short chronological Hungarian SBO style.",
+      status: "pending",
+      model: "mock",
+      generated_at: new Date().toISOString(),
+      reviewed_at: null
+    }
+  ];
 
   const session = () => localStorage.getItem(SESSION_KEY)
     ? { user: { email: "e2e@example.test" }, access_token: "e2e-access", refresh_token: "e2e-refresh" }
@@ -225,7 +271,8 @@ const backendMock = String.raw`
           learning_reviewed_at: null,
           model: "mock"
         }],
-        styleProfiles: [],
+        styleProfiles: clone(styleProfiles),
+        styleCoachRuns: clone(styleCoachRuns),
         skillSuggestions: [],
         activeSkill: { name: "Mock", version: 1 }
       };
@@ -235,8 +282,24 @@ const backendMock = String.raw`
       corpusNote = note;
       return { learningStatus: corpusStatus, learningNote: corpusNote };
     },
-    async analyzeStyle() { return { candidate: { version: 1 } }; },
-    async activateStyle() { return true; },
+    async analyzeStyle() { return { candidate: { version: 3 }, coach: { corpus_maturity: "early" } }; },
+    async activateStyle(profileId) {
+      styleProfiles = styleProfiles.map((p) => ({ ...p, is_active: p.id === profileId }));
+      styleCoachRuns = styleCoachRuns.map((run) =>
+        run.candidate_profile_id === profileId && run.status === "pending"
+          ? { ...run, status: "accepted", reviewed_at: new Date().toISOString() }
+          : run
+      );
+      return { activeProfile: clone(styleProfiles.find((p) => p.id === profileId)) };
+    },
+    async rejectStyle(profileId) {
+      styleCoachRuns = styleCoachRuns.map((run) =>
+        run.candidate_profile_id === profileId && run.status === "pending"
+          ? { ...run, status: "rejected", reviewed_at: new Date().toISOString() }
+          : run
+      );
+      return { profileId, status: "rejected" };
+    },
     async analyzeSkill() { return true; },
     async reviewSkillSuggestion() { return true; }
   };
@@ -320,7 +383,15 @@ if (!afterDelete.includes("Existing smoke case")) {
 }
 
 const beta = await context.newPage();
-beta.on("dialog", async (dialog) => dialog.accept());
+let cancelNextBetaDialog = false;
+beta.on("dialog", async (dialog) => {
+  if (cancelNextBetaDialog) {
+    cancelNextBetaDialog = false;
+    await dialog.dismiss();
+    return;
+  }
+  await dialog.accept();
+});
 await beta.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.locator("#cockpitBetaBadge").waitFor();
@@ -386,6 +457,41 @@ if (historyAfterFailure.includes("Hypertonia")) {
 }
 
 await beta.locator("#aiLearningNav").click();
+await beta.locator("#styleProfilesList").waitFor();
+await beta.waitForFunction(() =>
+  (document.querySelector("#styleProfilesList")?.textContent || "").includes("Candidate two analysis")
+);
+
+const styleV1 = beta.locator('[data-style-profile="88888888-8888-4888-8888-888888888881"]');
+const styleV2 = beta.locator('[data-style-profile="88888888-8888-4888-8888-888888888882"]');
+
+await styleV1.locator("[data-reject-style]").click();
+await beta.waitForFunction(() =>
+  (document.querySelector('[data-style-profile="88888888-8888-4888-8888-888888888881"]')?.textContent || "").includes("REJECTED")
+);
+const rejectedActive = await beta.evaluate(() => {
+  const node = document.querySelector('[data-style-profile="88888888-8888-4888-8888-888888888881"]');
+  return (node?.textContent || "").includes("ACTIVE");
+});
+if (rejectedActive) throw new Error("Rejected style became active");
+
+cancelNextBetaDialog = true;
+await styleV2.locator("[data-activate-style]").click();
+await beta.waitForTimeout(50);
+const activeAfterCancel = await beta.locator("#learningActiveStyle").textContent();
+if (activeAfterCancel.includes("v2")) {
+  throw new Error("Style activated despite cancelled confirmation");
+}
+
+await styleV2.locator("[data-activate-style]").click();
+await beta.waitForFunction(() =>
+  (document.querySelector("#learningActiveStyle")?.textContent || "").includes("v2")
+);
+const activeStyle = await beta.locator("#learningActiveStyle").textContent();
+if (!activeStyle.includes("v2")) {
+  throw new Error("Confirmed Style Coach candidate was not activated");
+}
+
 await beta.locator("#corpusReviewList").waitFor();
 await beta.waitForFunction(() =>
   (document.querySelector("#corpusReviewList")?.textContent || "").includes("Mock finalized corpus text")

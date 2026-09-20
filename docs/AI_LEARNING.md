@@ -10,15 +10,18 @@ It shows:
 - active SBO Documentation Skill version,
 - active writing-style profile.
 
-## Writing style
+## Writing style / Style Coach
 
-After at least 5 finalized cases:
+After at least 5 **approved distinct** Generated → Finalized cases:
 
 1. **Generate Candidate** calls `analyze-style`.
-2. The backend creates a new inactive style profile.
-3. The full candidate text is shown for review.
-4. **Activate** is an explicit user action.
-5. Only the active style profile is used by `generate-summary`.
+2. Style Coach analyzes reusable writing/editing patterns only; it must not learn patient-specific clinical facts.
+3. The backend creates a new **inactive** style profile and a `style_coach_runs` audit record containing corpus maturity, official-rule count, analysis text, candidate link and review status.
+4. AI Learning shows the candidate plus the Style Coach analysis for physician review.
+5. **Activate** requires an explicit confirmation. It marks the linked pending Style Coach run accepted and makes that profile active for future summary generation.
+6. **Reject** marks the linked pending Style Coach run rejected and leaves the profile inactive.
+7. No candidate is activated automatically. Existing clinical records and finalized summaries are never rewritten by style activation.
+8. Only the active style profile is used by `generate-summary`.
 
 ## Skill suggestions
 

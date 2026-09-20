@@ -1684,50 +1684,120 @@ function renderCorpusRevisions(revisions) {
   });
 }
 
-function renderStyleProfiles(profiles) {
+function renderStyleProfiles(profiles, coachRuns = []) {
   const host = document.getElementById("styleProfilesList");
   if (!profiles.length) {
     host.innerHTML =
-      '<div class="subtle">No style profile yet. Finalize at least 5 cases, then generate a candidate.</div>';
+      '<div class="subtle">No style profile yet. Finalize at least 5 approved distinct cases, then generate a candidate.</div>';
     return;
   }
 
-  host.innerHTML = profiles.map((profile) => `
-    <div class="learning-item">
-      <div class="learning-item-head">
-        <b>Style v${esc(profile.version)}</b>
-        <span class="badge ${profile.is_active ? "done" : "pending"}">
-          ${profile.is_active ? "ACTIVE" : "CANDIDATE"}
-        </span>
+  const coachByProfile = new Map(
+    coachRuns
+      .filter((run) => run?.candidate_profile_id)
+      .map((run) => [run.candidate_profile_id, run])
+  );
+
+  host.innerHTML = profiles.map((profile) => {
+    const coach = coachByProfile.get(profile.id) || null;
+    const reviewStatus = profile.is_active
+      ? "accepted"
+      : coach?.status || "legacy_candidate";
+    const badgeLabel = profile.is_active
+      ? "ACTIVE"
+      : reviewStatus === "rejected"
+      ? "REJECTED"
+      : reviewStatus === "accepted"
+      ? "REVIEWED"
+      : "CANDIDATE";
+    const badgeClass = profile.is_active
+      ? "done"
+      : reviewStatus === "rejected"
+      ? "rejected"
+      : "pending";
+    const coachMeta = coach
+      ? `<div class="subtle">
+          Style Coach: ${esc(coach.corpus_maturity || "unknown")} corpus
+          • ${Number(coach.official_rule_count || 0)} official rules
+          ${coach.generated_at ? ` • ${esc(new Date(coach.generated_at).toLocaleString())}` : ""}
+        </div>`
+      : '<div class="subtle">Legacy candidate — no Style Coach audit record.</div>';
+    const coachAnalysis = coach?.analysis_text
+      ? `<details class="mt16">
+          <summary>STYLE COACH ANALYSIS</summary>
+          <div class="learning-text">${esc(coach.analysis_text)}</div>
+        </details>`
+      : "";
+    const canReview = !profile.is_active && reviewStatus !== "rejected" && reviewStatus !== "accepted";
+    const rejectButton = canReview && coach?.status === "pending"
+      ? `<button class="btn small" data-reject-style="${profile.id}" data-style-version="${esc(profile.version)}">REJECT</button>`
+      : "";
+
+    return `
+      <div class="learning-item" data-style-profile="${profile.id}">
+        <div class="learning-item-head">
+          <b>Style v${esc(profile.version)}</b>
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+        <div class="subtle">
+          ${profile.source_revision_count || 0} finalized pairs
+          ${profile.model ? ` • ${esc(profile.model)}` : ""}
+        </div>
+        ${coachMeta}
+        <div class="learning-text">${esc(profile.profile_text || "")}</div>
+        ${coachAnalysis}
+        ${
+          canReview
+            ? `<div class="learning-actions">
+                <button class="btn success small" data-activate-style="${profile.id}" data-style-version="${esc(profile.version)}">
+                  ACTIVATE
+                </button>
+                ${rejectButton}
+              </div>
+              <div class="footer-note">Activation changes future generated summaries only. It does not rewrite existing clinical records or finalized summaries.</div>`
+            : ""
+        }
       </div>
-      <div class="subtle">
-        ${profile.source_revision_count || 0} finalized pairs
-        ${profile.model ? ` • ${esc(profile.model)}` : ""}
-      </div>
-      <div class="learning-text">${esc(profile.profile_text || "")}</div>
-      ${
-        profile.is_active
-          ? ""
-          : `<div class="learning-actions">
-              <button class="btn success small" data-activate-style="${profile.id}">
-                ACTIVATE
-              </button>
-            </div>`
-      }
-    </div>
-  `).join("");
+    `;
+  }).join("");
 
   host.querySelectorAll("[data-activate-style]").forEach((button) => {
     button.onclick = async () => {
+      const version = button.dataset.styleVersion || "?";
+      const confirmed = window.confirm(
+        `Activate Style v${version} for future summary generation? Existing clinical records and finalized summaries will not be changed.`
+      );
+      if (!confirmed) return;
+
       button.disabled = true;
       try {
         await window.BachSBOBackend.activateStyle(
           button.dataset.activateStyle
         );
-        learningMessage("Writing style activated.");
+        learningMessage(`Writing Style v${version} activated after explicit approval.`);
         await renderLearningDashboard();
       } catch (error) {
         learningMessage(error?.message || "Style activation failed.", true);
+      } finally {
+        button.disabled = false;
+      }
+    };
+  });
+
+  host.querySelectorAll("[data-reject-style]").forEach((button) => {
+    button.onclick = async () => {
+      const version = button.dataset.styleVersion || "?";
+      if (!window.confirm(`Reject Style v${version}? It will remain inactive and will not be used for future summaries.`)) {
+        return;
+      }
+
+      button.disabled = true;
+      try {
+        await window.BachSBOBackend.rejectStyle(button.dataset.rejectStyle);
+        learningMessage(`Style v${version} rejected and left inactive.`);
+        await renderLearningDashboard();
+      } catch (error) {
+        learningMessage(error?.message || "Style rejection failed.", true);
       } finally {
         button.disabled = false;
       }
@@ -1808,7 +1878,7 @@ async function renderLearningDashboard() {
     activeStyle ? `v${activeStyle.version}` : "None";
 
   renderCorpusRevisions(overview.corpusRevisions || []);
-  renderStyleProfiles(overview.styleProfiles || []);
+  renderStyleProfiles(overview.styleProfiles || [], overview.styleCoachRuns || []);
   renderSkillSuggestions(overview.skillSuggestions || []);
 
   const styleButton = document.getElementById("generateStyleBtn");
@@ -1826,8 +1896,12 @@ async function generateStyleCandidate() {
 
   try {
     const result = await window.BachSBOBackend.analyzeStyle();
+    const maturity = result?.coach?.corpus_maturity
+      ? ` Corpus maturity: ${result.coach.corpus_maturity}.`
+      : "";
+    const warning = result?.coachWarning ? ` ${result.coachWarning}` : "";
     learningMessage(
-      `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.`
+      `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.${maturity}${warning}`
     );
     await renderLearningDashboard();
   } catch (error) {

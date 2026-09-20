@@ -484,6 +484,10 @@ body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
 .cockpit-clinical-course > .section-title{grid-column:1/-1}
 .cockpit-clinical-primary > .field:first-of-type{grid-column:1/-1}
 .cockpit-clinical-primary #inlineCaseEditor{grid-column:1/-1}
+body.cockpit-ui .cockpit-clinical-primary > #cockpitDemographicsMount{
+  grid-column:1/-1;
+  min-width:0;
+}
 #inlineCaseEditor{
   margin:0 0 2px!important;
   padding:7px;
@@ -1559,7 +1563,7 @@ body.cockpit-ui .cockpit-case-list .cockpit-test-summary{
   text-overflow:ellipsis;
   white-space:nowrap;
   color:#b54708;
-  font-size:9px;
+  font-size:8.5px;
   line-height:20px;
   font-weight:800;
 }

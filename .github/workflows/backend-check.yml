@@ -27,6 +27,7 @@ jobs:
           node --check app.js
           node --check backend.js
           node --check config.js
+          node --check cockpit.js
 
       - name: Check security invariants
         run: |

@@ -7,6 +7,8 @@
   let lastSelectedCaseId = "";
   let assistantBusy = false;
   let assistantLoadToken = 0;
+  let patientBoardLoad = null;
+  const patientProgressByCase = new Map();
   const assistantStateByCase = new Map();
 
   const label = (en, hu) => {
@@ -33,6 +35,86 @@
     if (!id || !window.BachSBOBackend?.loadState) return null;
     const snapshot = await window.BachSBOBackend.loadState();
     return (snapshot.patients || []).find((patient) => patient.id === id) || null;
+  }
+
+  function testEntryStatus(entry) {
+    if (entry?.mode === "notordered") return "notordered";
+    if (String(entry?.text || "").trim()) return "complete";
+    return "waiting";
+  }
+
+  function radiologyLabel(entry, index) {
+    const body = String(entry?.bodyPart || "").trim();
+    const modality = String(entry?.modality || "").trim();
+    const other = String(entry?.otherTest || "").trim();
+    if (modality === "other") return [body, other].filter(Boolean).join(" — ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
+    return [body, modality].filter(Boolean).join(" ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
+  }
+
+  function patientTestItems(patient) {
+    const tests = patient?.tests || {};
+    return [
+      ...(tests.labs || []).map((entry, index) => ({ entry, name: `Lab ${index + 1}` })),
+      ...(tests.ekg ? [{ entry: tests.ekg, name: "EKG" }] : []),
+      ...(tests.gas ? [{
+        entry: tests.gas,
+        name: /\bVVG\b/i.test(String(tests.gas.text || "")) ? "VVG" : "AVG"
+      }] : []),
+      ...(tests.radiology || []).map((entry, index) => ({ entry, name: radiologyLabel(entry, index) })),
+      ...(tests.consultations || []).map((entry, index) => ({
+        entry,
+        name: String(entry?.type || "").trim() || `${label("Consultation", "Konzílium")} ${index + 1}`
+      }))
+    ].map((item) => ({ ...item, status: testEntryStatus(item.entry) }));
+  }
+
+  function patientProgress(patient) {
+    const clinicalDefinitions = [
+      ["complaint", "complaintSkipped", label("Complaint", "Panasz")],
+      ["history", "historySkipped", label("History", "Anamnézis")],
+      ["physical", "physicalSkipped", label("Physical examination", "Fizikális vizsgálat")],
+      ["therapy", "therapySkipped", label("Therapy", "Terápia")],
+      ["course", "courseSkipped", label("Clinical course", "Klinikai lefolyás")]
+    ];
+    const clinical = clinicalDefinitions.map(([valueKey, skippedKey, name]) => ({
+      name,
+      complete: Boolean(patient?.[skippedKey] || String(patient?.[valueKey] || "").trim())
+    }));
+    const tests = patientTestItems(patient);
+    return {
+      clinical,
+      tests,
+      completeClinical: clinical.filter((item) => item.complete),
+      incompleteClinical: clinical.filter((item) => !item.complete),
+      completeTests: tests.filter((item) => item.status !== "waiting"),
+      waitingTests: tests.filter((item) => item.status === "waiting")
+    };
+  }
+
+  function progressFromVisibleForm() {
+    const form = document.getElementById("patientForm");
+    if (!form || form.classList.contains("hidden")) return null;
+
+    const clinical = [...form.querySelectorAll("[data-narrative-field]")].map((field) => ({
+      name: field.querySelector("label")?.textContent?.trim() || label("Clinical field", "Klinikai mező"),
+      complete: field.classList.contains("result") || field.classList.contains("none")
+    }));
+    const tests = [...form.querySelectorAll(".test-card")].map((card, index) => ({
+      name: card.querySelector(".test-name")?.textContent?.trim() || `${label("Test", "Vizsgálat")} ${index + 1}`,
+      status: card.classList.contains("result")
+        ? "complete"
+        : card.classList.contains("notordered")
+        ? "notordered"
+        : "waiting"
+    }));
+    return {
+      clinical,
+      tests,
+      completeClinical: clinical.filter((item) => item.complete),
+      incompleteClinical: clinical.filter((item) => !item.complete),
+      completeTests: tests.filter((item) => item.status !== "waiting"),
+      waitingTests: tests.filter((item) => item.status === "waiting")
+    };
   }
 
   function createTabBar() {
@@ -246,6 +328,47 @@
     }
   }
 
+  function renderSummaryProgress(progress, ready) {
+    if (!progress) {
+      return esc(label(
+        "Review unresolved fields before generation.",
+        "Generálás előtt ellenőrizze a hiányzó mezőket."
+      ));
+    }
+
+    const completeCount = progress.completeClinical.length + progress.completeTests.length;
+    const totalCount = progress.clinical.length + progress.tests.length;
+    const incompleteNames = progress.incompleteClinical.map((item) => item.name);
+    const waitingNames = progress.waitingTests.map((item) => item.name);
+    const completedClinicalNames = progress.completeClinical.map((item) => item.name);
+
+    const nameList = (names, emptyLabel) => names.length
+      ? names.map((name) => `<span class="cockpit-summary-chip">${esc(name)}</span>`).join("")
+      : `<span class="cockpit-summary-empty">${esc(emptyLabel)}</span>`;
+
+    return `
+      <div class="cockpit-summary-overview ${ready ? "ready" : "waiting"}">
+        <strong>${esc(label("Complete", "Kész"))}: ${completeCount}/${totalCount}</strong>
+        <span>${esc(label(
+          `${progress.completeClinical.length}/${progress.clinical.length} clinical · ${progress.completeTests.length}/${progress.tests.length} tests`,
+          `${progress.completeClinical.length}/${progress.clinical.length} klinikai · ${progress.completeTests.length}/${progress.tests.length} vizsgálat`
+        ))}</span>
+      </div>
+      <div class="cockpit-summary-group complete">
+        <b>✓ ${esc(label("Completed clinical", "Kész klinikai részek"))}</b>
+        <div class="cockpit-summary-chips">${nameList(completedClinicalNames, label("None yet", "Még nincs"))}</div>
+      </div>
+      <div class="cockpit-summary-group incomplete">
+        <b>○ ${esc(label("Still incomplete", "Még hiányos"))} · ${incompleteNames.length}</b>
+        <div class="cockpit-summary-chips">${nameList(incompleteNames, label("None", "Nincs"))}</div>
+      </div>
+      <div class="cockpit-summary-group waiting-tests">
+        <b>● ${esc(label("Waiting tests", "Függő vizsgálatok"))} · ${waitingNames.length}</b>
+        <div class="cockpit-summary-chips">${nameList(waitingNames, label("None", "Nincs"))}</div>
+      </div>
+    `;
+  }
+
   function syncRailState() {
     const form = document.getElementById("patientForm");
     const tabs = document.getElementById("cockpitCaseTabs");
@@ -277,14 +400,14 @@
     }
 
     const ready = gate?.classList.contains("ready");
+    const caseId = selectedCaseId();
+    const progress = progressFromVisibleForm() || patientProgressByCase.get(caseId) || null;
     if (badge) {
       badge.textContent = ready ? label("Ready", "Kész") : label("Blocked", "Blokkolt");
       badge.className = "cockpit-summary-badge " + (ready ? "ready" : "blocked");
     }
     if (readiness) {
-      readiness.textContent =
-        gate?.textContent?.trim() ||
-        label("Review unresolved fields before generation.", "Generálás előtt ellenőrizze a hiányzó mezőket.");
+      readiness.innerHTML = renderSummaryProgress(progress, ready);
     }
     if (generate) generate.disabled = !ready;
     if (finalize) finalize.disabled = Boolean(document.getElementById("finalizeSummaryBtn")?.disabled);
@@ -565,22 +688,73 @@
     });
   }
 
-  function enhancePatientRows() {
-    document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
-      row.classList.add("cockpit-compact-patient");
-      row.querySelectorAll(".cockpit-next-action, .cockpit-status-more").forEach((node) => node.remove());
+  function sexClass(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (["m", "male", "férfi"].includes(normalized)) return "male";
+    if (["f", "female", "nő"].includes(normalized)) return "female";
+    return "other";
+  }
 
-      const chips = [...row.querySelectorAll(".wait-chip")];
-      chips.forEach((chip, index) => {
-        chip.classList.toggle("cockpit-status-hidden", index > 0);
+  function waitingTestMarkup(progress, completed) {
+    if (completed) {
+      return `<div class="cockpit-test-chip-list"><span class="cockpit-row-complete">${esc(label("Completed", "Lezárt"))}</span></div>`;
+    }
+    const waiting = progress?.waitingTests || [];
+    if (!waiting.length) {
+      return `<div class="cockpit-test-chip-list"><span class="cockpit-row-ready">${esc(label("No waiting tests", "Nincs függő vizsgálat"))}</span></div>`;
+    }
+    return `<div class="cockpit-test-chip-list" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}">${waiting
+      .map((item) => `<span class="cockpit-test-chip" title="${esc(item.name)}">${esc(item.name)}</span>`)
+      .join("")}</div>`;
+  }
+
+  function decoratePatientRow(row, patient) {
+    const cells = row.querySelectorAll(":scope > td");
+    if (cells.length < 5) return;
+
+    row.classList.add("cockpit-compact-patient");
+    cells[0].classList.add("cockpit-local-id");
+    cells[1].classList.add("cockpit-sex-source");
+    cells[2].className = `cockpit-age-badge sex-${sexClass(patient?.sex || cells[1].textContent)}`;
+    cells[2].setAttribute(
+      "aria-label",
+      `${label("Age", "Életkor")} ${cells[2].textContent.trim()}, ${label("sex", "nem")} ${String(patient?.sex || cells[1].textContent).trim()}`
+    );
+    cells[3].classList.add("cockpit-main-complaint");
+    cells[4].classList.add("cockpit-waiting-tests");
+
+    const progress = patient ? patientProgress(patient) : null;
+    if (patient?.id) patientProgressByCase.set(patient.id, progress);
+    cells[4].innerHTML = waitingTestMarkup(progress, row.classList.contains("completed"));
+  }
+
+  async function enhancePatientRows() {
+    const rows = [...document.querySelectorAll("#patientTbody tr[data-id]")];
+    rows.forEach((row) => row.classList.add("cockpit-compact-patient"));
+    const pendingRows = rows.filter((row) => !row.querySelector(".cockpit-test-chip-list"));
+    if (!pendingRows.length || patientBoardLoad || !window.BachSBOBackend?.loadState) return;
+
+    patientBoardLoad = window.BachSBOBackend.loadState();
+    try {
+      const snapshot = await patientBoardLoad;
+      const patients = new Map((snapshot?.patients || []).map((patient) => [patient.id, patient]));
+      pendingRows.forEach((row) => {
+        if (row.isConnected) decoratePatientRow(row, patients.get(row.dataset.id));
       });
-      if (chips.length > 1) {
-        const more = document.createElement("span");
-        more.className = "cockpit-status-more";
-        more.textContent = `+${chips.length - 1}`;
-        row.querySelector("[data-status-cell] .wait-stack")?.appendChild(more);
-      }
-    });
+      syncRailState();
+    } catch (error) {
+      pendingRows.forEach((row) => {
+        if (!row.isConnected) return;
+        const cells = row.querySelectorAll(":scope > td");
+        if (cells.length < 5) return;
+        cells[0].classList.add("cockpit-local-id");
+        cells[1].classList.add("cockpit-sex-source");
+        cells[2].className = `cockpit-age-badge sex-${sexClass(cells[1].textContent)}`;
+        cells[3].classList.add("cockpit-main-complaint");
+      });
+    } finally {
+      patientBoardLoad = null;
+    }
   }
 
   const wardOptions = [
@@ -748,7 +922,7 @@
 
   function installSync() {
     document.addEventListener("input", (event) => {
-      syncRailState();
+      setTimeout(syncRailState, 0);
       const id = selectedCaseId();
       if (
         id &&
@@ -762,7 +936,7 @@
         }
       }
     }, true);
-    document.addEventListener("change", syncRailState, true);
+    document.addEventListener("change", () => setTimeout(syncRailState, 0), true);
     document.addEventListener("click", (event) => {
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
         setTimeout(updateTabLabels, 0);

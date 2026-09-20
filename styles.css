@@ -1079,3 +1079,145 @@ body.cockpit-ui .cockpit-ai-prose{font-size:11px}
     grid-template-columns:258px minmax(0,1fr);
   }
 }
+
+/* Beta patient board v2: compact identity line plus every waiting test. */
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient{
+  grid-template-columns:22px 38px minmax(0,1fr);
+  grid-template-rows:auto auto;
+  grid-template-areas:
+    "id age complaint"
+    "tests tests tests";
+  min-height:52px;
+  align-items:center;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td{
+  padding:5px 3px;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-local-id{
+  grid-area:id;
+  width:22px!important;
+  padding-left:3px;
+  padding-right:1px;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  color:#667085;
+  text-align:center;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-sex-source{
+  display:none;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-age-badge{
+  grid-area:age;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  min-width:34px;
+  height:23px;
+  padding:0 6px;
+  border:1px solid transparent;
+  border-radius:999px;
+  font-size:11px;
+  line-height:1;
+  font-weight:850;
+  color:#344054;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-age-badge.sex-male{
+  background:#eaf4ff;
+  border-color:#bfdbfe;
+  color:#175cd3;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-age-badge.sex-female{
+  background:#fff0f6;
+  border-color:#fbcfe8;
+  color:#c11574;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-age-badge.sex-other{
+  background:linear-gradient(100deg,#eaf4ff 0 30%,#f4ecff 48% 62%,#fff0f6 78% 100%);
+  border-color:#d6bbfb;
+  color:#6941c6;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-main-complaint{
+  grid-area:complaint;
+  padding-left:5px;
+  padding-right:6px;
+  font-size:13px;
+  line-height:1.2;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-waiting-tests{
+  grid-area:tests;
+  padding:0 5px 6px;
+}
+body.cockpit-ui .cockpit-test-chip-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:3px;
+  min-width:0;
+}
+body.cockpit-ui .cockpit-test-chip{
+  display:inline-flex;
+  align-items:center;
+  max-width:100%;
+  min-height:18px;
+  padding:2px 5px;
+  border:1px solid #fed7aa;
+  border-radius:999px;
+  background:#fff7ed;
+  color:#c2410c;
+  font-size:10px;
+  line-height:1.15;
+  font-weight:800;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+body.cockpit-ui .cockpit-row-ready,
+body.cockpit-ui .cockpit-row-complete{
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
+  color:#067647;
+}
+
+/* Beta Summary status: documented workflow state only; Assistant output stays separate. */
+body.cockpit-ui .cockpit-readiness{
+  display:grid;
+  gap:6px;
+  padding:7px;
+}
+body.cockpit-ui .cockpit-summary-overview{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:6px;
+  padding-bottom:5px;
+  border-bottom:1px solid #e4e7ec;
+}
+body.cockpit-ui .cockpit-summary-overview strong{font-size:12px;color:#344054}
+body.cockpit-ui .cockpit-summary-overview span{font-size:9px;color:#667085;text-align:right}
+body.cockpit-ui .cockpit-summary-overview.ready strong{color:#067647}
+body.cockpit-ui .cockpit-summary-group{display:grid;gap:3px}
+body.cockpit-ui .cockpit-summary-group > b{font-size:10px;color:#475467}
+body.cockpit-ui .cockpit-summary-group.incomplete > b,
+body.cockpit-ui .cockpit-summary-group.waiting-tests > b{color:#b54708}
+body.cockpit-ui .cockpit-summary-chips{display:flex;flex-wrap:wrap;gap:3px}
+body.cockpit-ui .cockpit-summary-chip,
+body.cockpit-ui .cockpit-summary-empty{
+  display:inline-flex;
+  padding:2px 5px;
+  border-radius:999px;
+  background:#ecfdf3;
+  color:#067647;
+  font-size:9px;
+  font-weight:750;
+}
+body.cockpit-ui .cockpit-summary-group.incomplete .cockpit-summary-chip,
+body.cockpit-ui .cockpit-summary-group.waiting-tests .cockpit-summary-chip{
+  background:#fff7ed;
+  color:#b54708;
+}
+body.cockpit-ui .cockpit-summary-empty{background:#f2f4f7;color:#667085}

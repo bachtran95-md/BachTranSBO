@@ -69,6 +69,22 @@ Verified behavior:
 - a rollback-only production transaction verified status/note/review timestamp mutation and left the corpus unchanged afterwards;
 - production corpus remained **15 approved / 0 excluded** after rollback verification.
 
+## Style Coach review workflow — 2026-09-20
+
+The doctor-controlled Style Coach review path is now implemented and deployed:
+
+- repository source was reconciled with deployed `analyze-style` v9 before editing;
+- production `analyze-style` is now **v10** and matches `main`;
+- production `learning-admin` is now **v8** and matches `main`;
+- AI Learning surfaces Style Coach audit metadata: corpus maturity, official-rule count, analysis text, candidate link and review status;
+- pending candidates remain inactive by default;
+- **ACTIVATE** requires an explicit confirmation and only affects future generated summaries;
+- **REJECT** marks the pending Style Coach audit run rejected and leaves the profile inactive;
+- Chromium smoke verifies rejection and verifies that cancelling the activation confirmation does not activate a profile;
+- a rollback-only production database test verified `pending -> rejected`, `reviewed_at` persistence, and `is_active=false`, then rolled back cleanly.
+
+Current production corpus is sufficient for Style Coach (15 approved revisions). At verification time production still had **0 real Style Coach runs**, so the next human step is to generate the first real candidate from the authenticated AI Learning screen and review it. Chat cannot trigger that authenticated browser action without the user's app session.
+
 ## Primary focus now
 
 **AI Assistance while writing/finalizing the Summary.**

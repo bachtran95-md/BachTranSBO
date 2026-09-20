@@ -958,16 +958,23 @@
 
     const names = waiting.map((item) => String(item?.name || "").trim()).filter(Boolean);
     const title = names.join(", ");
-    const preview = names.slice(0, 2).join(", ");
-    const more = Math.max(0, names.length - 2);
     const text = label(
-      `${waiting.length} waiting${preview ? " · " + preview : ""}${more ? ` +${more}` : ""}`,
-      `${waiting.length} függő${preview ? " · " + preview : ""}${more ? ` +${more}` : ""}`
+      `${waiting.length} waiting${title ? " · " + title : ""}`,
+      `${waiting.length} függő${title ? " · " + title : ""}`
     );
 
     return `<div class="cockpit-test-chip-list" title="${esc(title)}" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}: ${esc(title)}">
       <span class="cockpit-test-summary">${esc(text)}</span>
     </div>`;
+  }
+
+  function installPatientListStatusHook() {
+    window.BachSBOUiHooks ||= {};
+    window.BachSBOUiHooks.patientListStatusHtml = (patient, context = {}) => {
+      const progress = patientProgress(patient);
+      if (patient?.id) patientProgressByCase.set(patient.id, progress);
+      return waitingTestMarkup(progress, Boolean(context.completed));
+    };
   }
 
   function decoratePatientIdentity(row, patient = null) {
@@ -1366,6 +1373,7 @@
   }
 
   function install() {
+    installPatientListStatusHook();
     addBetaControls();
     activateCockpitIfReady();
     installSync();

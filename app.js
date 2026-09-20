@@ -588,6 +588,31 @@ async function changeAdminPassword() {
   }
 }
 
+function patientListStatusHtml(patient) {
+  const completed = isCompleted(patient);
+  const blockers = workflowBlockers(patient);
+  const hook = window.BachSBOUiHooks?.patientListStatusHtml;
+
+  if (typeof hook === "function") {
+    try {
+      const custom = hook(patient, { completed, blockers: blockers.slice() });
+      if (typeof custom === "string" && custom) return custom;
+    } catch (error) {
+      console.error("Patient-list UI hook failed; using stable renderer.", error);
+    }
+  }
+
+  if (completed) {
+    return `<span class="badge done">${uiLang === "hu" ? "LEZÁRT" : "COMPLETED"}</span>`;
+  }
+  if (blockers.length) {
+    return `<div class="wait-stack">${blockers
+      .map((x) => `<span class="wait-chip">${esc(x)}</span>`)
+      .join("")}</div>`;
+  }
+  return `<span class="wait-none">${uiLang === "hu" ? "KÉSZ" : "READY"}</span>`;
+}
+
 function renderPatients() {
   document.getElementById("newId").value = nextPatientId();
 
@@ -603,14 +628,7 @@ function renderPatients() {
     });
 
   orderedPatients.forEach((patient) => {
-    const waits = workflowBlockers(patient);
-    const statusHtml = isCompleted(patient)
-      ? `<span class="badge done">${uiLang === "hu" ? "LEZÁRT" : "COMPLETED"}</span>`
-      : waits.length
-      ? `<div class="wait-stack">${waits
-          .map((x) => `<span class="wait-chip">${esc(x)}</span>`)
-          .join("")}</div>`
-      : `<span class="wait-none">${uiLang === "hu" ? "KÉSZ" : "READY"}</span>`;
+    const statusHtml = patientListStatusHtml(patient);
 
     const tr = document.createElement("tr");
     tr.dataset.id = patient.id;
@@ -651,18 +669,7 @@ function updateStatusCell(patient) {
   const cell = document.querySelector(`[data-status-cell="${patient.id}"]`);
   if (!cell) return;
 
-  if (isCompleted(patient)) {
-    cell.innerHTML = `<span class="badge done">${uiLang === "hu" ? "LEZÁRT" : "COMPLETED"}</span>`;
-    return;
-  }
-
-  const waits = workflowBlockers(patient);
-
-  cell.innerHTML = waits.length
-    ? `<div class="wait-stack">${waits
-        .map((x) => `<span class="wait-chip">${esc(x)}</span>`)
-        .join("")}</div>`
-    : `<span class="wait-none">${uiLang === "hu" ? "KÉSZ" : "READY"}</span>`;
+  cell.innerHTML = patientListStatusHtml(patient);
 }
 
 async function addPatient() {
@@ -1116,8 +1123,10 @@ function wireCard(card, entry, key) {
   function refreshVisual() {
     const status = entryStatus(entry);
 
-    card.className =
-      `test-card ${status === "result" ? "result" : status === "notordered" ? "notordered" : ""}`;
+    // Preserve UI-extension classes such as Beta's cockpit-test-row while
+    // updating only state classes. Resetting className caused layout flicker.
+    card.classList.toggle("result", status === "result");
+    card.classList.toggle("notordered", status === "notordered");
 
     const statusEl = card.querySelector(".test-status");
     if (statusEl) statusEl.outerHTML = statusBadge(status);

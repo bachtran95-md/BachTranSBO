@@ -382,6 +382,27 @@ if (!afterDelete.includes("Existing smoke case")) {
   throw new Error("Existing case was lost during smoke flow");
 }
 
+// Prepare three meaningful pending investigations for Beta Case-list coverage.
+await page.evaluate(() => {
+  const key = "__bach_sbo_e2e_state";
+  const state = JSON.parse(localStorage.getItem(key) || "{}");
+  const p = state?.patients?.[0];
+  if (!p) return;
+  for (const entry of [p.tests?.ekg, p.tests?.gas, p.tests?.radiology?.[0]]) {
+    if (!entry) continue;
+    entry.mode = "waiting";
+    entry.text = "";
+    entry.savedText = "";
+  }
+  if (p.tests?.radiology?.[0]) {
+    p.tests.radiology[0].bodyPart = "koponya";
+    p.tests.radiology[0].modality = "Native CT";
+    p.tests.radiology[0].otherTest = "";
+    p.tests.radiology[0].type = "koponya Native CT";
+  }
+  localStorage.setItem(key, JSON.stringify(state));
+});
+
 const beta = await context.newPage();
 let cancelNextBetaDialog = false;
 beta.on("dialog", async (dialog) => {
@@ -403,9 +424,57 @@ await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case"
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();
 
+const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
+await beta.waitForFunction(() =>
+  Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))
+);
+const pendingSummary = await caseRow.locator(".cockpit-test-summary").textContent();
+for (const expected of ["EKG", "AVG", "koponya Native CT"]) {
+  if (!pendingSummary.includes(expected)) {
+    throw new Error(`Case list hid pending test ${expected}: ${pendingSummary}`);
+  }
+}
+if (/\+\d+/.test(pendingSummary)) {
+  throw new Error(`Case list still truncates waiting tests with +N: ${pendingSummary}`);
+}
+
+// Klinikum demographics must stay visible and editable.
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
+await beta.locator("#cockpitDemographicsMount #iceAge").waitFor({ state: "visible" });
+await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "visible" });
+if (await beta.locator("#iceAge").isDisabled()) {
+  throw new Error("Klinikum Age input is disabled");
+}
+await beta.locator("#iceAge").fill("44");
+await beta.locator("#iceAge").dispatchEvent("change");
+const expectedYob = String(new Date().getFullYear() - 44);
+await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
+if (await beta.locator("#iceArrival").isDisabled()) {
+  throw new Error("Klinikum arrival mode is disabled");
+}
+
+// Regression from the uploaded recording: typing into a result must not remove
+// Beta's compact test-row class and temporarily expand the card.
+await beta.locator('[data-cockpit-tab="tests"]').click();
+await beta.locator('[data-card="ekg"].cockpit-test-row').waitFor();
+await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("temporary EKG text");
+let testClasses = await beta.locator('[data-card="ekg"]').getAttribute("class");
+if (!String(testClasses).includes("cockpit-test-row")) {
+  throw new Error(`EKG card lost compact layout while typing: ${testClasses}`);
+}
+await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("");
+await beta.locator('[data-card="radiology-0"].cockpit-test-row').waitFor();
+await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("temporary radiology text");
+testClasses = await beta.locator('[data-card="radiology-0"]').getAttribute("class");
+if (!String(testClasses).includes("cockpit-test-row")) {
+  throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);
+}
+await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+
 // Regression: a case with many unresolved fields must not expand the Case list row
 // or push neighbouring cases down while app.js rewrites the status cell.
-const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 const initialCaseRowHeight = await caseRow.evaluate((node) => node.getBoundingClientRect().height);
 await beta.evaluate(() => {
   for (const field of ["complaint", "history", "physical", "therapy", "course"]) {

@@ -5,14 +5,14 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 ## NOW — AI Assistance for Summary
 
 - [x] Replace the cockpit MutationObserver with an observer-free event/timer model in isolated `/beta.html`; stable `/` remains default.
-- [ ] Add browser-level smoke test covering login → load existing cases → add case → delete synthetic case → reload before re-enabling cockpit UI.
+- [x] Add browser-level Chromium smoke test covering login → load existing cases → add case → delete synthetic case → reload, plus beta load.
 
-- [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v3.
+- [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v4.
 - [x] Compare deployed `generate-summary` with repo source and sync the production source back into GitHub.
-- [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).
-- [x] Add optional paste-text input for physician notes / Heidi text (preview UI implemented on `ui-compact-cockpit`).
-- [x] Call `case-assistant` to extract only explicitly documented facts (wired on `ui-compact-cockpit`).
-- [x] Show an extraction preview with evidence/traceability before applying anything (wired on `ui-compact-cockpit`).
+- [x] Define the Summary Assistant UI inside/next to the Case Summary section; it is available in the isolated `/beta.html` cockpit.
+- [x] Add optional paste-text input for physician notes / Heidi text in the beta cockpit.
+- [x] Call `case-assistant` to extract only explicitly documented facts in the beta cockpit.
+- [x] Show an extraction preview with evidence/traceability before applying anything in the beta cockpit.
 - [ ] Persist/apply explicitly accepted extracted items to the correct clinical fields; current branch only records local Accept/Ignore UI decisions and never auto-overwrites.
 - [ ] Show missing/conflicting/unresolved information that may affect documentation.
 - [x] Keep investigation suggestions in the separate Case Assistant rail/to-do list, never in documented/ordered test fields.
@@ -21,17 +21,21 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Preserve Generate Summary → edit → Finalize Summary as the authoritative documentation path; Assistant state is separate.
 - [ ] Test that AI failure never destroys or overwrites clinician-entered data.
 
-## NEXT — source-of-truth / privacy cleanup\n\nSee `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
+## NEXT — source-of-truth / privacy cleanup
 
-- [ ] Reconcile production Supabase migrations with GitHub `main`.
-- [ ] Commit production-only Edge Function source, especially `case-assistant` and `backend-diagnostics`.
-- [ ] Reconcile `summary-standardization-sync` with `main`.
-- [ ] Move direct clinical free-text updates in `config.js` behind `clinical-store`.
+`docs/AUDIT_2026-09-20.md` is the historical audit; the hardening section in `PROJECT_STATE.md` is the current source of truth and the arrival gap is fixed.
+
+- [x] Reconcile the current late production Supabase migration history with GitHub `main`.
+- [x] Commit/sync production Edge Function source needed for the current runtime, including `case-assistant`, `generate-summary`, and `backend-diagnostics`.
+- [x] Reconcile the needed migration/runtime work without merging stale `summary-standardization-sync` wholesale.
+- [x] Move direct case metadata/free-text updates behind `clinical-store/update_case_metadata` and revoke authenticated browser UPDATE on `cases`.
 - [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
 - [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
 - [x] Confirm `case_patch.js` is dead code and remove it.
-- [x] Update stale GitHub Pages URLs.\n- [ ] Reconcile remaining outdated privacy/learning documentation with production behavior.
-- [x] Close the Codex write-test PR.\n- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
+- [x] Update stale GitHub Pages URLs.
+- [ ] Continue pruning older documentation sections as features evolve; `PROJECT_STATE.md` hardening section is the current source of truth.
+- [x] Close the Codex write-test PR.
+- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
 
 ## LATER — learning / production hardening
 
@@ -39,7 +43,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [ ] Run and review the new Style Coach workflow; currently there are no Style Coach runs.
 - [ ] Review/activate a style profile only after explicit human approval.
 - [ ] Enable Supabase leaked-password protection.
-- [ ] Run full end-to-end regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning.
+- [ ] Run a full authenticated live regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning. Mocked Chromium smoke + rollback-only production atomic-finalize verification already pass.
 - [ ] Review auth/session, RLS, Edge Function authorization, CORS/origin, error handling and operational logging.
 
 ## Rules for agents

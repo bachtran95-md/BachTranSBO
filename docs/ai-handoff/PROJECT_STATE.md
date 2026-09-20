@@ -6,6 +6,30 @@ Last updated: 2026-09-20
 
 Personal ER/SBO command center for one active shift at a time, with privacy-conscious permanent de-identified case storage, server-side AI documentation assistance, and a doctor-approved AI learning corpus.
 
+
+## Hardening completion — 2026-09-20
+
+The arrival/privacy/migration/E2E hardening package is now **completed in production**.
+
+Verified production state:
+
+- PR #4 (`Hardening: arrival pipeline, privacy writes, migration parity, E2E smoke`) was merged to `main` as commit `1ece9555ed76da0d652ae246d4570cc2eee9c586`.
+- PR #5 cache-busted `config.js`, `backend.js`, and `app.js` and was merged as `c6d197a22fc1c77097efb667ba6d87ebed98d99f`.
+- GitHub Pages deployment for the cache-busted commit completed successfully before browser UPDATE access was revoked.
+- Production `clinical-store` is active at version **19** and contains `update_case_metadata`.
+- Arrival metadata now travels through `save_state`, `save_patient`, partial metadata save, atomic finalization, and finalized learning snapshots.
+- Free-text `arrivalOther` is included in the de-identification inventory.
+- Production migration `20260920174120_persist_arrival_in_atomic_finalize` updates `finalize_case_atomic` to persist `arrival_mode` and `arrival_other`.
+- Production migration `20260920175234_revoke_cases_browser_update_after_privacy_bridge` removes authenticated browser UPDATE access to `public.cases`.
+- Current authenticated privileges on `public.cases`: **SELECT=true; UPDATE=false; INSERT=false; DELETE=false**.
+- The intended privacy invariant is therefore enforced for case writes: `Browser -> clinical-store -> de-identification -> PostgreSQL`.
+- A rollback-only production transaction verified that atomic finalize preserves both arrival columns and `summary_revisions.case_snapshot.arrival_to_sbo`; the transaction left **0** synthetic test rows.
+- CI includes a Chromium browser smoke covering login -> existing case -> add synthetic case -> delete -> reload -> beta, and it passes.
+- CI rejects any future direct browser `cases.update()` or `cases.delete()` usage.
+- The late production migration history for learning, official documentation, Case Assistant, arrival finalization, and browser-write hardening is now represented on `main`.
+
+Stable UI remains the default at `/`. Beta cockpit remains isolated at `/beta.html` and has **not** been promoted to default.
+
 ## Primary focus now
 
 **AI Assistance while writing/finalizing the Summary.**
@@ -34,7 +58,7 @@ Guardrails for this feature:
 
 ## Latest audit snapshot
 
-A repository + production Supabase audit on 2026-09-20 found that the **production backend is ahead of GitHub `main`**. Treat Supabase runtime as containing newer work that must be reconciled back into source control.
+The 2026-09-20 audit initially found production ahead of GitHub. The subsequent hardening package reconciled the relevant production source/migrations back into `main`; use the Hardening completion section above as the current source of truth.
 
 ### Frontend status
 
@@ -57,12 +81,11 @@ Core ER workflow is largely implemented:
 
 Frontend debt / missing work:
 
-- `config.js` is no longer config-only; it contains substantial runtime UI and persistence patches.
-- `case_patch.js` exists in the repo but is not loaded by `index.html`; likely dead/legacy code pending confirmation.
-- Some case metadata is written directly from the browser to `cases`, bypassing the intended `clinical-store` privacy path.
-- Delete Case currently attempts a browser-side delete while production grants do not allow authenticated DELETE on `cases`; move deletion behind a server action.
-- The production `case-assistant` backend is not yet integrated into the Summary UI.
-- New learning/corpus review capabilities in production are not fully represented in the frontend.
+- `config.js` is no longer config-only; it still contains substantial runtime UI/persistence bridge logic and should be refactored into maintained frontend modules.
+- Accepted extraction items are still preview-only; explicit apply-to-field behavior remains to be implemented.
+- Missing/conflicting/unresolved documentation guidance is not yet complete.
+- Newer learning/corpus review capabilities are not fully surfaced in the frontend.
+- Stable `/` and beta `/beta.html` remain intentionally separate until hands-on approval.
 
 ### Backend status
 
@@ -75,17 +98,12 @@ Production Edge Functions observed:
 - `analyze-style` — active.
 - `analyze-skill` — active.
 - `learning-admin` — active.
-- `backend-diagnostics` — active in production but source is not currently represented on `main`.
+- `backend-diagnostics` — intentionally disabled behavior is source-controlled on `main`.
 - `case-assistant` — active in production and source-controlled on `main`; deployed source matches the repository version.
 
-Production database contains newer migrations/features beyond the files currently on `main`, including:
+The late production migration history used by the current learning/documentation/assistant hardening path has been reconciled back into `main`, including browser-write hardening, learning-corpus quality, official documentation/style-coach support, Case Assistant state/guideline registry, arrival-aware atomic finalization, and the final browser UPDATE revoke.
 
-- browser-write hardening / arrival metadata adjustments;
-- learning-corpus quality review;
-- official documentation source/rule library;
-- Style Coach support and advisor cleanup.
-
-Branch `summary-standardization-sync` contains part of this newer migration history but has diverged from `main`; reconcile instead of leaving it as a long-lived parallel source of truth.
+Branch `summary-standardization-sync` is now a stale historical branch, not a source of truth. Do **not** merge it wholesale into `main`.
 
 ### AI learning snapshot
 
@@ -108,7 +126,7 @@ This means the learning infrastructure is functional, but the newer Style Coach 
 
 ## Privacy / security findings
 
-Intended invariant:
+Enforced invariant for case writes:
 
 ```text
 Browser
@@ -117,13 +135,13 @@ Browser
   -> PostgreSQL
 ```
 
-Current exception found during audit:
+Current production state:
 
-- `config.js` directly updates selected columns in `cases`.
-- Production currently grants authenticated users `SELECT, UPDATE` on `cases`.
-- Free-text values such as main complaint, arrival details, or discharge-condition details can therefore bypass `clinical-store`.
-
-Target: move all clinical free-text writes back behind `clinical-store` and keep browser database access as read-only wherever practical.
+- inline case metadata is saved through `clinical-store/update_case_metadata`;
+- Delete Case uses `clinical-store/delete_case`;
+- authenticated browser access to `public.cases` is read-only;
+- `arrivalOther` is de-identified before permanent storage;
+- CI rejects direct browser case UPDATE/DELETE regressions.
 
 Supabase Security Advisor at audit time had one notable warning:
 
@@ -133,12 +151,12 @@ Performance advisor only reported informational unused indexes; this is not curr
 
 ## Repository / deployment status
 
-- GitHub Pages workflow is passing.
-- Backend checks workflow is passing.
-- `main` was deployable at audit time.
-- There is a draft PR/branch created only to test Codex write access; clean it up when convenient.
-- The branch `summary-standardization-sync` must be reconciled with `main`.
-- Documentation contains stale references to the former `report0101.github.io` deployment and some older privacy/learning assumptions.
+- GitHub Pages and Backend checks are passing.
+- The hardening frontend is deployed from `main` with explicit cache-busting.
+- The Codex write-test PR was closed.
+- `summary-standardization-sync` is stale and should not be merged wholesale.
+- Former `report0101.github.io` deployment URLs were updated.
+- Browser smoke coverage is part of CI.
 
 ## Important constraints
 
@@ -164,11 +182,11 @@ Performance advisor only reported informational unused indexes; this is not curr
 
 ## Current milestones
 
-1. **AI Assistance for Summary** — integrate the deployed assistant capabilities cleanly into the summary-writing workflow.
-2. Reconcile production Supabase source/migrations/functions back into GitHub `main`.
-3. Remove direct clinical browser writes and restore the privacy-gated write invariant.
-4. Refactor frontend patch logic out of `config.js`.
-5. Run end-to-end regression testing against production.
+1. **AI Assistance for Summary** — implement explicit apply-to-field for accepted extracted facts and improve missing/conflicting/unresolved guidance.
+2. Refactor frontend patch logic out of `config.js`.
+3. Exercise the Style Coach/corpus-review workflows and activate a style profile only after explicit human review.
+4. Run a full authenticated live workflow regression covering Assistant -> Generate Summary -> doctor edit -> Finalize -> retrieval/learning.
+5. Keep Stable `/` as default until beta is explicitly approved for promotion.
 
 ## Verification status
 
@@ -182,7 +200,7 @@ The 2026-09-20 audit inspected:
 - current AI-learning corpus counts;
 - selected deployed function behavior, including `case-assistant`, `generate-summary`, `analyze-style`, and `learning-admin`.
 
-No destructive changes, schema changes, or production function deployments were performed during the audit.
+The initial audit itself was read-only. The subsequent approved hardening work deployed `clinical-store` v19, applied arrival-aware atomic-finalize and browser-write-revoke migrations, and verified them with CI plus rollback-only production tests.
 
 ## Frontend cockpit work in progress
 
@@ -238,9 +256,9 @@ The stable UI must remain default until the user explicitly approves beta after 
 
 ## Resume here
 
-**Start with AI Assistance in the Summary workflow.**
+**Start with the remaining doctor-controlled AI Assistance workflow, not with backend cleanup.**
 
-Before editing, compare the deployed `case-assistant` and deployed `generate-summary` with repository source so no production-only logic is lost.
+The arrival/privacy/migration hardening package is complete. Before changing any deployed Edge Function, still compare deployed source with repository source as a safety check.
 
 Then design/implement a doctor-controlled Summary Assistant UI with this initial flow:
 

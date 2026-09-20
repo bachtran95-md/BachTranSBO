@@ -76,7 +76,7 @@ Production Edge Functions observed:
 - `analyze-skill` — active.
 - `learning-admin` — active.
 - `backend-diagnostics` — active in production but source is not currently represented on `main`.
-- `case-assistant` — active in production but source is not currently represented on `main`.
+- `case-assistant` — active in production and source-controlled on `main`; deployed source matches the repository version.
 
 Production database contains newer migrations/features beyond the files currently on `main`, including:
 
@@ -186,7 +186,7 @@ No destructive changes, schema changes, or production function deployments were 
 
 ## Frontend cockpit work in progress
 
-Branch `ui-compact-cockpit` / draft PR #2 now contains the first merge of the existing UI with the compact 1080p cockpit prototype:
+The original `ui-compact-cockpit` work was merged, rolled back from production activation after the observer regression, and is now represented by the isolated `/beta.html` rollout. The first merge of the existing UI with the compact 1080p cockpit prototype:
 
 - three-column ER layout (patient board / case workspace / AI rail);
 - compact Clinical / Tests / Disposition / Summary tabs without replacing existing clinical IDs or backend workflow;
@@ -215,6 +215,26 @@ Immediate recovery completed:
 Do not re-enable `cockpit.js` on production until its observer/event model is rewritten and browser-level login/state-load/add/delete regression tests pass.
 
 Current rollout model: the stable legacy/recovery UI is the default at `/`. The compact cockpit is isolated at `/beta.html` and loads `cockpit-beta.js`, which activates only after the authenticated patient workspace becomes visible and does not use DOM mutation observers. Beta has a visible BETA badge and a STABLE UI link back to `/`. Do not promote beta to default until the user explicitly approves it after hands-on testing.
+
+## Cockpit beta refinement + persistent Case Assistant (2026-09-20)
+
+The beta cockpit at `/beta.html` now incorporates the physician's compact-monitor feedback while the stable UI remains the default at `/`:
+
+- cockpit typography increased by ~2 px while keeping dense spacing;
+- patient board narrowed to about 258–278 px on wide screens and uses a compact two-line row: local ID + sex/age, then main complaint + compact status;
+- clinical identity controls are arranged on one row: Sex / YOB / Age / arrival mode;
+- admitted/transferred disposition uses a ward picker in this order: Belgyógyászat, Kardiológia, Gasztroenterológia, Infektológia, SBO, Sebészet, Neurológia, Idegsebészet, Nefrológia, Egyéb; the original `fWard` remains the persisted field;
+- admission note prompts `Milyen állapotban, szállítás?`;
+- Case Assistant is a compact priority to-do list (NOW / NEXT / CONSIDER) with reason/source details behind an info disclosure;
+- Assistant state is case-specific and restored when switching between patients or reloading;
+- YES / NO / DONE / N/A decisions persist server-side and remain advisory only;
+- stale detection compares the current case fingerprint with the fingerprint used for the saved Assistant run.
+
+Case Assistant backend is now source-controlled at `supabase/functions/case-assistant/index.ts` and matches deployed production version 3. Production includes the migration `case_assistant_state_and_guideline_registry` and tables `case_assistant_runs`, `case_assistant_items`, and `clinical_guideline_sources`. The guideline registry currently contains 22 active EU/international/US authoritative domains. Browser roles have no direct grants on these three tables; access is through the authenticated Edge Function/service-role path.
+
+A synthetic production-database test verified Assistant run persistence, item decision persistence, and ON DELETE CASCADE cleanup with zero retained synthetic cases. Current Assistant tables contained no real runs/items before hands-on beta use.
+
+The stable UI must remain default until the user explicitly approves beta after hands-on testing.
 
 ## Resume here
 

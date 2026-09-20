@@ -28,6 +28,7 @@ jobs:
           node --check backend.js
           node --check config.js
           node --check cockpit.js
+          node --check cockpit-beta.js
 
       - name: Check security invariants
         run: |
@@ -39,8 +40,20 @@ jobs:
             echo "Clinical app.js must not persist data in localStorage."
             exit 1
           fi
-          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.delete|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.delete' config.js app.js backend.js cockpit.js; then
+          if grep -E -q 'from\(["'"'"']cases["'"'"']\)\.delete|from\(["'"'"']cases["'"'"']\)[[:space:]]*\.delete' config.js app.js backend.js cockpit.js cockpit-beta.js; then
             echo "Browser code must not delete cases directly; use clinical-store delete_case."
+            exit 1
+          fi
+          if grep -q "MutationObserver" cockpit-beta.js; then
+            echo "cockpit-beta.js must not use DOM mutation observers."
+            exit 1
+          fi
+          if ! grep -q 'cockpit-beta.js' beta.html; then
+            echo "beta.html must load cockpit-beta.js."
+            exit 1
+          fi
+          if grep -q 'cockpit-beta.js' index.html; then
+            echo "Production index.html must remain on the stable UI."
             exit 1
           fi
           if ! grep -q 'action: "delete_case"' backend.js; then

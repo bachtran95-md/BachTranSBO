@@ -214,6 +214,8 @@ Immediate recovery completed:
 
 Do not re-enable `cockpit.js` on production until its observer/event model is rewritten and browser-level login/state-load/add/delete regression tests pass.
 
+Current rollout model: the stable legacy/recovery UI is the default at `/`. The compact cockpit is isolated at `/beta.html` and loads `cockpit-beta.js`, which activates only after the authenticated patient workspace becomes visible and does not use DOM mutation observers. Beta has a visible BETA badge and a STABLE UI link back to `/`. Do not promote beta to default until the user explicitly approves it after hands-on testing.
+
 ## Resume here
 
 **Start with AI Assistance in the Summary workflow.**

@@ -4,10 +4,10 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## NOW — AI Assistance for Summary
 
-- [ ] Rewrite cockpit MutationObserver/event model to avoid self-triggering DOM mutation loops; cockpit UI is currently disabled on production.
+- [x] Replace the cockpit MutationObserver with an observer-free event/timer model in isolated `/beta.html`; stable `/` remains default.
 - [ ] Add browser-level smoke test covering login → load existing cases → add case → delete synthetic case → reload before re-enabling cockpit UI.
 
-- [ ] Inspect/export the currently deployed `case-assistant` source and reconcile it into GitHub before changing it.
+- [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v3.
 - [ ] Compare deployed `generate-summary` with repo source so production-only logic is not lost.
 - [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).
 - [x] Add optional paste-text input for physician notes / Heidi text (preview UI implemented on `ui-compact-cockpit`).
@@ -15,10 +15,10 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Show an extraction preview with evidence/traceability before applying anything (wired on `ui-compact-cockpit`).
 - [ ] Persist/apply explicitly accepted extracted items to the correct clinical fields; current branch only records local Accept/Ignore UI decisions and never auto-overwrites.
 - [ ] Show missing/conflicting/unresolved information that may affect documentation.
-- [ ] Show investigation suggestions separately from documented/ordered tests.
-- [ ] Show therapy suggestions separately from therapy already administered.
-- [ ] Make it visually explicit that suggestions are advisory and require physician judgment.
-- [ ] Preserve the existing Generate Summary → edit → Finalize Summary path as authoritative.
+- [x] Keep investigation suggestions in the separate Case Assistant rail/to-do list, never in documented/ordered test fields.
+- [x] Keep therapy suggestions in the separate Case Assistant rail/to-do list, never in administered-therapy fields.
+- [x] Make Assistant suggestions advisory, priority-ranked, source-traceable, and physician-decided with persisted YES/NO/DONE/N/A state.
+- [x] Preserve Generate Summary → edit → Finalize Summary as the authoritative documentation path; Assistant state is separate.
 - [ ] Test that AI failure never destroys or overwrites clinician-entered data.
 
 ## NEXT — source-of-truth / privacy cleanup

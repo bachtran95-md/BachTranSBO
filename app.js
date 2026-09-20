@@ -38,7 +38,7 @@ const I18N = {
     finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE",
     diagnosesNote:"Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.",
     learningDesc:"Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.",
-    refresh:"REFRESH", finalizedCorpus:"Finalized corpus", activeSkill:"Active Skill", activeStyle:"Active style",
+    refresh:"REFRESH", finalizedCorpus:"Finalized corpus", approvedLearningCases:"Approved learning cases", activeSkill:"Active Skill", activeStyle:"Active style",
     writingStyle:"Writing style", styleDesc:"Generated → Finalized pairs. Candidate requires explicit activation.",
     generateCandidate:"GENERATE CANDIDATE", skillSuggestions:"Skill improvement suggestions",
     skillSuggestionsDesc:"Advisory only. Accepting never modifies Skill versions automatically.",
@@ -80,7 +80,7 @@ const I18N = {
     finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE",
     diagnosesNote:"Csak az orvos által rögzített diagnózisok. Az összefoglaló nem állíthat fel új diagnózist a vizsgálati eredményekből.",
     learningDesc:"Orvos által jóváhagyott tanulás a véglegesített összefoglalókból. A rendszer nem módosítja automatikusan a fő Skill-t.",
-    refresh:"FRISSÍTÉS", finalizedCorpus:"Véglegesített korpusz", activeSkill:"Aktív Skill", activeStyle:"Aktív stílus",
+    refresh:"FRISSÍTÉS", finalizedCorpus:"Véglegesített korpusz", approvedLearningCases:"Jóváhagyott tanulási esetek", activeSkill:"Aktív Skill", activeStyle:"Aktív stílus",
     writingStyle:"Írási stílus", styleDesc:"Generált → véglegesített párok. A jelölt csak külön jóváhagyással aktiválható.",
     generateCandidate:"JELÖLT GENERÁLÁSA", skillSuggestions:"Skill-fejlesztési javaslatok",
     skillSuggestionsDesc:"Csak javaslat. Az elfogadás nem módosítja automatikusan a Skill-verziókat.",
@@ -1798,6 +1798,12 @@ async function renderLearningDashboard() {
   document.getElementById("learningFinalizedCount").textContent =
     String(overview.finalizedCount || 0);
 
+  const approvedLearningCases = Number(overview.approvedDistinctCaseCount || 0);
+  const approvedCaseMetric = document.getElementById("learningApprovedCaseCount");
+  if (approvedCaseMetric) {
+    approvedCaseMetric.textContent = String(approvedLearningCases);
+  }
+
   document.getElementById("learningActiveSkill").textContent =
     overview.activeSkill
       ? `${overview.activeSkill.name || "SBO Skill"} v${overview.activeSkill.version}`
@@ -1814,8 +1820,14 @@ async function renderLearningDashboard() {
   const styleButton = document.getElementById("generateStyleBtn");
   const skillButton = document.getElementById("generateSkillSuggestionBtn");
 
-  styleButton.disabled = (overview.finalizedCount || 0) < 5;
-  skillButton.disabled = (overview.finalizedCount || 0) < 10;
+  styleButton.disabled = approvedLearningCases < 5;
+  skillButton.disabled = approvedLearningCases < 10;
+  styleButton.title = approvedLearningCases < 5
+    ? `Requires 5 approved distinct cases (${approvedLearningCases}/5).`
+    : "";
+  skillButton.title = approvedLearningCases < 10
+    ? `Requires 10 approved distinct cases (${approvedLearningCases}/10).`
+    : "";
 }
 
 async function generateStyleCandidate() {

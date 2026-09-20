@@ -664,6 +664,45 @@ function renderPatients() {
   }
 }
 
+function syncPatientRowFromState(patient) {
+  if (!patient) return;
+  const row = document.querySelector(`#patientTbody tr[data-id="${patient.id}"]`);
+  if (!row) return;
+  const cells = row.querySelectorAll(":scope > td");
+  if (cells[0]) cells[0].textContent = patient.localId || "";
+  if (cells[1]) cells[1].textContent = patient.sex || "";
+  if (cells[2]) cells[2].textContent = ageFromYob(patient.yob);
+  if (cells[3]) cells[3].textContent = patient.mainComplaint || "";
+  if (cells[4]) cells[4].innerHTML = patientListStatusHtml(patient);
+}
+
+function applyCaseMetadata(caseId, metadata = {}) {
+  const patient = patientById(caseId);
+  if (!patient) return null;
+
+  if (Object.prototype.hasOwnProperty.call(metadata, "sex")) {
+    patient.sex = metadata.sex || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "year_of_birth")) {
+    patient.yob = metadata.year_of_birth ? String(metadata.year_of_birth) : "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "main_complaint")) {
+    patient.mainComplaint = metadata.main_complaint || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "arrival_mode")) {
+    patient.arrivalMode = metadata.arrival_mode || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "arrival_other")) {
+    patient.arrivalOther = metadata.arrival_other || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
+    patient.otherDetails = metadata.other_details || "";
+  }
+  patient.updatedAt = nowIso();
+  syncPatientRowFromState(patient);
+  return structuredClone(patient);
+}
+
 function updateStatusCell(patient) {
   if (!patient) return;
   const cell = document.querySelector(`[data-status-cell="${patient.id}"]`);
@@ -2114,7 +2153,8 @@ async function applyAcceptedExtraction(caseId, items) {
 }
 
 window.BachSBOClinicalUi = Object.freeze({
-  applyAcceptedExtraction
+  applyAcceptedExtraction,
+  applyCaseMetadata
 });
 
 function flash(message) {

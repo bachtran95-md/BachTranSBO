@@ -230,9 +230,9 @@ The beta cockpit at `/beta.html` now incorporates the physician's compact-monito
 - YES / NO / DONE / N/A decisions persist server-side and remain advisory only;
 - stale detection compares the current case fingerprint with the fingerprint used for the saved Assistant run.
 
-Case Assistant backend is now source-controlled at `supabase/functions/case-assistant/index.ts` and matches deployed production version 3. Production includes the migration `case_assistant_state_and_guideline_registry` and tables `case_assistant_runs`, `case_assistant_items`, and `clinical_guideline_sources`. The guideline registry currently contains 22 active EU/international/US authoritative domains. Browser roles have no direct grants on these three tables; access is through the authenticated Edge Function/service-role path.
+Case Assistant backend is now source-controlled at `supabase/functions/case-assistant/index.ts` and matches deployed production version 4. Production includes the migration `case_assistant_state_and_guideline_registry` and tables `case_assistant_runs`, `case_assistant_items`, and `clinical_guideline_sources`. The guideline registry currently contains 22 active EU/international/US authoritative domains. Browser roles have no direct grants on these three tables; access is through the authenticated Edge Function/service-role path.
 
-A synthetic production-database test verified Assistant run persistence, item decision persistence, and ON DELETE CASCADE cleanup with zero retained synthetic cases. Current Assistant tables contained no real runs/items before hands-on beta use.
+A synthetic production-database test verified Assistant run persistence, item decision persistence, and ON DELETE CASCADE cleanup with zero retained synthetic cases. Assistant requests are now case-bound during async refresh so a result finishing after the physician switches patients is cached for its original case instead of being painted over the newly selected case. Saved items are re-sorted NOW → NEXT → CONSIDER on reload. Current Assistant tables contained no real runs/items before hands-on beta use.
 
 The stable UI must remain default until the user explicitly approves beta after hands-on testing.
 

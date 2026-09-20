@@ -975,7 +975,23 @@ body.cockpit-ui .cockpit-todo-item.priority-next{border-left-color:#f79009}
 body.cockpit-ui .cockpit-todo-item.priority-consider{border-left-color:#98a2b3}
 body.cockpit-ui .cockpit-todo-item.decision-done{background:#ecfdf3}
 body.cockpit-ui .cockpit-todo-item.decision-yes{background:#fff7ed}
-body.cockpit-ui .cockpit-todo-item.decision-no{background:#f2f4f7}
+body.cockpit-ui .cockpit-todo-item.decision-no{
+  background:#d0d5dd;
+  border-color:#98a2b3;
+  border-left-color:#98a2b3;
+}
+body.cockpit-ui .cockpit-todo-item.decision-no .cockpit-priority,
+body.cockpit-ui .cockpit-todo-item.decision-no .cockpit-todo-title{
+  color:#667085;
+}
+body.cockpit-ui .cockpit-todo-item.decision-no .cockpit-todo-info > summary{
+  border-color:#98a2b3;
+  background:#e4e7ec;
+  color:#667085;
+}
+body.cockpit-ui .cockpit-todo-item.decision-no .cockpit-decision:not(.no){
+  opacity:.55;
+}
 body.cockpit-ui .cockpit-todo-main{
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;

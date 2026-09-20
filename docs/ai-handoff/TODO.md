@@ -13,13 +13,13 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Add optional paste-text input for physician notes / Heidi text in the beta cockpit.
 - [x] Call `case-assistant` to extract only explicitly documented facts in the beta cockpit.
 - [x] Show an extraction preview with evidence/traceability before applying anything in the beta cockpit.
-- [ ] Persist/apply explicitly accepted extracted items to the correct clinical fields; current branch only records local Accept/Ignore UI decisions and never auto-overwrites.
+- [x] Persist/apply explicitly accepted extracted items via a two-step Accept → Apply Accepted flow in Beta; Append is default, Replace is explicit, stale-case apply is blocked, and persistence uses the existing privacy-gated save path.
 - [ ] Show missing/conflicting/unresolved information that may affect documentation.
 - [x] Keep investigation suggestions in the separate Case Assistant rail/to-do list, never in documented/ordered test fields.
 - [x] Keep therapy suggestions in the separate Case Assistant rail/to-do list, never in administered-therapy fields.
 - [x] Make Assistant suggestions advisory, priority-ranked, source-traceable, and physician-decided with persisted YES/NO/DONE/N/A state.
 - [x] Preserve Generate Summary → edit → Finalize Summary as the authoritative documentation path; Assistant state is separate.
-- [ ] Test that AI failure never destroys or overwrites clinician-entered data.
+- [x] Test that AI apply/save failure never destroys or overwrites clinician-entered data; Chromium smoke injects a synthetic save failure and verifies the physician draft is restored unchanged.
 
 ## NEXT — source-of-truth / privacy cleanup
 

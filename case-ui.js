@@ -341,7 +341,7 @@
           </div>
           <div class="field">
             <label data-ice-label="age">Age</label>
-            <input id="iceAge" placeholder="auto" readonly aria-readonly="true" style="background:#f8fafc;color:#64748b" />
+            <input id="iceAge" inputmode="numeric" maxlength="3" placeholder="auto" autocomplete="off" />
           </div>
         </div>
         <div class="field">
@@ -357,7 +357,12 @@
           <button class="btn small" id="iceDeleteCase" type="button" style="border-color:#fecaca;color:#b91c1c;background:#fff5f5">DELETE CASE</button>
         </div>
       `;
-      main.closest(".field")?.after(host);
+      const mount = document.getElementById("cockpitDemographicsMount");
+      if (mount) mount.appendChild(host);
+      else main.closest(".field")?.after(host);
+    } else {
+      const mount = document.getElementById("cockpitDemographicsMount");
+      if (mount && host.parentElement !== mount) mount.appendChild(host);
     }
     updateLabels();
     wireUi();
@@ -704,7 +709,7 @@
   }
 
   function wireUi() {
-    const ids = ["iceSex", "iceYob", "iceArrival", "iceArrivalOther", "fMainComplaint"];
+    const ids = ["iceSex", "iceYob", "iceAge", "iceArrival", "iceArrivalOther", "fMainComplaint"];
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (!el || el.dataset.iceWired === "true") return;
@@ -714,9 +719,19 @@
         const age = document.getElementById("iceAge");
         const arrival = document.getElementById("iceArrival");
         if (id === "iceYob" && age && yob) age.value = ageFromYob(yob.value);
+        if (id === "iceAge" && age && yob) {
+          const normalizedAge = String(age.value || "").replace(/[^0-9]/g, "");
+          age.value = normalizedAge;
+          if (!normalizedAge) {
+            yob.value = "";
+          } else {
+            const derivedYob = yobFromAge(normalizedAge);
+            if (derivedYob) yob.value = derivedYob;
+          }
+        }
         if (id === "iceSex") paintSexSelect(el);
         document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (arrival?.value || "") !== "other");
-        scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
+        scheduleSave(id === "iceYob" || id === "iceAge" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
       el.addEventListener("input", handler);
       el.addEventListener("change", handler);

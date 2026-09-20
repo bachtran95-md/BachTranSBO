@@ -666,7 +666,9 @@
         const arrivalOther = document.getElementById("iceArrivalOther");
         if (arrivalOther) arrivalOther.value = saved.arrival_other || "";
       }
-      rowUpdate(Object.keys(saved).length ? saved : payload);
+      const authoritative = Object.keys(saved).length ? saved : payload;
+      window.BachSBOClinicalUi?.applyCaseMetadata?.(id, authoritative);
+      rowUpdate(authoritative);
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
       loadSelected({ force: true });

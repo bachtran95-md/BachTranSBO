@@ -482,6 +482,34 @@
     );
   }
 
+  async function caseAssistantGetState(patient) {
+    if (!patient?.id) throw new Error("A saved case is required.");
+
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "get_state",
+        caseId: patient.id,
+        patient
+      },
+      "Case Assistant state"
+    );
+  }
+
+  async function caseAssistantDecide(caseId, itemId, decision) {
+    if (!caseId || !itemId) throw new Error("Missing Case Assistant item.");
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "decide",
+        caseId,
+        itemId,
+        decision
+      },
+      "Case Assistant decision"
+    );
+  }
+
   async function caseAssistantExtract(caseId, text) {
     if (!caseId) throw new Error("A saved case is required.");
     if (!String(text || "").trim()) throw new Error("Paste text to analyze.");
@@ -556,6 +584,8 @@
     appendSummaryRevision,
     generateSummary,
     caseAssistantSuggest,
+    caseAssistantGetState,
+    caseAssistantDecide,
     caseAssistantExtract,
     getLearningOverview,
     analyzeStyle,

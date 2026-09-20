@@ -451,12 +451,15 @@ body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
   z-index:8;
   display:flex;
   gap:3px;
+  overflow-x:auto;
+  scrollbar-width:thin;
   margin:-8px -8px 8px;
   padding:5px 8px;
   background:#f7f9fb;
   border-bottom:1px solid var(--line);
 }
 .cockpit-tab{
+  flex:0 0 auto;
   border:1px solid transparent;
   background:transparent;
   color:#667085;

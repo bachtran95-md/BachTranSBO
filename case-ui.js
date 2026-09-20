@@ -323,8 +323,13 @@
   function ensureUi() {
     const form = document.getElementById("patientForm");
     const main = document.getElementById("fMainComplaint");
-    if (!form || form.classList.contains("hidden") || !main) return false;
+    if (!form || !main) return false;
+
+    // Beta ships the demographics editor as native markup so it is always
+    // present in Klinikum. Wire that existing editor even while patientForm is
+    // still hidden; Stable has no static editor and keeps the old lazy behavior.
     let host = inlineHost();
+    if (form.classList.contains("hidden") && !host) return false;
     if (!host) {
       host = document.createElement("div");
       host.id = "inlineCaseEditor";
@@ -758,6 +763,13 @@
   function install() {
     if (window.__inlineCaseEditorInstalled) return;
     window.__inlineCaseEditorInstalled = true;
+
+    // If Beta provides a native inline editor, wire it immediately so
+    // Age/YOB/Arrival work before any timer, observer, or case-selection click.
+    ensureUi();
+    installBackendPayloadBridge();
+    enhanceSexUi();
+
     setTimeout(() => window.applyLanguage?.("hu"), 250);
     setTimeout(() => window.applyLanguage?.("hu"), 900);
     new MutationObserver(() => {

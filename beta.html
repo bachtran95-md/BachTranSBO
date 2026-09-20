@@ -129,7 +129,48 @@
                     <label data-i18n="mainComplaint">Main complaint</label>
                     <input id="fMainComplaint" />
                   </div>
-                  <div id="cockpitDemographicsMount"></div>
+                  <div id="cockpitDemographicsMount">
+                    <div id="inlineCaseEditor" class="cockpit-demographics-inline" style="margin:10px 0 14px">
+                      <div class="inline3">
+                        <div class="field">
+                          <label data-ice-label="sex">Sex</label>
+                          <select id="iceSex">
+                            <option value="">—</option>
+                            <option value="F">Female</option>
+                            <option value="M">Male</option>
+                            <option value="O">Other</option>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label data-ice-label="yob">Year of birth</label>
+                          <input id="iceYob" inputmode="numeric" maxlength="4" placeholder="1955" autocomplete="off" />
+                        </div>
+                        <div class="field">
+                          <label data-ice-label="age">Age</label>
+                          <input id="iceAge" inputmode="numeric" maxlength="3" placeholder="auto" autocomplete="off" />
+                        </div>
+                      </div>
+                      <div class="field cockpit-arrival-field">
+                        <label data-ice-label="arrival">Arrival to SBO</label>
+                        <select id="iceArrival">
+                          <option value="">— select —</option>
+                          <option value="omsz">OMSz transported</option>
+                          <option value="esetkocsi">Emergency unit transported</option>
+                          <option value="walk_in">Arrived walking</option>
+                          <option value="gp_referral">With GP referral</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div class="field hidden cockpit-arrival-other" id="iceArrivalOtherWrap">
+                        <label data-ice-label="arrivalOther">Arrival details</label>
+                        <input id="iceArrivalOther" placeholder="Describe arrival..." autocomplete="off" />
+                      </div>
+                      <div class="toolbar cockpit-demographics-toolbar" style="justify-content:space-between;margin-top:8px">
+                        <div class="subtle" id="iceStatus"></div>
+                        <button class="btn small" id="iceDeleteCase" type="button" style="border-color:#fecaca;color:#b91c1c;background:#fff5f5">DELETE CASE</button>
+                      </div>
+                    </div>
+                  </div>
                   <div class="field narrative-field waiting" data-narrative-field="complaint">
                     <div class="narrative-head">
                       <label data-i18n="complaint">Complaint</label>
@@ -447,11 +488,11 @@
   <div id="modalHost"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
-  <script src="case-ui.js?beta=20260921-3"></script>
+  <script src="case-ui.js?beta=20260921-4"></script>
   <script src="backend.js?v=learning-20260920-1"></script>
   <script src="assistant-core.js?beta=20260920-12"></script>
-  <script src="app.js?v=beta-ui-followup-20260921-2"></script>
+  <script src="app.js?v=beta-tabs-20260921-3"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=20260921-18"></script>
+  <script src="cockpit-beta.js?beta=20260921-19"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 (() => {
   "use strict";
 
-  const TAB_MAP = ["clinical", "tests", "clinical", "disposition", "summary"];
+  const TAB_MAP = ["clinical", "tests", "course", "disposition", "summary"];
   let activeTab = "clinical";
   let lastSelectedCaseId = "";
   let assistantBusy = false;
@@ -127,7 +127,8 @@
     tabs.className = "cockpit-case-tabs hidden";
     tabs.innerHTML = [
       ["clinical", label("Clinical", "Klinikum")],
-      ["tests", label("Tests", "Vizsgálatok")],
+      ["tests", label("Physical status & investigations", "Fizikális státusz és vizsgálatok")],
+      ["course", label("Therapy & course", "Terápia és kórlefolyás")],
       ["disposition", label("Disposition", "Döntés")],
       ["summary", label("Summary", "Összefoglaló")]
     ].map(([key, text]) =>
@@ -155,7 +156,8 @@
   function updateTabLabels() {
     const labels = {
       clinical: label("Clinical", "Klinikum"),
-      tests: label("Tests", "Vizsgálatok"),
+      tests: label("Physical status & investigations", "Fizikális státusz és vizsgálatok"),
+      course: label("Therapy & course", "Terápia és kórlefolyás"),
       disposition: label("Disposition", "Döntés"),
       summary: label("Summary", "Összefoglaló")
     };

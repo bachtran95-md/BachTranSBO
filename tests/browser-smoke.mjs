@@ -486,6 +486,29 @@ if (!String(radClasses).includes("cockpit-test-row")) {
 // Return to Klinikum for the Assistant/extraction flow below.
 await beta.locator('[data-cockpit-tab="clinical"]').click();
 
+const demographics = ["#iceSex", "#iceYob", "#iceAge", "#iceArrival"];
+for (const selector of demographics) {
+  await beta.locator(selector).waitFor({ state: "visible" });
+}
+
+await beta.locator('[data-cockpit-tab="tests"]').click();
+await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)').waitFor();
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+await beta.locator('[data-cockpit-panel="clinical"]:not(.cockpit-panel-hidden)').waitFor();
+for (const selector of demographics) {
+  await beta.locator(selector).waitFor({ state: "visible" });
+}
+
+const pendingText = await beta.locator("#patientTbody tr[data-id] .cockpit-test-pending-line").textContent();
+for (const expected of ["EKG", "AVG"]) {
+  if (!pendingText.includes(expected)) {
+    throw new Error(`Pending test ${expected} is missing from Case list`);
+  }
+}
+if (/\+\d+/.test(pendingText)) {
+  throw new Error("Case list collapsed waiting tests into a +N summary");
+}
+
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();
 

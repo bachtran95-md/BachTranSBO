@@ -4,6 +4,9 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## NOW — AI Assistance for Summary
 
+- [ ] Rewrite cockpit MutationObserver/event model to avoid self-triggering DOM mutation loops; cockpit UI is currently disabled on production.
+- [ ] Add browser-level smoke test covering login → load existing cases → add case → delete synthetic case → reload before re-enabling cockpit UI.
+
 - [ ] Inspect/export the currently deployed `case-assistant` source and reconcile it into GitHub before changing it.
 - [ ] Compare deployed `generate-summary` with repo source so production-only logic is not lost.
 - [x] Define the Summary Assistant UI inside/next to the Case Summary section (implemented on `ui-compact-cockpit`, pending visual review/merge).

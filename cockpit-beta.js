@@ -985,10 +985,40 @@
     cells[4].innerHTML = waitingTestMarkup(progress, row.classList.contains("completed"));
   }
 
+  function loadingTestMarkup(completed) {
+    if (completed) return waitingTestMarkup(null, true);
+    return `<div class="cockpit-test-chip-list cockpit-test-chip-loading" aria-label="${esc(label("Loading case status", "Esetállapot betöltése"))}"><span class="cockpit-row-loading">…</span></div>`;
+  }
+
   async function enhancePatientRows() {
     const rows = [...document.querySelectorAll("#patientTbody tr[data-id]")];
-    rows.forEach((row) => decoratePatientIdentity(row));
-    const pendingRows = rows.filter((row) => !row.querySelector(".cockpit-test-chip-list"));
+    const pendingRows = [];
+
+    rows.forEach((row) => {
+      const cells = decoratePatientIdentity(row);
+      if (!cells) return;
+
+      const cached = patientProgressByCase.get(row.dataset.id);
+      if (cached) {
+        // Reuse the last known compact status synchronously after app.js re-renders
+        // the table. This prevents the native workflow-blocker stack flashing.
+        cells[4].innerHTML = waitingTestMarkup(
+          cached,
+          row.classList.contains("completed")
+        );
+        return;
+      }
+
+      if (!cells[4].querySelector(".cockpit-test-chip-list")) {
+        pendingRows.push(row);
+        // Replace app.js's verbose blocker stack immediately, before the async
+        // board snapshot arrives, so row height never jumps during case changes.
+        cells[4].innerHTML = loadingTestMarkup(
+          row.classList.contains("completed")
+        );
+      }
+    });
+
     if (!pendingRows.length || patientBoardLoad || !window.BachSBOBackend?.loadState) return;
 
     patientBoardLoad = window.BachSBOBackend.loadState();
@@ -1000,10 +1030,8 @@
       });
       syncRailState();
     } catch (error) {
-      pendingRows.forEach((row) => {
-        if (!row.isConnected) return;
-        decoratePatientIdentity(row);
-      });
+      // Keep the compact loading placeholder on failure rather than exposing
+      // app.js's multi-line workflow-blocker stack and causing layout jumps.
     } finally {
       patientBoardLoad = null;
     }

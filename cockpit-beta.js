@@ -164,6 +164,7 @@
     const aiButton = document.getElementById("cockpitAiToggle");
     if (aiButton) aiButton.textContent = label("AI", "AI");
     syncRailLabels();
+    syncUnifiedTestLabels();
   }
 
   function activateTab(tab) {
@@ -708,9 +709,9 @@
       .join("")}</div>`;
   }
 
-  function decoratePatientRow(row, patient) {
+  function decoratePatientIdentity(row, patient = null) {
     const cells = row.querySelectorAll(":scope > td");
-    if (cells.length < 5) return;
+    if (cells.length < 5) return null;
 
     row.classList.add("cockpit-compact-patient");
     cells[0].classList.add("cockpit-local-id");
@@ -722,6 +723,12 @@
     );
     cells[3].classList.add("cockpit-main-complaint");
     cells[4].classList.add("cockpit-waiting-tests");
+    return cells;
+  }
+
+  function decoratePatientRow(row, patient) {
+    const cells = decoratePatientIdentity(row, patient);
+    if (!cells) return;
 
     const progress = patient ? patientProgress(patient) : null;
     if (patient?.id) patientProgressByCase.set(patient.id, progress);
@@ -730,7 +737,7 @@
 
   async function enhancePatientRows() {
     const rows = [...document.querySelectorAll("#patientTbody tr[data-id]")];
-    rows.forEach((row) => row.classList.add("cockpit-compact-patient"));
+    rows.forEach((row) => decoratePatientIdentity(row));
     const pendingRows = rows.filter((row) => !row.querySelector(".cockpit-test-chip-list"));
     if (!pendingRows.length || patientBoardLoad || !window.BachSBOBackend?.loadState) return;
 
@@ -745,16 +752,156 @@
     } catch (error) {
       pendingRows.forEach((row) => {
         if (!row.isConnected) return;
-        const cells = row.querySelectorAll(":scope > td");
-        if (cells.length < 5) return;
-        cells[0].classList.add("cockpit-local-id");
-        cells[1].classList.add("cockpit-sex-source");
-        cells[2].className = `cockpit-age-badge sex-${sexClass(cells[1].textContent)}`;
-        cells[3].classList.add("cockpit-main-complaint");
+        decoratePatientIdentity(row);
       });
     } finally {
       patientBoardLoad = null;
     }
+  }
+
+  function syncUnifiedTestLabels() {
+    const title = document.getElementById("cockpitInvestigationsTitle");
+    const add = document.getElementById("cockpitAddTest");
+    const type = document.getElementById("cockpitTestType");
+    const other = document.getElementById("cockpitOtherTestName");
+    if (title) title.textContent = label("Investigations", "Vizsgálatok");
+    if (add) add.textContent = label("+ Add test", "+ Vizsgálat hozzáadása");
+    if (other) other.placeholder = label("Test name", "Vizsgálat neve");
+    if (type) {
+      const optionLabels = {
+        lab: label("Lab", "Labor"),
+        imaging: label("Imaging", "Képalkotó"),
+        consultation: label("Consultation", "Konzílium"),
+        other: label("Other", "Egyéb")
+      };
+      [...type.options].forEach((option) => {
+        option.textContent = optionLabels[option.value] || option.textContent;
+      });
+    }
+  }
+
+  function compactTestCards(panel) {
+    panel.querySelectorAll(".test-card").forEach((card) => {
+      card.classList.add("cockpit-test-row");
+
+      const save = card.querySelector(".test-save");
+      if (save) {
+        save.textContent = "✓";
+        save.title = label("Save result", "Eredmény mentése");
+        save.setAttribute("aria-label", save.title);
+      }
+
+      card.querySelectorAll("[data-delete-test]").forEach((button) => {
+        button.textContent = "×";
+        button.title = label("Delete test", "Vizsgálat törlése");
+        button.setAttribute("aria-label", button.title);
+      });
+
+      const dots = card.querySelector(".mode-dots");
+      if (dots && !dots.dataset.cockpitOrdered) {
+        const notOrdered = dots.querySelector('[data-mode-choice="notordered"]');
+        const waiting = dots.querySelector('[data-mode-choice="waiting"]');
+        const result = dots.querySelector(".mode-dot-btn.result");
+        [notOrdered, waiting, result].filter(Boolean).forEach((node) => dots.appendChild(node));
+        dots.dataset.cockpitOrdered = "true";
+      }
+
+      const radiologyGrid = card.querySelector(".radiology-grid");
+      if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
+        const identity = document.createElement("div");
+        identity.className = "cockpit-radiology-identity";
+        const first = radiologyGrid.firstElementChild;
+        if (first) radiologyGrid.insertBefore(identity, first);
+        ["[data-body]", "[data-modality]", "[data-other]"].forEach((selector) => {
+          const control = radiologyGrid.querySelector(`:scope > ${selector}`);
+          if (control) identity.appendChild(control);
+        });
+      }
+    });
+  }
+
+  function addUnifiedTest() {
+    const type = document.getElementById("cockpitTestType")?.value || "lab";
+    if (type === "lab") document.getElementById("addLabBtn")?.click();
+    if (type === "imaging") document.getElementById("addRadiologyBtn")?.click();
+    if (type === "consultation") document.getElementById("addConsultBtn")?.click();
+    if (type === "other") {
+      document.getElementById("addConsultBtn")?.click();
+      const inputs = [...document.querySelectorAll('#consultCards [data-type^="consultations-"]')];
+      const input = inputs.at(-1);
+      if (input) {
+        input.value = document.getElementById("cockpitOtherTestName")?.value.trim() || label("Other", "Egyéb");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+    const other = document.getElementById("cockpitOtherTestName");
+    if (other) other.value = "";
+    setTimeout(enhanceTestsUi, 0);
+  }
+
+  function enhanceTestsUi() {
+    const panel = document.querySelector('[data-cockpit-panel="tests"]');
+    if (!panel) return;
+
+    const physical = panel.querySelector('[data-narrative-field="physical"]');
+    const physicalLabel = physical?.querySelector("label");
+    if (physicalLabel) physicalLabel.textContent = label("Physical examination", "Fizikális vizsgálat");
+    const physicalInput = document.getElementById("fPhysical");
+    if (physicalInput) {
+      physicalInput.placeholder = label(
+        "Relevant findings for the physician…",
+        "Lényeges eltérések az orvos számára…"
+      );
+    }
+    if (physical && !physical.querySelector(".cockpit-physical-note")) {
+      const note = document.createElement("span");
+      note.className = "cockpit-physical-note";
+      physical.querySelector(".narrative-head")?.appendChild(note);
+    }
+    const note = physical?.querySelector(".cockpit-physical-note");
+    if (note) note.textContent = label("Note: relevant findings", "Megjegyzés: lényeges eltérések");
+
+    let header = document.getElementById("cockpitInvestigationsHeader");
+    if (!header) {
+      header = document.createElement("div");
+      header.id = "cockpitInvestigationsHeader";
+      header.className = "cockpit-investigations-header";
+      header.innerHTML = `
+        <strong id="cockpitInvestigationsTitle"></strong>
+        <div class="cockpit-add-test-controls">
+          <select id="cockpitTestType" aria-label="Test type">
+            <option value="lab">Lab</option>
+            <option value="imaging">Imaging</option>
+            <option value="consultation">Consultation</option>
+            <option value="other">Other</option>
+          </select>
+          <input id="cockpitOtherTestName" class="hidden" />
+          <button class="btn small" id="cockpitAddTest" type="button"></button>
+        </div>`;
+      const firstToolbar = panel.querySelector(".test-group-toolbar");
+      firstToolbar?.insertAdjacentElement("beforebegin", header);
+      const type = header.querySelector("#cockpitTestType");
+      type.addEventListener("change", () => {
+        header.querySelector("#cockpitOtherTestName")?.classList.toggle("hidden", type.value !== "other");
+      });
+      header.querySelector("#cockpitAddTest")?.addEventListener("click", addUnifiedTest);
+    }
+
+    let list = document.getElementById("cockpitInvestigationsList");
+    if (!list) {
+      list = document.createElement("div");
+      list.id = "cockpitInvestigationsList";
+      list.className = "cockpit-investigations-list";
+      header.insertAdjacentElement("afterend", list);
+      ["labCards", "ekgCard", "gasCard", "radiologyCards", "consultCards"].forEach((id) => {
+        const host = document.getElementById(id);
+        if (host) list.appendChild(host);
+      });
+      document.getElementById("fOthers")?.closest(".field")?.classList.add("cockpit-legacy-others");
+    }
+
+    syncUnifiedTestLabels();
+    compactTestCards(panel);
   }
 
   const wardOptions = [
@@ -914,6 +1061,7 @@
     createTabBar();
     makeRail();
     enhanceClinicalHeader();
+    enhanceTestsUi();
     enhanceDispositionUi();
     syncCaseSelection();
     enhancePatientRows();

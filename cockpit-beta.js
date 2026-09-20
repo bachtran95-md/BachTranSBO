@@ -9,6 +9,9 @@
   let assistantLoadToken = 0;
   let patientBoardLoad = null;
   let extractionPreviewState = null;
+  let caseAutosaveTimer = null;
+  let caseAutosaveInFlight = false;
+  let caseAutosaveQueued = false;
   const patientProgressByCase = new Map();
   const assistantStateByCase = new Map();
 
@@ -1416,9 +1419,48 @@
     syncRailState();
   }
 
+  function scheduleCaseAutosave(delay = 700) {
+    const form = document.getElementById("patientForm");
+    if (!form || form.classList.contains("hidden") || !selectedCaseId()) return;
+
+    clearTimeout(caseAutosaveTimer);
+    caseAutosaveTimer = setTimeout(runCaseAutosave, Math.max(0, delay));
+  }
+
+  async function runCaseAutosave() {
+    const save = window.BachSBOClinicalUi?.autosaveCurrentCase;
+    if (typeof save !== "function" || !selectedCaseId()) return;
+
+    if (caseAutosaveInFlight) {
+      caseAutosaveQueued = true;
+      return;
+    }
+
+    caseAutosaveInFlight = true;
+    try {
+      await save();
+    } catch (error) {
+      console.warn("Beta autosave failed", error);
+    } finally {
+      caseAutosaveInFlight = false;
+      if (caseAutosaveQueued) {
+        caseAutosaveQueued = false;
+        scheduleCaseAutosave(120);
+      }
+    }
+  }
+
   function installSync() {
     document.addEventListener("input", (event) => {
       if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
+
+      if (
+        event.target?.matches?.("#patientForm textarea") &&
+        !event.target.disabled
+      ) {
+        scheduleCaseAutosave(700);
+      }
+
       setTimeout(syncRailState, 0);
       const id = selectedCaseId();
       if (
@@ -1437,7 +1479,24 @@
       if (event.target?.id === "fDisposition" || event.target?.id === "fDischargeCondition") {
         syncDischargeConditionVisual();
       }
+
+      if (
+        event.target?.matches?.("#patientForm select") &&
+        !event.target.disabled
+      ) {
+        scheduleCaseAutosave(100);
+      }
+
       setTimeout(syncRailState, 0);
+    }, true);
+
+    document.addEventListener("focusout", (event) => {
+      if (
+        event.target?.matches?.("#patientForm textarea") &&
+        !event.target.disabled
+      ) {
+        scheduleCaseAutosave(80);
+      }
     }, true);
     document.addEventListener("click", (event) => {
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {

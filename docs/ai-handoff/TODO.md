@@ -5,7 +5,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 ## NOW — AI Assistance for Summary
 
 - [x] Replace the cockpit MutationObserver with an observer-free event/timer model in isolated `/beta.html`; stable `/` remains default.
-- [ ] Add browser-level smoke test covering login → load existing cases → add case → delete synthetic case → reload before re-enabling cockpit UI.
+- [x] Add browser-level Chromium smoke test covering login → load existing cases → add case → delete synthetic case → reload, plus beta load.
 
 - [x] Reconcile deployed `case-assistant` into GitHub; repository source matches production v3.
 - [x] Compare deployed `generate-summary` with repo source and sync the production source back into GitHub.
@@ -23,14 +23,14 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## NEXT — source-of-truth / privacy cleanup\n\nSee `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
 
-- [ ] Reconcile production Supabase migrations with GitHub `main`.
-- [ ] Commit production-only Edge Function source, especially `case-assistant` and `backend-diagnostics`.
-- [ ] Reconcile `summary-standardization-sync` with `main`.
-- [ ] Move direct clinical free-text updates in `config.js` behind `clinical-store`.
+- [x] Reconcile the current late production Supabase migration history with GitHub `main`.
+- [x] Commit/sync production Edge Function source needed for the current runtime, including `case-assistant`, `generate-summary`, and `backend-diagnostics`.
+- [x] Reconcile the needed migration/runtime work without merging stale `summary-standardization-sync` wholesale.
+- [x] Move direct case metadata/free-text updates behind `clinical-store/update_case_metadata` and revoke authenticated browser UPDATE on `cases`.
 - [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
 - [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
 - [x] Confirm `case_patch.js` is dead code and remove it.
-- [x] Update stale GitHub Pages URLs.\n- [ ] Reconcile remaining outdated privacy/learning documentation with production behavior.
+- [x] Update stale GitHub Pages URLs.\n- [ ] Continue pruning older documentation sections as features evolve; `PROJECT_STATE.md` hardening section is the current source of truth.
 - [x] Close the Codex write-test PR.\n- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
 
 ## LATER — learning / production hardening
@@ -39,7 +39,7 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [ ] Run and review the new Style Coach workflow; currently there are no Style Coach runs.
 - [ ] Review/activate a style profile only after explicit human approval.
 - [ ] Enable Supabase leaked-password protection.
-- [ ] Run full end-to-end regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning.
+- [ ] Run a full authenticated live regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning. Mocked Chromium smoke + rollback-only production atomic-finalize verification already pass.
 - [ ] Review auth/session, RLS, Edge Function authorization, CORS/origin, error handling and operational logging.
 
 ## Rules for agents

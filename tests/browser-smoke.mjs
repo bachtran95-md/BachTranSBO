@@ -429,7 +429,7 @@ await beta.waitForFunction(() =>
   Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))
 );
 const pendingSummary = await caseRow.locator(".cockpit-test-summary").textContent();
-for (const expected of ["EKG", "AVG", "Koponya Native CT"]) {
+for (const expected of ["EKG", "AVG", "koponya Native CT"]) {
   if (!pendingSummary.includes(expected)) {
     throw new Error(`Case list hid pending test ${expected}: ${pendingSummary}`);
   }

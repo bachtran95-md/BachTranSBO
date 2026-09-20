@@ -950,13 +950,24 @@
     if (completed) {
       return `<div class="cockpit-test-chip-list"><span class="cockpit-row-complete">${esc(label("Completed", "Lezárt"))}</span></div>`;
     }
+
     const waiting = progress?.waitingTests || [];
     if (!waiting.length) {
       return `<div class="cockpit-test-chip-list"><span class="cockpit-row-ready">${esc(label("No waiting tests", "Nincs függő vizsgálat"))}</span></div>`;
     }
-    return `<div class="cockpit-test-chip-list" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}">${waiting
-      .map((item) => `<span class="cockpit-test-chip" title="${esc(item.name)}">${esc(item.name)}</span>`)
-      .join("")}</div>`;
+
+    const names = waiting.map((item) => String(item?.name || "").trim()).filter(Boolean);
+    const title = names.join(", ");
+    const preview = names.slice(0, 2).join(", ");
+    const more = Math.max(0, names.length - 2);
+    const text = label(
+      `${waiting.length} waiting${preview ? " · " + preview : ""}${more ? ` +${more}` : ""}`,
+      `${waiting.length} függő${preview ? " · " + preview : ""}${more ? ` +${more}` : ""}`
+    );
+
+    return `<div class="cockpit-test-chip-list" title="${esc(title)}" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}: ${esc(title)}">
+      <span class="cockpit-test-summary">${esc(text)}</span>
+    </div>`;
   }
 
   function decoratePatientIdentity(row, patient = null) {

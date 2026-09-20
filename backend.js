@@ -430,6 +430,19 @@
     );
   }
 
+  async function deleteCase(caseId) {
+    if (!caseId) throw new Error("Missing case ID.");
+
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "delete_case",
+        caseId
+      },
+      "Case delete"
+    );
+  }
+
   async function appendSummaryRevision(patient) {
     if (!patient?.summaryFinalizedAt || !patient.summaryFinalizedText) {
       return { removed: 0, report: null };
@@ -539,6 +552,7 @@
     savePatient,
     finalizePatient,
     reopenCase,
+    deleteCase,
     appendSummaryRevision,
     generateSummary,
     caseAssistantSuggest,

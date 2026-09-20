@@ -1528,3 +1528,57 @@ body.cockpit-ui .cockpit-doc-clear{
   font-size:10px;
   font-weight:700;
 }
+
+
+/* Beta case-list stability: status updates must never resize patient rows. */
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient{
+  height:54px;
+  min-height:54px;
+  max-height:54px;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient .cockpit-waiting-tests{
+  height:23px;
+  min-height:23px;
+  max-height:23px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-test-chip-list{
+  width:100%;
+  min-width:0;
+  height:20px;
+  flex-wrap:nowrap;
+  overflow:hidden;
+  align-items:center;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-test-summary{
+  display:block;
+  width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#b54708;
+  font-size:9px;
+  line-height:20px;
+  font-weight:800;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-waiting-tests .wait-stack{
+  display:block;
+  width:100%;
+  max-width:none;
+  height:20px;
+  overflow:hidden;
+  white-space:nowrap;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-waiting-tests .wait-chip{
+  display:none;
+}
+body.cockpit-ui .cockpit-case-list .cockpit-waiting-tests .wait-chip:first-child{
+  display:inline-block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  vertical-align:middle;
+}

@@ -30,6 +30,29 @@ Verified production state:
 
 Stable UI remains the default at `/`. Beta cockpit remains isolated at `/beta.html` and has **not** been promoted to default.
 
+## Beta extraction apply milestone — 2026-09-20
+
+Doctor-controlled application of extracted facts is now implemented in the isolated Beta cockpit and merged through PR #7.
+
+Verified behavior:
+
+- pasted text is still extracted as a preview first;
+- browser-side `assistant-core` validates supported targets/status and requires quoted evidence to exist in the pasted source;
+- **ACCEPT / IGNORE does not write clinical data**;
+- **APPLY ACCEPTED** is the explicit write action;
+- narrative targets default to **Append**; **Replace** requires an explicit mode selection;
+- accepted narrative facts and supported test/result items are mapped through the existing `assistant-core.applyItems()` safety rules;
+- EKG/AVG-VVG results are not overwritten when an existing result is present;
+- the three-lab-card limit remains enforced;
+- applying after the physician switches cases is rejected as stale;
+- the app captures the physician's current draft, including unsaved form edits, before applying AI-derived content;
+- persistence uses the existing clinical save path and therefore remains behind `clinical-store` / de-identification;
+- if persistence fails, the physician draft is restored and the AI-derived changes are not left in local state or the form;
+- unit tests cover append/replace, occupied EKG protection, lab capacity, and evidence validation;
+- Chromium smoke covers successful extraction apply plus a synthetic backend failure proving the physician draft survives unchanged.
+
+Stable `/` remains unchanged. This workflow is available only on `/beta.html` until Beta is explicitly approved for promotion.
+
 ## Primary focus now
 
 **AI Assistance while writing/finalizing the Summary.**
@@ -182,7 +205,7 @@ Performance advisor only reported informational unused indexes; this is not curr
 
 ## Current milestones
 
-1. **AI Assistance for Summary** — implement explicit apply-to-field for accepted extracted facts and improve missing/conflicting/unresolved guidance.
+1. **AI Assistance for Summary** — improve missing/conflicting/unresolved documentation guidance now that explicit apply-to-field is implemented in Beta.
 2. Refactor frontend patch logic out of `config.js`.
 3. Exercise the Style Coach/corpus-review workflows and activate a style profile only after explicit human review.
 4. Run a full authenticated live workflow regression covering Assistant -> Generate Summary -> doctor edit -> Finalize -> retrieval/learning.
@@ -260,7 +283,7 @@ The stable UI must remain default until the user explicitly approves beta after 
 
 The arrival/privacy/migration hardening package is complete. Before changing any deployed Edge Function, still compare deployed source with repository source as a safety check.
 
-Then design/implement a doctor-controlled Summary Assistant UI with this initial flow:
+Then continue the doctor-controlled Summary Assistant workflow with this next focus:
 
 1. use current case data and optional pasted clinical text;
 2. show extracted/documented facts separately from suggestions;

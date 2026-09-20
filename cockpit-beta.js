@@ -8,6 +8,7 @@
   let assistantBusy = false;
   let assistantLoadToken = 0;
   let patientBoardLoad = null;
+  let extractionPreviewState = null;
   const patientProgressByCase = new Map();
   const assistantStateByCase = new Map();
 
@@ -635,7 +636,7 @@
       }
       if (status) status.textContent = label("Extracting documented facts…", "Dokumentált tények kinyerése…");
       const response = await window.BachSBOBackend.caseAssistantExtract(id, text);
-      renderExtractionPreview(response);
+      renderExtractionPreview(response, text, id);
       if (status) status.textContent = label(
         "Review each item before applying it to the chart.",
         "Minden elemet ellenőrizzen, mielőtt a dokumentációba kerül."
@@ -649,14 +650,118 @@
     }
   }
 
-  function renderExtractionPreview(response) {
+  function extractionItemModeControl(item) {
+    if (!window.BachAssistantCore?.fields?.includes(item.target)) return "";
+    return `
+      <label class="cockpit-apply-mode-wrap">
+        <span>${esc(label("When applied", "Alkalmazáskor"))}</span>
+        <select class="cockpit-apply-mode" aria-label="${esc(label("Apply mode", "Alkalmazási mód"))}">
+          <option value="append">${esc(label("Append", "Hozzáfűzés"))}</option>
+          <option value="replace">${esc(label("Replace", "Csere"))}</option>
+        </select>
+      </label>
+    `;
+  }
+
+  function refreshExtractionApplyButton() {
+    const preview = document.getElementById("cockpitExtractPreview");
+    const apply = document.getElementById("cockpitApplyAccepted");
+    if (!preview || !apply) return;
+    const accepted = [...preview.querySelectorAll(".cockpit-extract-item")]
+      .filter((item) => item.dataset.decision === "accept" && item.dataset.applied !== "true");
+    apply.disabled = !accepted.length || assistantBusy;
+    apply.textContent = accepted.length
+      ? label(`APPLY ACCEPTED (${accepted.length})`, `ELFOGADOTTAK ALKALMAZÁSA (${accepted.length})`)
+      : label("APPLY ACCEPTED", "ELFOGADOTTAK ALKALMAZÁSA");
+  }
+
+  async function applyAcceptedExtraction() {
+    if (assistantBusy) return;
+    const preview = document.getElementById("cockpitExtractPreview");
+    const status = document.getElementById("cockpitExtractStatus");
+    const state = extractionPreviewState;
+    if (!preview || !state) return;
+
+    const currentCaseId = selectedCaseId();
+    if (!currentCaseId || currentCaseId !== state.caseId) {
+      if (status) status.textContent = label(
+        "The selected case changed. Extract again before applying.",
+        "A kiválasztott eset megváltozott. Alkalmazás előtt végezze el újra a kinyerést."
+      );
+      return;
+    }
+    if (!window.BachSBOClinicalUi?.applyAcceptedExtraction) {
+      if (status) status.textContent = label(
+        "Clinical apply bridge is unavailable.",
+        "A klinikai alkalmazási kapcsolat nem érhető el."
+      );
+      return;
+    }
+
+    const selected = [...preview.querySelectorAll(".cockpit-extract-item")]
+      .filter((node) => node.dataset.decision === "accept" && node.dataset.applied !== "true")
+      .map((node) => {
+        const index = Number(node.dataset.index);
+        const item = structuredClone(state.items[index]);
+        const mode = node.querySelector(".cockpit-apply-mode")?.value;
+        if (mode) item.mode = mode;
+        return item;
+      });
+
+    if (!selected.length) return;
+
+    try {
+      assistantBusy = true;
+      refreshExtractionApplyButton();
+      syncRailState();
+      if (status) status.textContent = label(
+        "Applying accepted facts and saving…",
+        "Elfogadott tények alkalmazása és mentése…"
+      );
+      await window.BachSBOClinicalUi.applyAcceptedExtraction(state.caseId, selected);
+
+      preview.querySelectorAll(".cockpit-extract-item").forEach((node) => {
+        if (node.dataset.decision !== "accept" || node.dataset.applied === "true") return;
+        node.dataset.applied = "true";
+        node.classList.add("applied");
+        node.querySelectorAll("button, select").forEach((control) => control.disabled = true);
+        const yes = node.querySelector(".cockpit-decision.yes");
+        if (yes) yes.textContent = label("APPLIED", "ALKALMAZVA");
+      });
+      if (status) status.textContent = label(
+        "Accepted facts applied and saved. Review the chart before continuing.",
+        "Az elfogadott tények alkalmazva és mentve. Folytatás előtt ellenőrizze a dokumentációt."
+      );
+    } catch (error) {
+      if (status) status.textContent = label(
+        `Nothing was applied. ${error?.message || "Save failed."}`,
+        `Nem történt alkalmazás. ${error?.message || "A mentés sikertelen."}`
+      );
+    } finally {
+      assistantBusy = false;
+      refreshExtractionApplyButton();
+      syncRailState();
+    }
+  }
+
+  function renderExtractionPreview(response, sourceText, caseId) {
     const preview = document.getElementById("cockpitExtractPreview");
     if (!preview) return;
-    const items = Array.isArray(response?.items) ? response.items : [];
-    const warnings = Array.isArray(response?.warnings) ? response.warnings : [];
 
-    const itemHtml = items.map((item) => `
-      <div class="cockpit-extract-item">
+    if (!window.BachAssistantCore?.validateProposal) {
+      throw new Error(label(
+        "Assistant validation core is unavailable.",
+        "Az asszisztens validációs modul nem érhető el."
+      ));
+    }
+
+    const validated = window.BachAssistantCore.validateProposal(response, sourceText);
+    const items = validated.items;
+    const warnings = validated.warnings;
+    extractionPreviewState = { caseId, items };
+
+    const itemHtml = items.map((item, index) => `
+      <div class="cockpit-extract-item" data-index="${index}" data-decision="">
         <div class="cockpit-extract-head">
           <strong>${esc(item.label || item.target || "Fact")}</strong>
           <span>${esc(item.status || "documented")}</span>
@@ -666,9 +771,10 @@
           <summary>${esc(label("Evidence", "Bizonyíték"))}</summary>
           <div class="cockpit-evidence">${esc(item.evidence || "")}</div>
         </details>
+        ${extractionItemModeControl(item)}
         <div class="cockpit-decision-row">
-          <button type="button" class="cockpit-decision yes">${esc(label("ACCEPT", "ELFOGAD"))}</button>
-          <button type="button" class="cockpit-decision no">${esc(label("IGNORE", "KIHAGY"))}</button>
+          <button type="button" class="cockpit-decision yes" data-extract-decision="accept">${esc(label("ACCEPT", "ELFOGAD"))}</button>
+          <button type="button" class="cockpit-decision no" data-extract-decision="ignore">${esc(label("IGNORE", "KIHAGY"))}</button>
         </div>
       </div>
     `).join("");
@@ -677,16 +783,33 @@
       ? `<div class="cockpit-extract-warnings"><strong>${esc(label("Warnings", "Figyelmeztetések"))}</strong>${warnings.map((w) => `<div>• ${esc(w)}</div>`).join("")}</div>`
       : "";
 
-    preview.innerHTML = warningHtml + (itemHtml || `<div class="subtle">${esc(label("No supported facts extracted.", "Nem sikerült alátámasztott tényt kinyerni."))}</div>`);
+    const applyHtml = items.length
+      ? `<div class="cockpit-extract-apply-bar">
+          <button type="button" class="btn primary cockpit-wide-btn" id="cockpitApplyAccepted" disabled>${esc(label("APPLY ACCEPTED", "ELFOGADOTTAK ALKALMAZÁSA"))}</button>
+          <div class="cockpit-extract-apply-note">${esc(label(
+            "Accept only marks items for review. Apply Accepted is the explicit write action.",
+            "Az Elfogad csak kijelöli az elemeket. Az Elfogadottak alkalmazása végzi a tényleges beírást."
+          ))}</div>
+        </div>`
+      : "";
+
+    preview.innerHTML = warningHtml + (itemHtml || `<div class="subtle">${esc(label("No supported facts extracted.", "Nem sikerült alátámasztott tényt kinyerni."))}</div>`) + applyHtml;
 
     preview.querySelectorAll(".cockpit-decision-row").forEach((row) => {
       row.addEventListener("click", (event) => {
-        const button = event.target.closest(".cockpit-decision");
-        if (!button) return;
-        row.querySelectorAll(".cockpit-decision").forEach((item) => item.classList.remove("selected"));
+        const button = event.target.closest("[data-extract-decision]");
+        if (!button || button.disabled) return;
+        const item = row.closest(".cockpit-extract-item");
+        if (!item || item.dataset.applied === "true") return;
+        item.dataset.decision = button.dataset.extractDecision || "";
+        row.querySelectorAll(".cockpit-decision").forEach((choice) => choice.classList.remove("selected"));
         button.classList.add("selected");
+        refreshExtractionApplyButton();
       });
     });
+
+    document.getElementById("cockpitApplyAccepted")?.addEventListener("click", applyAcceptedExtraction);
+    refreshExtractionApplyButton();
   }
 
   function sexClass(value) {
@@ -1016,6 +1139,7 @@
 
       const extraction = document.getElementById("cockpitExtractPreview");
       if (extraction) extraction.innerHTML = "";
+      extractionPreviewState = null;
       enhanceDispositionUi();
       loadAssistantStateForCurrentCase();
     }

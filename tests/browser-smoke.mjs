@@ -83,6 +83,8 @@ const backendMock = String.raw`
     return patient ? row(patient) : null;
   };
 
+  window.__BACH_E2E_FAIL_NEXT_SAVE = false;
+
   const session = () => localStorage.getItem(SESSION_KEY)
     ? { user: { email: "e2e@example.test" }, access_token: "e2e-access", refresh_token: "e2e-refresh" }
     : null;
@@ -114,6 +116,10 @@ const backendMock = String.raw`
     },
     async saveState(next) { write(clone(next)); return { state: clone(next), removed: 0, report: null }; },
     async savePatient(_shiftId, patient) {
+      if (window.__BACH_E2E_FAIL_NEXT_SAVE) {
+        window.__BACH_E2E_FAIL_NEXT_SAVE = false;
+        throw new Error("Synthetic save failure");
+      }
       const state = read();
       const index = state.patients.findIndex((p) => p.id === patient.id);
       if (index >= 0) state.patients[index] = clone(patient);
@@ -162,7 +168,30 @@ const backendMock = String.raw`
     async caseAssistantSuggest(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
     async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
     async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
-    async caseAssistantExtract() { return { items: [], warnings: [] }; },
+    async caseAssistantExtract(_caseId, source) {
+      if (/hypertonia/i.test(source)) {
+        return {
+          items: [{
+            target: "history",
+            status: "documented",
+            text: "Hypertonia",
+            evidence: "hypertonia",
+            label: "History"
+          }],
+          warnings: []
+        };
+      }
+      return {
+        items: [{
+          target: "complaint",
+          status: "documented",
+          text: "mellkasi fájdalom",
+          evidence: "mellkasi fájdalom",
+          label: "Complaint"
+        }],
+        warnings: []
+      };
+    },
     async getLearningOverview() { return { finalizedCount: 0, styleProfiles: [], skillSuggestions: [], activeSkill: { name: "Mock", version: 1 } }; },
     async analyzeStyle() { return { candidate: { version: 1 } }; },
     async activateStyle() { return true; },
@@ -254,6 +283,46 @@ await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.locator("#cockpitBetaBadge").waitFor();
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
   throw new Error("Beta did not restore the expected case state");
+}
+
+await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await beta.locator("#cockpitPasteText").waitFor();
+
+await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
+await beta.locator("#cockpitExtractText").click();
+await beta.locator(".cockpit-extract-item").waitFor();
+await beta.locator(".cockpit-extract-item .cockpit-decision.yes").click();
+await beta.locator("#cockpitApplyAccepted").click();
+await beta.waitForFunction(() => document.querySelector("#fComplaint")?.value.includes("mellkasi fájdalom"));
+
+const appliedComplaint = await beta.locator("#fComplaint").inputValue();
+if (!appliedComplaint.includes("mellkasi fájdalom")) {
+  throw new Error("Accepted extracted complaint was not applied");
+}
+const persistedComplaint = await beta.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  return state?.patients?.[0]?.complaint || "";
+});
+if (!persistedComplaint.includes("mellkasi fájdalom")) {
+  throw new Error("Accepted extracted complaint was not persisted");
+}
+
+await beta.locator('[data-none-toggle="history"]').click();
+await beta.locator("#fHistory").fill("Doctor draft must survive");
+await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
+await beta.locator("#cockpitExtractText").click();
+await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
+await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
+await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
+await beta.locator("#cockpitApplyAccepted").click();
+await beta.waitForFunction(() => (document.querySelector("#cockpitExtractStatus")?.textContent || "").includes("Synthetic save failure"));
+
+const historyAfterFailure = await beta.locator("#fHistory").inputValue();
+if (historyAfterFailure !== "Doctor draft must survive") {
+  throw new Error("Doctor draft was not restored after failed AI apply");
+}
+if (historyAfterFailure.includes("Hypertonia")) {
+  throw new Error("Failed AI apply leaked extracted content into clinician draft");
 }
 
 if (errors.length) {

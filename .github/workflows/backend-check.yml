@@ -108,6 +108,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Run assistant apply core tests
+        run: node tests/assistant-core.mjs
+
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright@1.55.0

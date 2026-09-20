@@ -1881,6 +1881,65 @@ async function bootstrap() {
   }
 }
 
+async function applyAcceptedExtraction(caseId, items) {
+  if (!caseId || caseId !== selectedPatientId) {
+    throw new Error("The selected case changed. Review the extraction again.");
+  }
+  if (!backendReady || !state.shift) {
+    throw new Error("Clinical backend is not ready.");
+  }
+  if (!window.BachAssistantCore?.applyItems) {
+    throw new Error("Assistant apply core is unavailable.");
+  }
+  if (!Array.isArray(items) || !items.length) {
+    throw new Error("No accepted extracted facts to apply.");
+  }
+
+  const current = collectForm();
+  if (!current || current.id !== caseId) {
+    throw new Error("The selected case changed. Review the extraction again.");
+  }
+  if (isCompleted(current)) {
+    throw new Error("Reopen the completed case before applying extracted facts.");
+  }
+
+  const index = state.patients.findIndex((patient) => patient.id === caseId);
+  if (index < 0) throw new Error("Selected case was not found.");
+
+  // Capture the doctor's exact current draft, including unsaved form edits, before
+  // any AI-derived change. This snapshot is restored if persistence fails.
+  const doctorDraft = structuredClone(current);
+  const applied = window.BachAssistantCore.applyItems(
+    doctorDraft,
+    items,
+    () => crypto.randomUUID()
+  );
+  applied.updatedAt = nowIso();
+
+  state.patients[index] = applied;
+  stateDirty = true;
+
+  try {
+    const result = await persistNow();
+    renderApp();
+    return {
+      patient: structuredClone(state.patients[index]),
+      removed: Number(result?.removed || 0)
+    };
+  } catch (error) {
+    // Fail closed: restore the doctor's draft rather than leaving partially
+    // applied AI content in local state or on screen.
+    state.patients[index] = doctorDraft;
+    stateDirty = true;
+    if (selectedPatientId === caseId) loadPatientForm();
+    throw error;
+  }
+}
+
+window.BachSBOClinicalUi = Object.freeze({
+  applyAcceptedExtraction
+});
+
 function flash(message) {
   const el = document.createElement("div");
 

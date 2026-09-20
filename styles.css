@@ -742,3 +742,240 @@ body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
   .cockpit-clinical-primary > *,
   .cockpit-clinical-course > *{grid-column:1!important}
 }
+
+
+/* Cockpit beta refinement: denser left board, larger text, compact AI todo */
+body.cockpit-ui #patientsView > .grid2{
+  grid-template-columns:minmax(270px,292px) minmax(640px,1fr) minmax(340px,380px);
+}
+
+body.cockpit-ui .cockpit-case-column > .card-h h3{font-size:15px}
+body.cockpit-ui .cockpit-case-column > .card-h .subtle{font-size:12px}
+body.cockpit-ui .cockpit-case-column .section-title{font-size:13px}
+body.cockpit-ui .cockpit-case-column .field label{font-size:11px}
+body.cockpit-ui .cockpit-case-column input,
+body.cockpit-ui .cockpit-case-column select,
+body.cockpit-ui .cockpit-case-column textarea{font-size:13px}
+body.cockpit-ui .cockpit-case-column .info-bar{font-size:12px}
+body.cockpit-ui .cockpit-tab{font-size:12px}
+body.cockpit-ui .cockpit-rail-head strong{font-size:13px}
+body.cockpit-ui .cockpit-rail-sub{font-size:11px}
+body.cockpit-ui .cockpit-status,
+body.cockpit-ui .cockpit-empty-ai{font-size:11px}
+body.cockpit-ui .cockpit-readiness{font-size:11px}
+body.cockpit-ui .cockpit-paste-text{font-size:12px!important}
+body.cockpit-ui .cockpit-new-case .field label{font-size:11px}
+body.cockpit-ui .cockpit-new-case input,
+body.cockpit-ui .cockpit-new-case select{font-size:13px}
+body.cockpit-ui .cockpit-case-list .card-h .subtle{font-size:11px}
+
+/* Keep the original five cells so existing app/config logic continues to work,
+   but render every patient as a compact two-line grid. */
+body.cockpit-ui .cockpit-case-list .patient-table thead{display:none}
+body.cockpit-ui .cockpit-case-list .patient-table tbody{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:5px;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient{
+  display:grid;
+  grid-template-columns:30px 34px 42px minmax(0,1fr) 86px;
+  grid-template-areas:
+    "id sex age complaint status";
+  align-items:center;
+  min-height:48px;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#fff;
+  overflow:hidden;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected{
+  border-color:#4f8fd8;
+  box-shadow:0 0 0 2px rgba(59,130,246,.09);
+  background:#f8fbff;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td{
+  width:auto!important;
+  border:0;
+  padding:7px 4px;
+  min-width:0;
+  font-size:11px;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(1){
+  grid-area:id;
+  font-size:12px;
+  font-weight:900;
+  text-align:center;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(2){
+  grid-area:sex;
+  font-size:11px;
+  text-align:right;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(3){
+  grid-area:age;
+  font-size:12px;
+  font-weight:800;
+  color:#344054;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(4){
+  grid-area:complaint;
+  font-size:12px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient td:nth-child(5){
+  grid-area:status;
+  padding-right:6px;
+}
+body.cockpit-ui .cockpit-case-list .wait-stack{
+  max-width:82px;
+  align-items:flex-end;
+}
+body.cockpit-ui .cockpit-case-list .wait-chip{
+  max-width:82px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+}
+body.cockpit-ui .cockpit-case-list .badge,
+body.cockpit-ui .cockpit-case-list .wait-none{font-size:10px}
+
+/* One-row clinical identity strip: Sex · YOB · Age · Arrival */
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline{
+  display:grid;
+  grid-template-columns:.72fr .95fr .72fr 1.45fr;
+  gap:6px;
+  align-items:end;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline > .inline3{
+  display:contents;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-arrival-field{
+  grid-column:auto;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-arrival-other,
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-demographics-toolbar{
+  grid-column:1/-1;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .field{
+  margin-bottom:0;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline label{
+  white-space:nowrap;
+  font-size:10px;
+}
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline input,
+body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline select{
+  min-width:0;
+  width:100%;
+}
+
+/* Beta ward dropdown wrapper. The original #fWard remains the actual persisted field. */
+body.cockpit-ui .cockpit-ward-source{
+  display:none!important;
+}
+body.cockpit-ui #cockpitWardSelect,
+body.cockpit-ui #cockpitWardOther{
+  width:100%;
+  margin-top:0;
+}
+body.cockpit-ui #cockpitWardOther:not(.hidden){
+  margin-top:5px;
+}
+
+/* Case Assistant as a priority-sorted to-do list */
+body.cockpit-ui .cockpit-todo-item{
+  border:1px solid #e4e7ec;
+  border-left-width:4px;
+  border-radius:7px;
+  padding:6px 7px;
+  margin-top:5px;
+  background:#fff;
+}
+body.cockpit-ui .cockpit-todo-item.priority-now{border-left-color:#d92d20}
+body.cockpit-ui .cockpit-todo-item.priority-next{border-left-color:#f79009}
+body.cockpit-ui .cockpit-todo-item.priority-consider{border-left-color:#98a2b3}
+body.cockpit-ui .cockpit-todo-main{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:6px;
+  align-items:center;
+}
+body.cockpit-ui .cockpit-priority{
+  font-size:9px;
+  line-height:1;
+  font-weight:900;
+  color:#667085;
+  white-space:nowrap;
+}
+body.cockpit-ui .priority-now .cockpit-priority{color:#b42318}
+body.cockpit-ui .priority-next .cockpit-priority{color:#b54708}
+body.cockpit-ui .cockpit-todo-title{
+  min-width:0;
+  font-size:12px;
+  line-height:1.25;
+  color:#1d2939;
+}
+body.cockpit-ui .cockpit-todo-info{
+  position:relative;
+}
+body.cockpit-ui .cockpit-todo-info > summary{
+  list-style:none;
+  cursor:pointer;
+  width:24px;
+  height:24px;
+  display:grid;
+  place-items:center;
+  border:1px solid #d0d5dd;
+  border-radius:999px;
+  color:#475467;
+  background:#f9fafb;
+  font-size:13px;
+}
+body.cockpit-ui .cockpit-todo-info > summary::-webkit-details-marker{display:none}
+body.cockpit-ui .cockpit-info-body{
+  grid-column:1/-1;
+  margin-top:6px;
+  padding:7px;
+  border-radius:6px;
+  background:#f8fafc;
+  color:#475467;
+  font-size:10px;
+  line-height:1.4;
+}
+body.cockpit-ui .cockpit-info-body > div + div{margin-top:5px}
+body.cockpit-ui .cockpit-todo-item .cockpit-decision-row{
+  margin-top:5px;
+  gap:3px;
+}
+body.cockpit-ui .cockpit-todo-item .cockpit-decision{
+  padding:3px 5px;
+  font-size:8px;
+}
+body.cockpit-ui .cockpit-stale-banner{
+  border:1px solid #fedf89;
+  background:#fffaeb;
+  color:#93370d;
+  border-radius:7px;
+  padding:6px 7px;
+  margin-bottom:5px;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+@media (max-width:1500px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:270px minmax(560px,1fr) 320px;
+  }
+}
+@media (max-width:1180px){
+  body.cockpit-ui #patientsView > .grid2{
+    grid-template-columns:270px minmax(0,1fr);
+  }
+}

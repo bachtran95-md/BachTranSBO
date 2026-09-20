@@ -40,8 +40,8 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 ## LATER — learning / production hardening
 
 - [x] Expose finalized corpus approve/exclude review in AI Learning through owner-scoped `learning-admin`; Chromium + rollback-only production verification passed.
-- [ ] Run and review the new Style Coach workflow; currently there are no Style Coach runs.
-- [ ] Review/activate a style profile only after explicit human approval.
+- [x] Implement and deploy the Style Coach review workflow: audit metadata is visible, pending candidates stay inactive, ACTIVATE requires confirmation, REJECT is supported, and Chromium + rollback-only production verification pass.
+- [ ] Generate the first real Style Coach candidate from the authenticated AI Learning UI and explicitly review it; production still had 0 real Style Coach runs at the last check. Activate only after human approval, otherwise Reject.
 - [ ] Enable Supabase leaked-password protection.
 - [ ] Run a full authenticated live regression: case entry → privacy gate → assistant → Generate Summary → edit → Finalize → immutable revision → retrieval/learning. Mocked Chromium smoke + rollback-only production atomic-finalize verification already pass.
 - [ ] Review auth/session, RLS, Edge Function authorization, CORS/origin, error handling and operational logging.

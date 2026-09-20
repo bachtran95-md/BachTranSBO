@@ -320,6 +320,7 @@ if (!afterDelete.includes("Existing smoke case")) {
 }
 
 const beta = await context.newPage();
+beta.on("dialog", async (dialog) => dialog.accept());
 await beta.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.locator("#cockpitBetaBadge").waitFor();

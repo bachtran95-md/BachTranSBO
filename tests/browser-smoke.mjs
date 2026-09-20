@@ -397,6 +397,12 @@ await page.evaluate(() => {
     entry.text = "";
     entry.savedText = "";
   }
+  if (p.tests?.radiology?.[0]) {
+    p.tests.radiology[0].bodyPart = "koponya";
+    p.tests.radiology[0].modality = "Native CT";
+    p.tests.radiology[0].otherTest = "";
+    p.tests.radiology[0].type = "koponya Native CT";
+  }
   localStorage.setItem(key, JSON.stringify(state));
 });
 
@@ -420,8 +426,18 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 const betaCaseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 await betaCaseRow.waitFor();
 await beta.waitForFunction(() =>
-  Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-chip-list"))
+  Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-pending-line"))
 );
+
+const pendingText = await betaCaseRow.locator(".cockpit-test-pending-line").textContent();
+for (const expected of ["EKG", "AVG", "Koponya Native CT"]) {
+  if (!pendingText.includes(expected)) {
+    throw new Error(`Case list hid pending test: ${expected}. Rendered: ${pendingText}`);
+  }
+}
+if (/\+\d+/.test(pendingText)) {
+  throw new Error(`Case list still truncates pending tests with +N: ${pendingText}`);
+}
 
 const heightBeforeSelect = await betaCaseRow.evaluate((row) => row.getBoundingClientRect().height);
 if (await betaCaseRow.locator(".wait-stack").count()) {
@@ -438,6 +454,37 @@ const heightAfterSelect = await beta.locator("#patientTbody tr[data-id]", { hasT
 if (heightAfterSelect > heightBeforeSelect + 8) {
   throw new Error(`Beta Case list row jumped from ${heightBeforeSelect}px to ${heightAfterSelect}px`);
 }
+
+// Klinikum must expose editable demographics in a fixed location.
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
+await beta.locator("#cockpitDemographicsMount #iceAge").waitFor({ state: "visible" });
+await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "visible" });
+if (await beta.locator("#iceAge").isDisabled()) {
+  throw new Error("Klinikum Age control is unexpectedly disabled");
+}
+await beta.locator("#iceAge").fill("44");
+await beta.locator("#iceAge").dispatchEvent("change");
+const expectedYob = String(new Date().getFullYear() - 44);
+await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
+await beta.locator("#iceArrival").selectOption("walk_in");
+
+// Test cards must stay compact while result text changes; the old bug removed
+// .cockpit-test-row until the periodic enhancer ran again.
+await beta.locator('[data-cockpit-tab="tests"]').click();
+await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("Sinus rhythm");
+const ekgClasses = await beta.locator('[data-card="ekg"]').getAttribute("class");
+if (!String(ekgClasses).includes("cockpit-test-row")) {
+  throw new Error(`EKG card lost compact Beta layout while typing: ${ekgClasses}`);
+}
+await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("No acute finding");
+const radClasses = await beta.locator('[data-card="radiology-0"]').getAttribute("class");
+if (!String(radClasses).includes("cockpit-test-row")) {
+  throw new Error(`Radiology card lost compact Beta layout while typing: ${radClasses}`);
+}
+
+// Return to Klinikum for the Assistant/extraction flow below.
+await beta.locator('[data-cockpit-tab="clinical"]').click();
 
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();

@@ -1220,6 +1220,18 @@ body.cockpit-ui .cockpit-row-complete{
   font-weight:800;
   color:#067647;
 }
+body.cockpit-ui .cockpit-row-loading{
+  display:inline-flex;
+  align-items:center;
+  min-height:18px;
+  font-size:11px;
+  line-height:1;
+  font-weight:800;
+  color:#98a2b3;
+}
+body.cockpit-ui .cockpit-test-chip-loading{
+  flex-wrap:nowrap;
+}
 
 /* Beta Summary status: documented workflow state only; Assistant output stays separate. */
 body.cockpit-ui .cockpit-readiness{

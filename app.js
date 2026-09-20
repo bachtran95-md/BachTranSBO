@@ -1606,6 +1606,84 @@ function learningMessage(message, isError = false) {
   el.style.color = isError ? "#991b1b" : "";
 }
 
+function renderCorpusRevisions(revisions) {
+  const host = document.getElementById("corpusReviewList");
+  if (!host) return;
+
+  if (!revisions.length) {
+    host.innerHTML = '<div class="subtle">No finalized revisions yet.</div>';
+    return;
+  }
+
+  host.innerHTML = revisions.map((item) => {
+    const status = item.learning_status || "approved";
+    const reviewed = item.learning_reviewed_at
+      ? new Date(item.learning_reviewed_at).toLocaleString()
+      : "";
+    const finalized = item.finalized_at
+      ? new Date(item.finalized_at).toLocaleString()
+      : "";
+    return `
+      <div class="learning-item corpus-review-item">
+        <div class="learning-item-head">
+          <div>
+            <b>Finalized revision</b>
+            <div class="subtle">${esc(finalized)}${item.model ? ` • ${esc(item.model)}` : ""}</div>
+          </div>
+          <span class="badge ${status === "approved" ? "done" : "rejected"}">
+            ${esc(status.toUpperCase())}
+          </span>
+        </div>
+        <div class="learning-text corpus-finalized-text">${esc(item.finalized_text || "")}</div>
+        ${item.learning_note ? `<div class="footer-note">Review note: ${esc(item.learning_note)}</div>` : ""}
+        ${reviewed ? `<div class="footer-note">Reviewed: ${esc(reviewed)}</div>` : ""}
+        <div class="learning-actions">
+          <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
+            APPROVE
+          </button>
+          <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
+            EXCLUDE
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  host.querySelectorAll("[data-corpus-review]").forEach((button) => {
+    button.onclick = async () => {
+      const decision = button.dataset.decision;
+      const revisionId = button.dataset.corpusReview;
+      const verb = decision === "approved" ? "approve" : "exclude";
+      if (!window.confirm(`Confirm ${verb} for AI learning?`)) return;
+
+      let note = "";
+      if (decision === "excluded") {
+        note = window.prompt("Optional reason for exclusion:", "") || "";
+      }
+
+      host.querySelectorAll(`[data-corpus-review="${revisionId}"]`).forEach((x) => {
+        x.disabled = true;
+      });
+
+      try {
+        await window.BachSBOBackend.reviewCorpusRevision(
+          revisionId,
+          decision,
+          note
+        );
+        learningMessage(
+          decision === "approved"
+            ? "Revision approved for AI learning."
+            : "Revision excluded from AI learning."
+        );
+        await renderLearningDashboard();
+      } catch (error) {
+        learningMessage(error?.message || "Corpus review failed.", true);
+      }
+    };
+  });
+}
+
 function renderStyleProfiles(profiles) {
   const host = document.getElementById("styleProfilesList");
   if (!profiles.length) {
@@ -1729,6 +1807,7 @@ async function renderLearningDashboard() {
   document.getElementById("learningActiveStyle").textContent =
     activeStyle ? `v${activeStyle.version}` : "None";
 
+  renderCorpusRevisions(overview.corpusRevisions || []);
   renderStyleProfiles(overview.styleProfiles || []);
   renderSkillSuggestions(overview.skillSuggestions || []);
 

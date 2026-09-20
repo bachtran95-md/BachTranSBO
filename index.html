@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=recovery-20260920-1" />
+  <link rel="stylesheet" href="styles.css?v=learning-20260920-1" />
 </head>
 <body>
   <header class="topbar">
@@ -343,6 +343,18 @@
 
         <div id="learningMessage" class="info-bar hidden"></div>
 
+        <div class="card learning-corpus-card">
+          <div class="card-h">
+            <div>
+              <h3>Finalized corpus review</h3>
+              <div class="subtle">Approve or exclude finalized revisions from future AI learning. This never edits the clinical record or finalized text.</div>
+            </div>
+          </div>
+          <div class="card-b" id="corpusReviewList">
+            <div class="subtle">Loading…</div>
+          </div>
+        </div>
+
         <div class="learning-grid">
           <div class="card">
             <div class="card-h">
@@ -435,8 +447,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?v=runtime-20260920-1"></script>
-  <script src="backend.js?v=hardening-20260920-2"></script>
-  <script src="app.js?v=hardening-20260920-2"></script>
+  <script src="backend.js?v=learning-20260920-1"></script>
+  <script src="app.js?v=learning-20260920-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
 </body>
 </html>

@@ -547,6 +547,23 @@
     );
   }
 
+  async function reviewCorpusRevision(revisionId, decision, note = "") {
+    if (!revisionId) throw new Error("Missing corpus revision.");
+    if (!["approved", "excluded"].includes(decision)) {
+      throw new Error("Invalid corpus review decision.");
+    }
+    return invokeAuthedFunction(
+      "learning-admin",
+      {
+        action: "review_revision",
+        revisionId,
+        decision,
+        note: String(note || "")
+      },
+      "Corpus review"
+    );
+  }
+
   async function analyzeStyle() {
     return invokeAuthedFunction(
       "analyze-style",
@@ -603,6 +620,7 @@
     caseAssistantDecide,
     caseAssistantExtract,
     getLearningOverview,
+    reviewCorpusRevision,
     analyzeStyle,
     activateStyle,
     analyzeSkill,

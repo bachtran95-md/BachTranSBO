@@ -627,6 +627,40 @@ async function reopenCase(
   };
 }
 
+async function deleteCase(db: any, ownerId: string, caseId: string) {
+  if (!caseId || !/^[0-9a-f-]{36}$/i.test(caseId)) {
+    throw new Error("Case delete payload is incomplete.");
+  }
+
+  const { data: ownedCase, error: caseError } = await db
+    .from("cases")
+    .select("id, shift_id, local_id, status")
+    .eq("id", caseId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (caseError) throw caseError;
+  if (!ownedCase) throw new Error("Case does not belong to authenticated user.");
+
+  const { count, error: deleteError } = await db
+    .from("cases")
+    .delete({ count: "exact" })
+    .eq("id", caseId)
+    .eq("owner_id", ownerId);
+
+  if (deleteError) throw deleteError;
+  if (count !== 1) throw new Error("Case delete did not remove exactly one case.");
+
+  return {
+    caseId,
+    shiftId: ownedCase.shift_id,
+    localId: ownedCase.local_id,
+    status: ownedCase.status,
+    deleted: true,
+    deletedAt: new Date().toISOString(),
+  };
+}
+
 async function appendRevision(db: any, ownerId: string, patientInput: any) {
   const { patient, report } = await deidentifyPatient(patientInput);
 
@@ -742,6 +776,16 @@ Deno.serve(async (req) => {
           db,
           user.id,
           String(body.shiftId || ""),
+          String(body.caseId || ""),
+        ),
+      );
+    }
+
+    if (body?.action === "delete_case") {
+      return json(
+        await deleteCase(
+          db,
+          user.id,
           String(body.caseId || ""),
         ),
       );

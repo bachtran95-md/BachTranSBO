@@ -634,12 +634,39 @@ window.BACH_SBO_CONFIG = {
     }
     try {
       setStatus("Saving case details…", "Esetadatok mentése…");
-      const client = await syncedClient();
-      const { error } = await client.from("cases").update(payload).eq("id", id);
-      if (error) throw error;
-      rowUpdate(payload);
+      const backend = window.BachSBOBackend;
+      if (!backend?.updateCaseMetadata) {
+        throw new Error(label(
+          "Secure case metadata save is not available.",
+          "A biztonságos esetadat-mentés nem érhető el."
+        ));
+      }
+      const metadata = {
+        sex: payload.sex,
+        yearOfBirth: Object.prototype.hasOwnProperty.call(payload, "year_of_birth")
+          ? payload.year_of_birth
+          : null,
+        mainComplaint: payload.main_complaint || "",
+        arrivalMode: payload.arrival_mode || "",
+        arrivalOther: payload.arrival_other || ""
+      };
+      if (Object.prototype.hasOwnProperty.call(payload, "other_details")) {
+        metadata.otherDetails = payload.other_details || "";
+      }
+      const result = await backend.updateCaseMetadata(id, metadata);
+      const saved = result?.metadata || {};
+      if (Object.prototype.hasOwnProperty.call(saved, "main_complaint")) {
+        const complaint = document.getElementById("fMainComplaint");
+        if (complaint) complaint.value = saved.main_complaint || "";
+      }
+      if (Object.prototype.hasOwnProperty.call(saved, "arrival_other")) {
+        const arrivalOther = document.getElementById("iceArrivalOther");
+        if (arrivalOther) arrivalOther.value = saved.arrival_other || "";
+      }
+      rowUpdate(Object.keys(saved).length ? saved : payload);
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
+      loadSelected({ force: true });
     } catch (error) {
       lastSaveFailedAt = Date.now();
       const detail = error?.message ? ` (${error.message})` : "";

@@ -956,7 +956,6 @@
     }
     return `
       <div class="cockpit-test-pending-line" aria-label="${esc(label("Waiting tests", "Függő vizsgálatok"))}">
-        <strong>${waiting.length} ${esc(label("waiting", "függő"))}</strong>
         ${waiting.map((item) => `<span title="${esc(item.name)}">${esc(item.name)}</span>`).join("")}
       </div>`;
   }
@@ -1206,9 +1205,13 @@
   ];
 
   function enhanceClinicalHeader() {
+    const mount = document.getElementById("cockpitDemographicsMount");
     const host = document.getElementById("inlineCaseEditor");
-    if (!host) return;
+    if (!mount || !host) return;
+
+    if (host.parentElement !== mount) mount.appendChild(host);
     host.classList.add("cockpit-demographics-inline");
+    host.classList.remove("hidden");
     document.getElementById("iceArrival")?.closest(".field")?.classList.add("cockpit-arrival-field");
     document.getElementById("iceArrivalOtherWrap")?.classList.add("cockpit-arrival-other");
     host.querySelector(":scope > .toolbar")?.classList.add("cockpit-demographics-toolbar");

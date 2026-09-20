@@ -21,7 +21,9 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Preserve Generate Summary → edit → Finalize Summary as the authoritative documentation path; Assistant state is separate.
 - [ ] Test that AI failure never destroys or overwrites clinician-entered data.
 
-## NEXT — source-of-truth / privacy cleanup\n\nSee `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
+## NEXT — source-of-truth / privacy cleanup
+
+See `docs/AUDIT_2026-09-20.md` for the latest repository + production audit and the arrival-metadata learning gap.
 
 - [x] Reconcile the current late production Supabase migration history with GitHub `main`.
 - [x] Commit/sync production Edge Function source needed for the current runtime, including `case-assistant`, `generate-summary`, and `backend-diagnostics`.
@@ -30,8 +32,10 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 - [x] Move Delete Case to a server-authorized `clinical-store/delete_case` action; synthetic add/delete + cascade verification passed.
 - [ ] Refactor `config.js` back to configuration-only and move runtime UI logic into maintained frontend modules.
 - [x] Confirm `case_patch.js` is dead code and remove it.
-- [x] Update stale GitHub Pages URLs.\n- [ ] Continue pruning older documentation sections as features evolve; `PROJECT_STATE.md` hardening section is the current source of truth.
-- [x] Close the Codex write-test PR.\n- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
+- [x] Update stale GitHub Pages URLs.
+- [ ] Continue pruning older documentation sections as features evolve; `PROJECT_STATE.md` hardening section is the current source of truth.
+- [x] Close the Codex write-test PR.
+- [ ] Delete stale remote branches (`codex-write-test`, merged `ui-compact-cockpit`) when branch-delete capability is available.
 
 ## LATER — learning / production hardening
 

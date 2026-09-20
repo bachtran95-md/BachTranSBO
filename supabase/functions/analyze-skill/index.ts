@@ -142,6 +142,18 @@ async function generateSuggestion(skill: any, revisions: any[]) {
   return { suggestion, model };
 }
 
+function latestPerCase(revisions: any[]) {
+  const seen = new Set<string>();
+  const latest: any[] = [];
+  for (const revision of revisions || []) {
+    const caseId = String(revision?.case_id || "");
+    if (!caseId || seen.has(caseId)) continue;
+    seen.add(caseId);
+    latest.push(revision);
+  }
+  return latest;
+}
+
 async function analyze(db: any, ownerId: string) {
   const { data: skill, error: skillError } = await db
     .from("skill_versions")
@@ -155,14 +167,15 @@ async function analyze(db: any, ownerId: string) {
 
   const { data: revisions, error: revisionsError } = await db
     .from("summary_revisions")
-    .select("generated_text, finalized_text, finalized_at")
+    .select("case_id, generated_text, finalized_text, finalized_at")
     .eq("owner_id", ownerId)
+    .eq("learning_status", "approved")
     .order("finalized_at", { ascending: false })
-    .limit(40);
+    .limit(80);
 
   if (revisionsError) throw revisionsError;
 
-  const usable = (revisions || []).filter(
+  const usable = latestPerCase(revisions || []).filter(
     (r: any) =>
       String(r.generated_text || "").trim().length > 0 &&
       String(r.finalized_text || "").trim().length > 0,
@@ -170,7 +183,7 @@ async function analyze(db: any, ownerId: string) {
 
   if (usable.length < 10) {
     throw new Error(
-      "At least 10 Generated → Finalized pairs are required for Skill suggestions.",
+      "At least 10 approved distinct Generated → Finalized cases are required for Skill suggestions.",
     );
   }
 

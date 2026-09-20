@@ -156,7 +156,7 @@
         .some((input) => String(input.value || "").trim());
       decision = decision || !hasValue("fDischargeCondition") || !recommendation;
     } else if (disposition === "admitted") {
-      decision = decision || !hasValue("fHospital") || !hasValue("fWard");
+      decision = decision || !hasValue("fWard");
     } else if (disposition === "other") {
       decision = decision || !hasValue("fOtherOutcome");
     }

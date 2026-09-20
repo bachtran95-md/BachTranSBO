@@ -968,6 +968,15 @@
     </div>`;
   }
 
+  function installPatientListStatusHook() {
+    window.BachSBOUiHooks ||= {};
+    window.BachSBOUiHooks.patientListStatusHtml = (patient, context = {}) => {
+      const progress = patientProgress(patient);
+      if (patient?.id) patientProgressByCase.set(patient.id, progress);
+      return waitingTestMarkup(progress, Boolean(context.completed));
+    };
+  }
+
   function decoratePatientIdentity(row, patient = null) {
     const cells = row.querySelectorAll(":scope > td");
     if (cells.length < 5) return null;
@@ -1364,6 +1373,7 @@
   }
 
   function install() {
+    installPatientListStatusHook();
     addBetaControls();
     activateCockpitIfReady();
     installSync();

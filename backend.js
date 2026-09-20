@@ -453,6 +453,35 @@
     );
   }
 
+  async function caseAssistantSuggest(patient) {
+    if (!patient?.id) throw new Error("A saved case is required.");
+
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "suggest",
+        caseId: patient.id,
+        patient
+      },
+      "Case Assistant"
+    );
+  }
+
+  async function caseAssistantExtract(caseId, text) {
+    if (!caseId) throw new Error("A saved case is required.");
+    if (!String(text || "").trim()) throw new Error("Paste text to analyze.");
+
+    return invokeAuthedFunction(
+      "case-assistant",
+      {
+        action: "extract",
+        caseId,
+        text: String(text)
+      },
+      "Case Assistant extraction"
+    );
+  }
+
   async function getLearningOverview() {
     return invokeAuthedFunction(
       "learning-admin",
@@ -510,6 +539,8 @@
     reopenCase,
     appendSummaryRevision,
     generateSummary,
+    caseAssistantSuggest,
+    caseAssistantExtract,
     getLearningOverview,
     analyzeStyle,
     activateStyle,

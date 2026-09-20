@@ -91,6 +91,16 @@ jobs:
               exit 1
             fi
           done
+          for f in analyze-style analyze-skill; do
+            if ! grep -q 'learning_status.*approved' "supabase/functions/$f/index.ts"; then
+              echo "Learning analysis must use approved revisions only: $f"
+              exit 1
+            fi
+            if ! grep -q 'latestPerCase' "supabase/functions/$f/index.ts"; then
+              echo "Learning analysis must use latest-per-case corpus: $f"
+              exit 1
+            fi
+          done
 
       - name: Type-check Edge Functions
         run: |

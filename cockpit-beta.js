@@ -167,14 +167,27 @@
   function syncTabWarnings() {
     const hasCase = Boolean(selectedCaseId());
     const gaps = hasCase ? tabSummaryGaps() : {};
+    const summaryReady =
+      hasCase &&
+      ["clinical", "tests", "course", "disposition"].every((key) => !gaps[key]);
+
     document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
       const key = button.dataset.cockpitTab;
       const warn = key !== "summary" && Boolean(gaps[key]);
+      const ready = key === "summary" && summaryReady;
+
       button.classList.toggle("has-summary-gap", warn);
+      button.classList.toggle("summary-ready", ready);
+
       button.title = warn
         ? label(
             "Missing information in this tab may affect the Summary.",
             "Ebben a fülben hiányzó adat befolyásolhatja az összefoglalót."
+          )
+        : ready
+        ? label(
+            "Summary is ready. Open this tab to review or generate it.",
+            "Az összefoglaló készíthető. Nyissa meg ezt a fület az ellenőrzéshez vagy generáláshoz."
           )
         : "";
     });

@@ -123,6 +123,63 @@
     };
   }
 
+  function narrativeResolved(key) {
+    const field = document.querySelector(`[data-narrative-field="${key}"]`);
+    return Boolean(field?.classList.contains("result") || field?.classList.contains("none"));
+  }
+
+  function hasValue(id) {
+    return Boolean(String(document.getElementById(id)?.value || "").trim());
+  }
+
+  function tabSummaryGaps() {
+    const arrival = document.getElementById("iceArrival")?.value || "";
+    const disposition = document.getElementById("fDisposition")?.value || "";
+    const testsPending = [...document.querySelectorAll('[data-cockpit-panel="tests"] .test-card')]
+      .some((card) => !card.classList.contains("result") && !card.classList.contains("notordered"));
+
+    const clinical =
+      !hasValue("fMainComplaint") ||
+      !hasValue("iceSex") ||
+      !hasValue("iceYob") ||
+      !arrival ||
+      (arrival === "other" && !hasValue("iceArrivalOther")) ||
+      !narrativeResolved("complaint") ||
+      !narrativeResolved("history");
+
+    const tests = !narrativeResolved("physical") || testsPending;
+    const course = !narrativeResolved("therapy") || !narrativeResolved("course");
+
+    let decision = !hasValue("fDiagnoses") || !disposition;
+    if (disposition === "discharged") {
+      const recommendation = [...document.querySelectorAll("[data-rec]")]
+        .some((input) => String(input.value || "").trim());
+      decision = decision || !hasValue("fDischargeCondition") || !recommendation;
+    } else if (disposition === "admitted") {
+      decision = decision || !hasValue("fHospital") || !hasValue("fWard");
+    } else if (disposition === "other") {
+      decision = decision || !hasValue("fOtherOutcome");
+    }
+
+    return { clinical, tests, course, disposition: decision };
+  }
+
+  function syncTabWarnings() {
+    const hasCase = Boolean(selectedCaseId());
+    const gaps = hasCase ? tabSummaryGaps() : {};
+    document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
+      const key = button.dataset.cockpitTab;
+      const warn = key !== "summary" && Boolean(gaps[key]);
+      button.classList.toggle("has-summary-gap", warn);
+      button.title = warn
+        ? label(
+            "Missing information in this tab may affect the Summary.",
+            "Ebben a fülben hiányzó adat befolyásolhatja az összefoglalót."
+          )
+        : "";
+    });
+  }
+
   function createTabBar() {
     const form = document.getElementById("patientForm");
     if (!form || document.getElementById("cockpitCaseTabs")) return;
@@ -173,6 +230,7 @@
     if (aiButton) aiButton.textContent = label("AI", "AI");
     syncRailLabels();
     syncUnifiedTestLabels();
+    syncTabWarnings();
   }
 
   function activateTab(tab) {
@@ -244,24 +302,6 @@
         </div>
       </div>
 
-      <div class="cockpit-rail-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitSummaryTitle">📝 Summary</strong>
-            <div class="cockpit-rail-sub" id="cockpitSummarySub"></div>
-          </div>
-          <span id="cockpitSummaryBadge" class="cockpit-summary-badge">—</span>
-        </div>
-        <div class="cockpit-rail-body">
-          <div id="cockpitSummaryReadiness" class="cockpit-readiness"></div>
-          <div class="cockpit-rail-actions">
-            <button class="btn primary" id="cockpitOpenSummary" type="button"></button>
-            <button class="btn" id="cockpitGenerateSummary" type="button"></button>
-          </div>
-          <button class="btn success cockpit-wide-btn" id="cockpitFinalizeSummary" type="button"></button>
-        </div>
-      </div>
-
       <div class="cockpit-rail-card cockpit-paste-card">
         <div class="cockpit-rail-head">
           <div>
@@ -280,15 +320,6 @@
     grid.appendChild(rail);
 
     document.getElementById("cockpitAnalyzeCase")?.addEventListener("click", analyzeCurrentCase);
-    document.getElementById("cockpitOpenSummary")?.addEventListener("click", () => activateTab("summary"));
-    document.getElementById("cockpitGenerateSummary")?.addEventListener("click", () => {
-      activateTab("summary");
-      document.getElementById("generateSummaryBtn")?.click();
-    });
-    document.getElementById("cockpitFinalizeSummary")?.addEventListener("click", () => {
-      activateTab("summary");
-      document.getElementById("finalizeSummaryBtn")?.click();
-    });
     document.getElementById("cockpitExtractText")?.addEventListener("click", extractPastedText);
 
     const toggle = document.createElement("button");
@@ -324,11 +355,6 @@
         "Válasszon aktív esetet, majd indítsa az asszisztenst. A javaslatok nem módosítják automatikusan a dokumentációt."
       )
     );
-    set("cockpitSummaryTitle", "📝 " + label("Summary", "Összefoglaló"));
-    set(
-      "cockpitSummarySub",
-      label("Confirmed facts only", "Csak dokumentált tények")
-    );
     set("cockpitDocumentationTitle", label("🔎 Documentation review", "🔎 Dokumentációs ellenőrzés"));
     set(
       "cockpitDocumentationSub",
@@ -337,9 +363,6 @@
         "Kötelező, hiányzó, függő és ellentmondásos információk. Csak ellenőrzés; ez a panel nem ír adatot."
       )
     );
-    set("cockpitOpenSummary", label("OPEN", "MEGNYITÁS"));
-    set("cockpitGenerateSummary", label("GENERATE", "GENERÁLÁS"));
-    set("cockpitFinalizeSummary", label("FINALIZE SUMMARY", "ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE"));
     set("cockpitPasteTitle", label("Paste note / Heidi text", "Jegyzet / Heidi szöveg"));
     set(
       "cockpitPasteSub",
@@ -508,11 +531,6 @@
     const hasCase = Boolean(form && !form.classList.contains("hidden") && selectedCaseId());
     tabs?.classList.toggle("hidden", !hasCase);
 
-    const gate = document.getElementById("summaryGate");
-    const badge = document.getElementById("cockpitSummaryBadge");
-    const readiness = document.getElementById("cockpitSummaryReadiness");
-    const generate = document.getElementById("cockpitGenerateSummary");
-    const finalize = document.getElementById("cockpitFinalizeSummary");
     const analyze = document.getElementById("cockpitAnalyzeCase");
     const extract = document.getElementById("cockpitExtractText");
 
@@ -520,31 +538,8 @@
     if (extract) extract.disabled = !hasCase || assistantBusy;
     renderDocumentationReview();
 
-    if (!hasCase) {
-      if (badge) {
-        badge.textContent = label("No case", "Nincs eset");
-        badge.className = "cockpit-summary-badge neutral";
-      }
-      if (readiness) {
-        readiness.textContent = label("Select a case to continue.", "Válasszon esetet a folytatáshoz.");
-      }
-      if (generate) generate.disabled = true;
-      if (finalize) finalize.disabled = true;
-      return;
-    }
-
-    const ready = gate?.classList.contains("ready");
-    const caseId = selectedCaseId();
-    const progress = progressFromVisibleForm() || patientProgressByCase.get(caseId) || null;
-    if (badge) {
-      badge.textContent = ready ? label("Ready", "Kész") : label("Blocked", "Blokkolt");
-      badge.className = "cockpit-summary-badge " + (ready ? "ready" : "blocked");
-    }
-    if (readiness) {
-      readiness.innerHTML = renderSummaryProgress(progress, ready);
-    }
-    if (generate) generate.disabled = !ready;
-    if (finalize) finalize.disabled = Boolean(document.getElementById("finalizeSummaryBtn")?.disabled);
+    syncTabWarnings();
+    if (!hasCase) return;
   }
 
   async function analyzeCurrentCase() {
@@ -588,8 +583,8 @@
 
   function decisionUiValue(value) {
     if (value === "already_done") return "done";
-    if (value === "not_applicable") return "na";
-    return value || "pending";
+    if (value === "not_applicable") return "pending";
+    return ["done", "yes", "no"].includes(value) ? value : "pending";
   }
 
   function priorityMeta(priority) {
@@ -627,7 +622,7 @@
         node.classList.toggle("selected", node.dataset.decision === uiDecision);
       });
       if (item) {
-        ["yes", "no", "done", "na"].forEach((value) => {
+        ["done", "yes", "no"].forEach((value) => {
           item.classList.toggle("decision-" + value, value === uiDecision);
         });
         item.dataset.doctorDecision = uiDecision;
@@ -708,10 +703,9 @@
             </details>
           </div>
           <div class="cockpit-decision-row">
+            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
             <button type="button" data-decision="yes" class="cockpit-decision yes ${decision === "yes" ? "selected" : ""}">YES</button>
             <button type="button" data-decision="no" class="cockpit-decision no ${decision === "no" ? "selected" : ""}">NO</button>
-            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
-            <button type="button" data-decision="na" class="cockpit-decision na ${decision === "na" ? "selected" : ""}">N/A</button>
           </div>
         </article>
       `;

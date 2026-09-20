@@ -469,6 +469,16 @@ const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary
 if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
   throw new Error(`Unexpected Beta tab order: ${JSON.stringify(tabOrder)}`);
 }
+if (await beta.locator("#cockpitSummaryTitle").count()) {
+  throw new Error("Right-side Summary card still exists");
+}
+await beta.waitForFunction(() =>
+  document.querySelector('[data-cockpit-tab="tests"]')?.classList.contains("has-summary-gap") &&
+  document.querySelector('[data-cockpit-tab="disposition"]')?.classList.contains("has-summary-gap")
+);
+if (await beta.locator('[data-cockpit-tab="summary"].has-summary-gap').count()) {
+  throw new Error("Summary tab must never show an orange readiness dot");
+}
 
 // Klinikum demographics must be native-visible markup, not a late dynamic insertion.
 if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() !== 1) {
@@ -485,15 +495,15 @@ await beta.waitForFunction(() => {
 await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceAge").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "visible" });
-if (await beta.locator("#iceAge").isDisabled()) {
-  throw new Error("Klinikum Age input is disabled");
+if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
+  throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
 await beta.locator("#iceSex").selectOption("F");
-await beta.locator("#iceAge").fill("44");
-await beta.locator("#iceAge").dispatchEvent("change");
-await beta.locator("#iceArrival").selectOption("omsz");
 const expectedYob = String(new Date().getFullYear() - 44);
-await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
+await beta.locator("#iceYob").fill(expectedYob);
+await beta.locator("#iceYob").dispatchEvent("change");
+await beta.locator("#iceArrival").selectOption("omsz");
+await beta.waitForFunction(() => document.querySelector("#iceAge")?.value === "44");
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
@@ -569,6 +579,9 @@ if (await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)'
 // Beta's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();
 await beta.locator('[data-card="ekg"].cockpit-test-row').waitFor();
+if (await beta.locator('[data-card="ekg"] .test-save').isVisible()) {
+  throw new Error("Beta still shows the redundant Save Result button");
+}
 await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("temporary EKG text");
 let testClasses = await beta.locator('[data-card="ekg"]').getAttribute("class");
 if (!String(testClasses).includes("cockpit-test-row")) {
@@ -627,22 +640,47 @@ const assistantOrderBefore = await beta.locator("#cockpitAssistantResults .cockp
   nodes.map((node) => node.dataset.itemId)
 );
 const firstAssistantItem = beta.locator('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]');
-await firstAssistantItem.locator('.cockpit-decision.no').click();
-await beta.waitForFunction(() =>
-  document.querySelector('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]')?.classList.contains("decision-no")
+const assistantButtonOrder = await firstAssistantItem.locator(".cockpit-decision").evaluateAll((nodes) =>
+  nodes.map((node) => node.textContent.trim())
 );
+if (JSON.stringify(assistantButtonOrder) !== JSON.stringify(["DONE", "YES", "NO"])) {
+  throw new Error("Case Assistant decision order must be DONE → YES → NO");
+}
+if (await firstAssistantItem.locator('[data-decision="na"]').count()) {
+  throw new Error("Case Assistant still exposes N/A");
+}
+
+for (const spec of [
+  { decision: "done", buttonRgb: "rgb(6, 118, 71)", boxRgb: "rgb(236, 253, 243)" },
+  { decision: "yes", buttonRgb: "rgb(181, 71, 8)", boxRgb: "rgb(255, 247, 237)" },
+  { decision: "no", buttonRgb: "rgb(71, 84, 103)", boxRgb: "rgb(242, 244, 247)" }
+]) {
+  await firstAssistantItem.locator(`.cockpit-decision.${spec.decision}`).click();
+  await beta.waitForFunction(({ decision }) =>
+    document.querySelector('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]')?.classList.contains("decision-" + decision),
+    { decision: spec.decision }
+  );
+  const visual = await firstAssistantItem.evaluate((node, decision) => {
+    const button = node.querySelector(".cockpit-decision." + decision + ".selected");
+    return {
+      buttonBackground: button ? getComputedStyle(button).backgroundColor : "",
+      buttonColor: button ? getComputedStyle(button).color : "",
+      boxBackground: getComputedStyle(node).backgroundColor
+    };
+  }, spec.decision);
+  if (
+    visual.buttonBackground !== spec.buttonRgb ||
+    visual.buttonColor !== "rgb(255, 255, 255)" ||
+    visual.boxBackground !== spec.boxRgb
+  ) {
+    throw new Error(`Unexpected Case Assistant ${spec.decision} visual: ${JSON.stringify(visual)}`);
+  }
+}
 const assistantOrderAfter = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
   nodes.map((node) => node.dataset.itemId)
 );
 if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)) {
   throw new Error("Case Assistant reordered items after doctor decision");
-}
-const selectedDecisionStyle = await firstAssistantItem.locator('.cockpit-decision.no.selected').evaluate((node) => {
-  const style = getComputedStyle(node);
-  return { background: style.backgroundColor, color: style.color };
-});
-if (selectedDecisionStyle.background !== "rgb(180, 35, 24)" || selectedDecisionStyle.color !== "rgb(255, 255, 255)") {
-  throw new Error("Selected Case Assistant decision is not visually emphasized");
 }
 
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");

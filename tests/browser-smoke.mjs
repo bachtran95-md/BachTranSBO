@@ -307,6 +307,7 @@ if (!persistedComplaint.includes("mellkasi fájdalom")) {
   throw new Error("Accepted extracted complaint was not persisted");
 }
 
+await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();

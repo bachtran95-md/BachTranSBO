@@ -102,3 +102,18 @@ jobs:
         run: |
           deno test supabase/functions/_shared/deidentify.test.ts
           deno test supabase/functions/_shared/openai.test.ts
+
+      - name: Setup Node for browser smoke
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run browser smoke test
+        run: |
+          python3 -m http.server 4173 >/tmp/bachsbo-smoke-server.log 2>&1 &
+          SMOKE_BASE_URL=http://127.0.0.1:4173 node tests/browser-smoke.mjs

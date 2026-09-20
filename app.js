@@ -676,6 +676,42 @@ function syncPatientRowFromState(patient) {
   if (cells[4]) cells[4].innerHTML = patientListStatusHtml(patient);
 }
 
+function caseMetadataFromPatient(patient) {
+  if (!patient) return null;
+  return {
+    id: patient.id,
+    sex: patient.sex || null,
+    year_of_birth: patient.yob ? Number(patient.yob) : null,
+    main_complaint: patient.mainComplaint || "",
+    arrival_mode: patient.arrivalMode || "",
+    arrival_other: patient.arrivalOther || "",
+    other_details: patient.otherDetails || ""
+  };
+}
+
+function getCaseMetadata(caseId = selectedPatientId) {
+  return caseMetadataFromPatient(patientById(caseId));
+}
+
+async function saveCaseMetadata(caseId, metadata = {}) {
+  const patient = patientById(caseId);
+  if (!patient) throw new Error("Selected case was not found.");
+
+  const result = await window.BachSBOBackend.updateCaseMetadata(caseId, metadata);
+  const authoritative = result?.metadata || {};
+  applyCaseMetadata(caseId, authoritative);
+
+  if (selectedPatientId === caseId) {
+    const age = ageFromYob(patient.yob);
+    const subtitle = document.getElementById("recordSubtitle");
+    if (subtitle) {
+      subtitle.textContent = `${patient.sex || "—"} • ${age || "—"} y • ${patient.mainComplaint || ""}`;
+    }
+  }
+
+  return result;
+}
+
 function applyCaseMetadata(caseId, metadata = {}) {
   const patient = patientById(caseId);
   if (!patient) return null;
@@ -816,6 +852,11 @@ function loadPatientForm() {
     `<span class="badge ${isCompleted(patient) ? "done" : "active"}">${statusLabel}</span>`;
 
   const values = {
+    iceSex: patient.sex,
+    iceYob: patient.yob,
+    iceAge: ageFromYob(patient.yob),
+    iceArrival: patient.arrivalMode,
+    iceArrivalOther: patient.arrivalOther,
     fMainComplaint: patient.mainComplaint,
     fComplaint: patient.complaint,
     fHistory: patient.history,
@@ -835,8 +876,13 @@ function loadPatientForm() {
   };
 
   Object.entries(values).forEach(([id, value]) => {
-    document.getElementById(id).value = value || "";
+    const el = document.getElementById(id);
+    if (el) el.value = value || "";
   });
+  document.getElementById("iceArrivalOtherWrap")?.classList.toggle(
+    "hidden",
+    patient.arrivalMode !== "other"
+  );
 
   renderAllTests(patient);
   renderRecommendations(patient);
@@ -1289,6 +1335,18 @@ function addConsult() {
 function collectForm() {
   const patient = patientById(selectedPatientId);
   if (!patient) return null;
+
+  const sexEl = document.getElementById("iceSex");
+  const yobEl = document.getElementById("iceYob");
+  const arrivalEl = document.getElementById("iceArrival");
+  const arrivalOtherEl = document.getElementById("iceArrivalOther");
+
+  if (sexEl) patient.sex = sexEl.value || "";
+  if (yobEl) patient.yob = normalizeYob(yobEl.value || "");
+  if (arrivalEl) patient.arrivalMode = arrivalEl.value || "";
+  if (arrivalOtherEl) {
+    patient.arrivalOther = patient.arrivalMode === "other" ? arrivalOtherEl.value || "" : "";
+  }
 
   patient.mainComplaint = document.getElementById("fMainComplaint").value;
   patient.complaint = document.getElementById("fComplaint").value;
@@ -2154,7 +2212,9 @@ async function applyAcceptedExtraction(caseId, items) {
 
 window.BachSBOClinicalUi = Object.freeze({
   applyAcceptedExtraction,
-  applyCaseMetadata
+  applyCaseMetadata,
+  getCaseMetadata,
+  saveCaseMetadata
 });
 
 function flash(message) {

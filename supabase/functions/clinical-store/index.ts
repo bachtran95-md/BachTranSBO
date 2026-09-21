@@ -100,8 +100,12 @@ function flattenTests(patient: any, ownerId: string) {
   (patient.tests?.labs || []).forEach((x: any, i: number) =>
     add(x, "lab", i + 1)
   );
-  add(patient.tests?.ekg, "ekg", 1);
-  add(patient.tests?.gas, "gas", 1);
+  (patient.tests?.ekgs || []).forEach((x: any, i: number) =>
+    add(x, "ekg", i + 1)
+  );
+  (patient.tests?.gases || []).forEach((x: any, i: number) =>
+    add(x, "gas", i + 1)
+  );
   (patient.tests?.radiology || []).forEach((x: any, i: number) =>
     add(x, "radiology", i + 1)
   );
@@ -165,8 +169,8 @@ function patientWorkflowBlockers(patient: any) {
 
   const testEntries = [
     ...(patient.tests?.labs || []).map((entry: any, i: number) => ["Lab " + (i + 1), entry]),
-    ["EKG", patient.tests?.ekg],
-    ["AVG / VVG", patient.tests?.gas],
+    ...(patient.tests?.ekgs || []).map((entry: any, i: number) => ["EKG " + (i + 1), entry]),
+    ...(patient.tests?.gases || []).map((entry: any, i: number) => ["AVG / VVG " + (i + 1), entry]),
     ...(patient.tests?.radiology || []).map((entry: any, i: number) => [
       String(entry?.type || "").trim() || "Radiology " + (i + 1),
       entry,
@@ -231,8 +235,12 @@ function corpusSnapshot(patient: any) {
   (patient.tests?.labs || []).forEach((x: any, i: number) =>
     tests.push(snapshotTest(x, "lab", i + 1))
   );
-  if (patient.tests?.ekg) tests.push(snapshotTest(patient.tests.ekg, "ekg", 1));
-  if (patient.tests?.gas) tests.push(snapshotTest(patient.tests.gas, "gas", 1));
+  (patient.tests?.ekgs || []).forEach((x: any, i: number) =>
+    tests.push(snapshotTest(x, "ekg", i + 1))
+  );
+  (patient.tests?.gases || []).forEach((x: any, i: number) =>
+    tests.push(snapshotTest(x, "gas", i + 1))
+  );
   (patient.tests?.radiology || []).forEach((x: any, i: number) =>
     tests.push(snapshotTest(x, "radiology", i + 1))
   );

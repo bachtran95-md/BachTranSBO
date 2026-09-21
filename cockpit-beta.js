@@ -232,6 +232,8 @@
     });
     const aiButton = document.getElementById("cockpitAiToggle");
     if (aiButton) aiButton.textContent = label("AI", "AI");
+    const caseButton = document.getElementById("cockpitCaseToggle");
+    if (caseButton) caseButton.textContent = label("Cases", "Esetlista");
     syncRailLabels();
     syncUnifiedTestLabels();
     syncTabWarnings();
@@ -267,6 +269,18 @@
         section.dataset.cockpitPanel !== activeTab
       );
     });
+  }
+
+  function syncMobileDrawerBackdrop() {
+    const backdrop = document.getElementById("cockpitMobileBackdrop");
+    if (!backdrop) return;
+    const mobile = window.matchMedia("(max-width: 820px)").matches;
+    const open = mobile && (
+      document.body.classList.contains("cockpit-ai-open") ||
+      document.body.classList.contains("cockpit-case-list-open")
+    );
+    backdrop.classList.toggle("open", open);
+    document.body.classList.toggle("cockpit-mobile-drawer-open", open);
   }
 
   function makeRail() {
@@ -328,13 +342,42 @@
     document.getElementById("cockpitExtractConfirmCancel")?.addEventListener("click", closeExtractionConfirmation);
     document.getElementById("cockpitExtractConfirmApply")?.addEventListener("click", applyAcceptedExtraction);
 
+    const caseToggle = document.createElement("button");
+    caseToggle.id = "cockpitCaseToggle";
+    caseToggle.type = "button";
+    caseToggle.className = "btn small cockpit-case-toggle";
+    caseToggle.textContent = label("Cases", "Esetlista");
+    caseToggle.addEventListener("click", () => {
+      document.body.classList.remove("cockpit-ai-open");
+      document.body.classList.toggle("cockpit-case-list-open");
+      syncMobileDrawerBackdrop();
+    });
+    document.querySelector(".topbar-tools")?.appendChild(caseToggle);
+
     const toggle = document.createElement("button");
     toggle.id = "cockpitAiToggle";
     toggle.type = "button";
     toggle.className = "btn small cockpit-ai-toggle";
     toggle.textContent = "AI";
-    toggle.addEventListener("click", () => document.body.classList.toggle("cockpit-ai-open"));
+    toggle.addEventListener("click", () => {
+      document.body.classList.remove("cockpit-case-list-open");
+      document.body.classList.toggle("cockpit-ai-open");
+      syncMobileDrawerBackdrop();
+    });
     document.querySelector(".topbar-tools")?.appendChild(toggle);
+
+    if (!document.getElementById("cockpitMobileBackdrop")) {
+      const backdrop = document.createElement("button");
+      backdrop.id = "cockpitMobileBackdrop";
+      backdrop.type = "button";
+      backdrop.className = "cockpit-mobile-backdrop";
+      backdrop.setAttribute("aria-label", label("Close side panel", "Oldalpanel bezárása"));
+      backdrop.addEventListener("click", () => {
+        document.body.classList.remove("cockpit-ai-open", "cockpit-case-list-open");
+        syncMobileDrawerBackdrop();
+      });
+      document.body.appendChild(backdrop);
+    }
 
     syncRailLabels();
     syncRailState();
@@ -1695,8 +1738,30 @@
           document.body.classList.remove("cockpit-ai-open");
         }
       }
+      if (
+        !event.target.closest(".cockpit-board-column") &&
+        !event.target.closest("#cockpitCaseToggle")
+      ) {
+        if (window.matchMedia("(max-width: 820px)").matches) {
+          document.body.classList.remove("cockpit-case-list-open");
+        }
+      }
+      if (
+        window.matchMedia("(max-width: 820px)").matches &&
+        event.target.closest("#patientTbody tr[data-id]")
+      ) {
+        document.body.classList.remove("cockpit-case-list-open");
+      }
+      syncMobileDrawerBackdrop();
       setTimeout(activateCockpitIfReady, 0);
     }, true);
+
+    window.addEventListener("resize", () => {
+      if (!window.matchMedia("(max-width: 820px)").matches) {
+        document.body.classList.remove("cockpit-case-list-open");
+      }
+      syncMobileDrawerBackdrop();
+    });
 
     window.setInterval(() => {
       if (document.visibilityState === "visible") activateCockpitIfReady();

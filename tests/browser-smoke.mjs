@@ -541,6 +541,36 @@ if (JSON.stringify(sexChoiceState) !== JSON.stringify(expectedSexChoices)) {
   throw new Error("Unexpected Klinikum sex tick order: " + JSON.stringify(sexChoiceState));
 }
 
+const demographicLayout = await beta.locator("#inlineCaseEditor").evaluate(() => {
+  const sex = document.querySelector("#iceSexChoices")?.getBoundingClientRect();
+  const yob = document.querySelector("#iceYob")?.getBoundingClientRect();
+  const age = document.querySelector("#iceAge")?.getBoundingClientRect();
+  const arrival = document.querySelector("#iceArrival")?.getBoundingClientRect();
+  const indicator = document.querySelector(".sex-choice-check");
+  const indicatorStyle = indicator ? getComputedStyle(indicator) : null;
+  return {
+    sex: sex?.width || 0,
+    yob: yob?.width || 0,
+    age: age?.width || 0,
+    arrival: arrival?.width || 0,
+    indicatorWidth: indicator?.getBoundingClientRect().width || 0,
+    indicatorHeight: indicator?.getBoundingClientRect().height || 0,
+    indicatorRadius: indicatorStyle?.borderRadius || ""
+  };
+});
+if (!(demographicLayout.yob < demographicLayout.sex && demographicLayout.age < demographicLayout.yob)) {
+  throw new Error("Klinikum YOB/Age columns are not compact: " + JSON.stringify(demographicLayout));
+}
+if (!(demographicLayout.arrival > demographicLayout.yob && demographicLayout.arrival > demographicLayout.age)) {
+  throw new Error("Klinikum arrival column should receive the freed width: " + JSON.stringify(demographicLayout));
+}
+if (
+  Math.abs(demographicLayout.indicatorWidth - demographicLayout.indicatorHeight) > 1 ||
+  !["999px", "50%"].includes(demographicLayout.indicatorRadius)
+) {
+  throw new Error("Klinikum sex selector indicator is not round: " + JSON.stringify(demographicLayout));
+}
+
 for (const value of ["F", "O", "M", "F"]) {
   await beta.locator(`#iceSexChoices label:has(input[value="${value}"])`).click();
   await beta.waitForTimeout(180);

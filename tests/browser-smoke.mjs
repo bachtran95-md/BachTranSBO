@@ -1137,7 +1137,7 @@ if (!persistedComplaint.includes("mellkasi fájdalom")) {
 // Close the modal before editing the underlying clinical form, then reopen it
 // for the conflict/failure extraction scenario.
 await beta.locator("#cockpitDataEntryClose").click();
-await beta.locator("#cockpitDataEntryOverlay.hidden").waitFor();
+await beta.locator("#cockpitDataEntryOverlay").waitFor({ state: "hidden" });
 await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitDataEntryBtn").click();
@@ -1168,7 +1168,7 @@ if (historyAfterFailure.includes("Hypertonia")) {
 }
 
 await beta.locator("#cockpitDataEntryClose").click();
-await beta.locator("#cockpitDataEntryOverlay.hidden").waitFor();
+await beta.locator("#cockpitDataEntryOverlay").waitFor({ state: "hidden" });
 
 await beta.locator("#aiLearningNav").click();
 await beta.locator("#styleProfilesList").waitFor();

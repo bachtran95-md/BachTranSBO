@@ -653,6 +653,27 @@ await beta.waitForFunction(({ expectedYob }) => {
     meta?.arrival_mode === "omsz";
 }, { expectedYob });
 
+// Pending investigations must be visually distinct: orange while waiting,
+// green when a result exists, and grey when marked not ordered.
+await beta.locator('[data-cockpit-tab="tests"]').click();
+const pendingInvestigationStyle = await beta.locator('[data-cockpit-panel="tests"] .test-card.cockpit-test-row:not(.result):not(.notordered)').first().evaluate((card) => {
+  const style = getComputedStyle(card);
+  const textarea = card.querySelector("textarea");
+  const textareaStyle = textarea ? getComputedStyle(textarea) : null;
+  return {
+    background: style.backgroundColor,
+    border: style.borderColor,
+    textareaBackground: textareaStyle?.backgroundColor || "",
+    textareaBorder: textareaStyle?.borderColor || ""
+  };
+});
+if (
+  pendingInvestigationStyle.background === "rgb(255, 255, 255)" ||
+  pendingInvestigationStyle.border === "rgb(208, 213, 221)"
+) {
+  throw new Error("Pending investigation is not visibly orange: " + JSON.stringify(pendingInvestigationStyle));
+}
+
 // Section 2 wording and the dedicated third Therapy/Course tab.
 await beta.locator("#langHuBtn").click();
 await beta.waitForFunction(() =>

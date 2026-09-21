@@ -637,6 +637,134 @@
     );
   }
 
+  async function loadRawTransferWorkspace() {
+    const db = requireClient();
+    const user = await getUser();
+    const shiftRow = await getActiveShift();
+
+    if (!shiftRow) {
+      return { shift: null, cases: [] };
+    }
+
+    const { data, error } = await db
+      .from("cases")
+      .select("id, local_id, sex, year_of_birth, main_complaint, status, created_at, updated_at")
+      .eq("shift_id", shiftRow.id)
+      .eq("owner_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: true });
+
+    assertOk(error, "Load raw transfer cases");
+
+    return {
+      shift: {
+        id: shiftRow.id,
+        startedAt: shiftRow.started_at,
+        status: shiftRow.status
+      },
+      cases: (data || []).map((row) => ({
+        id: row.id,
+        localId: row.local_id,
+        sex: row.sex || "",
+        yearOfBirth: row.year_of_birth ? String(row.year_of_birth) : "",
+        mainComplaint: row.main_complaint || "",
+        status: row.status || "active",
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }))
+    };
+  }
+
+  async function getCaseRawData(caseId) {
+    if (!caseId) throw new Error("Missing case ID.");
+
+    const { data, error } = await requireClient()
+      .from("case_raw_data")
+      .select("case_id, content, source, created_at, updated_at")
+      .eq("case_id", caseId)
+      .maybeSingle();
+
+    assertOk(error, "Load raw data");
+    if (!data) return null;
+
+    return {
+      caseId: data.case_id,
+      content: data.content || "",
+      source: data.source || "heidi",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+  }
+
+  async function saveCaseRawData(caseId, content) {
+    if (!caseId) throw new Error("Missing case ID.");
+    const text = String(content ?? "");
+    if (!text.trim()) throw new Error("Raw data is empty.");
+    if (text.length > 100000) throw new Error("Raw data is too long.");
+
+    const user = await getUser();
+    const now = new Date().toISOString();
+    const { data, error } = await requireClient()
+      .from("case_raw_data")
+      .upsert(
+        {
+          case_id: caseId,
+          owner_id: user.id,
+          content: text,
+          source: "heidi",
+          updated_at: now
+        },
+        { onConflict: "case_id" }
+      )
+      .select("case_id, content, source, created_at, updated_at")
+      .single();
+
+    assertOk(error, "Save raw data");
+
+    return {
+      caseId: data.case_id,
+      content: data.content || "",
+      source: data.source || "heidi",
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+  }
+
+  async function deleteCaseRawData(caseId) {
+    if (!caseId) throw new Error("Missing case ID.");
+
+    const { error } = await requireClient()
+      .from("case_raw_data")
+      .delete()
+      .eq("case_id", caseId);
+
+    assertOk(error, "Delete raw data");
+    return { deleted: true, caseId };
+  }
+
+  function subscribeCaseRawData(caseId, onChange) {
+    if (!caseId || typeof onChange !== "function") return () => {};
+
+    const db = requireClient();
+    const channel = db
+      .channel(`case-raw-data-${caseId}-${crypto.randomUUID()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "case_raw_data",
+          filter: `case_id=eq.${caseId}`
+        },
+        (payload) => onChange(payload)
+      )
+      .subscribe();
+
+    return () => {
+      void db.removeChannel(channel);
+    };
+  }
+
   async function getLearningOverview() {
     return invokeAuthedFunction(
       "learning-admin",
@@ -729,6 +857,11 @@
     caseAssistantGetState,
     caseAssistantDecide,
     caseAssistantExtract,
+    loadRawTransferWorkspace,
+    getCaseRawData,
+    saveCaseRawData,
+    deleteCaseRawData,
+    subscribeCaseRawData,
     getLearningOverview,
     reviewCorpusRevision,
     analyzeStyle,

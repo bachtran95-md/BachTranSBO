@@ -532,6 +532,7 @@
     const form = document.getElementById("patientForm");
     const tabs = document.getElementById("cockpitCaseTabs");
     const hasCase = Boolean(form && !form.classList.contains("hidden") && selectedCaseId());
+    const caseClosed = Boolean(form?.classList.contains("case-readonly"));
     tabs?.classList.toggle("hidden", !hasCase);
 
     const analyze = document.getElementById("cockpitAnalyzeCase");
@@ -539,8 +540,13 @@
     const extract = document.getElementById("cockpitExtractText");
 
     if (analyze) analyze.disabled = !hasCase || assistantBusy;
-    if (dataEntry) dataEntry.disabled = !hasCase || assistantBusy;
-    if (extract) extract.disabled = !hasCase || assistantBusy;
+    if (dataEntry) {
+      dataEntry.disabled = !hasCase || caseClosed || assistantBusy;
+      dataEntry.title = caseClosed
+        ? label("Reopen the case before AI-assisted data entry.", "AI-assisted adatbevitel előtt nyissa újra az esetet.")
+        : "";
+    }
+    if (extract) extract.disabled = !hasCase || caseClosed || assistantBusy;
     renderDocumentationReview();
 
     syncTabWarnings();
@@ -758,7 +764,8 @@
 
   function openDataEntryDialog() {
     const id = selectedCaseId();
-    if (!id) return;
+    const form = document.getElementById("patientForm");
+    if (!id || form?.classList.contains("case-readonly")) return;
 
     const overlay = document.getElementById("cockpitDataEntryOverlay");
     if (!overlay) return;
@@ -1507,6 +1514,17 @@
   }
 
   function installSync() {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!document.getElementById("cockpitExtractConfirmOverlay")?.classList.contains("hidden")) {
+        closeExtractionConfirmation();
+        return;
+      }
+      if (!document.getElementById("cockpitDataEntryOverlay")?.classList.contains("hidden")) {
+        closeDataEntryDialog();
+      }
+    }, true);
+
     document.addEventListener("input", (event) => {
       if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
 

@@ -4,6 +4,13 @@ let backendReady = false;
 let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
+let appMode = null;
+let rawTransferWorkspace = { shift: null, cases: [] };
+let rawTransferSelectedCaseId = null;
+let rawTransferDirty = false;
+let rawTransferRefreshTimer = null;
+let normalRawSubscriptionStop = null;
+let normalRawCaseId = null;
 const patientSaveQueues = new Map();
 let caseCounterRefreshPromise = null;
 let caseCounterLastCheckedAt = 0;
@@ -70,7 +77,20 @@ const I18N = {
     phDischargeCondition:"e.g. symptom-free, good general condition; no recurrent chest pain…",
     phOtherOutcome:"Death, transfer, left against medical advice…",
     phSummary:"Generated summary will appear here. You can edit it before Finalize.",
-    phArrivalOther:"Describe arrival…"
+    phArrivalOther:"Describe arrival…",
+    rawTransferTitle:"Raw data transfer",
+    rawTransferDesc:"Select an active case, paste the Heidi transcript, then send it.",
+    rawTransferNoShift:"Raw Transfer is available only during an active shift.",
+    activeCases:"Active cases",
+    rawTransferCaseHint:"Only the minimum information needed to identify the case is shown.",
+    rawDataLabel:"Raw data / Heidi transcript",
+    sendRawData:"SEND RAW DATA",
+    clear:"CLEAR",
+    rawDataInbox:"Raw data inbox",
+    rawDataInboxInfo:"The Heidi transcript sent from the phone appears here. This field is not part of the clinical chart.",
+    useInAiEntry:"LOAD INTO AI DATA ENTRY",
+    deleteRawData:"DELETE RAW DATA",
+    chooseMode:"CHOOSE MODE"
   },
   hu: {
     casesNav:"Esetek", aiLearningNav:"AI tanulás", adminNav:"Admin",
@@ -121,7 +141,20 @@ const I18N = {
     phDischargeCondition:"Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…",
     phOtherOutcome:"Halál, áthelyezés, saját felelősségre távozás…",
     phSummary:"A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető.",
-    phArrivalOther:"Az érkezés módjának részletei…"
+    phArrivalOther:"Az érkezés módjának részletei…",
+    rawTransferTitle:"Raw data átvitel",
+    rawTransferDesc:"Válasszon egy aktív esetet, illessze be a Heidi transcriptet, majd küldje el.",
+    rawTransferNoShift:"A Raw Transfer csak aktív műszak alatt használható.",
+    activeCases:"Aktív esetek",
+    rawTransferCaseHint:"Csak az eset azonosításához szükséges minimális adatok jelennek meg.",
+    rawDataLabel:"Raw data / Heidi transcript",
+    sendRawData:"RAW DATA KÜLDÉSE",
+    clear:"TÖRLÉS",
+    rawDataInbox:"Raw data inbox",
+    rawDataInboxInfo:"A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.",
+    useInAiEntry:"BETÖLTÉS AI ADATBEVITELBE",
+    deleteRawData:"RAW DATA TÖRLÉSE",
+    chooseMode:"MÓDVÁLTÁS"
   }
 };
 
@@ -901,6 +934,320 @@ function bindSessionSecurityControls() {
   updatePasswordReauthCountdown();
 }
 
+function stopRawTransferRefreshTimer() {
+  if (rawTransferRefreshTimer) {
+    clearInterval(rawTransferRefreshTimer);
+    rawTransferRefreshTimer = null;
+  }
+}
+
+function disconnectNormalRawData() {
+  if (typeof normalRawSubscriptionStop === "function") {
+    normalRawSubscriptionStop();
+  }
+  normalRawSubscriptionStop = null;
+  normalRawCaseId = null;
+}
+
+function rawDataUpdatedLabel(iso) {
+  if (!iso) return "";
+  const stamp = new Date(iso);
+  if (Number.isNaN(stamp.getTime())) return "";
+  return stamp.toLocaleString();
+}
+
+async function refreshNormalRawData(caseId = selectedPatientId, { silent = false } = {}) {
+  if (!caseId || appMode !== "normal") return null;
+  const textarea = document.getElementById("normalRawDataText");
+  const meta = document.getElementById("normalRawDataMeta");
+  const useAi = document.getElementById("normalRawUseAiBtn");
+  const remove = document.getElementById("normalRawDeleteBtn");
+  if (!textarea || !meta || !useAi || !remove) return null;
+
+  if (!silent) meta.textContent = uiLang === "hu" ? "Raw data betöltése…" : "Loading raw data…";
+
+  try {
+    const record = await window.BachSBOBackend.getCaseRawData(caseId);
+    if (caseId !== selectedPatientId || appMode !== "normal") return record;
+
+    const content = record?.content || "";
+    textarea.value = content;
+    useAi.disabled = !content.trim();
+    remove.disabled = !content.trim();
+    meta.textContent = record?.updatedAt
+      ? (uiLang === "hu"
+        ? `Telefonról érkezett • ${rawDataUpdatedLabel(record.updatedAt)}`
+        : `Received from phone • ${rawDataUpdatedLabel(record.updatedAt)}`)
+      : (uiLang === "hu" ? "Még nincs raw data ehhez az esethez." : "No raw data for this case yet.");
+    return record;
+  } catch (error) {
+    meta.textContent = error?.message || (uiLang === "hu" ? "Raw data betöltési hiba." : "Could not load raw data.");
+    if (!silent) handleBackendError(error);
+    return null;
+  }
+}
+
+function connectNormalRawData(caseId) {
+  if (!caseId || appMode !== "normal") {
+    disconnectNormalRawData();
+    return;
+  }
+
+  if (normalRawCaseId === caseId && normalRawSubscriptionStop) {
+    void refreshNormalRawData(caseId, { silent: true });
+    return;
+  }
+
+  disconnectNormalRawData();
+  normalRawCaseId = caseId;
+  void refreshNormalRawData(caseId);
+
+  if (window.BachSBOBackend?.subscribeCaseRawData) {
+    normalRawSubscriptionStop = window.BachSBOBackend.subscribeCaseRawData(
+      caseId,
+      () => {
+        if (appMode === "normal" && selectedPatientId === caseId) {
+          void refreshNormalRawData(caseId, { silent: true });
+        }
+      }
+    );
+  }
+}
+
+async function useNormalRawDataInAi() {
+  const text = document.getElementById("normalRawDataText")?.value || "";
+  if (!text.trim() || !selectedPatientId) return;
+
+  const paste = document.getElementById("cockpitPasteText");
+  const open = document.getElementById("cockpitDataEntryBtn");
+  if (!paste || !open) {
+    flash(uiLang === "hu" ? "Az AI adatbevitel nem érhető el." : "AI data entry is unavailable.");
+    return;
+  }
+
+  paste.value = text;
+  open.click();
+}
+
+async function deleteNormalRawData() {
+  if (!selectedPatientId) return;
+  const confirmed = window.confirm(
+    uiLang === "hu"
+      ? "Törli a telefonról küldött raw data tartalmát ennél az esetnél?"
+      : "Delete the phone raw data for this case?"
+  );
+  if (!confirmed) return;
+
+  try {
+    await window.BachSBOBackend.deleteCaseRawData(selectedPatientId);
+    await refreshNormalRawData(selectedPatientId);
+    flash(uiLang === "hu" ? "Raw data törölve." : "Raw data deleted.");
+  } catch (error) {
+    handleBackendError(error);
+  }
+}
+
+function renderRawTransferHeader() {
+  const meta = document.getElementById("shiftMeta");
+  const actions = document.getElementById("topActions");
+  const hu = uiLang === "hu";
+
+  meta.innerHTML = rawTransferWorkspace.shift
+    ? `<span class="shift-pill"><span class="dot"></span> RAW DATA TRANSFER • ${hu ? "Aktív műszak" : "Active shift"}</span>`
+    : `<span class="metric">RAW DATA TRANSFER • ${hu ? "Nincs aktív műszak" : "No active shift"}</span>`;
+
+  actions.innerHTML =
+    sessionSecurityHtml() +
+    `<button class="btn" id="switchModeBtn">${t("chooseMode")}</button>` +
+    `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
+
+  document.getElementById("switchModeBtn").onclick = showModeChooser;
+  document.getElementById("signOutBtn").onclick = signOut;
+  bindSessionSecurityControls();
+}
+
+function renderRawTransferCaseList() {
+  const host = document.getElementById("rawTransferCaseList");
+  if (!host) return;
+
+  const cases = rawTransferWorkspace.cases || [];
+  if (!cases.length) {
+    host.innerHTML = `<div class="subtle raw-transfer-empty">${uiLang === "hu" ? "Nincs aktív eset." : "No active cases."}</div>`;
+    return;
+  }
+
+  host.innerHTML = cases.map((item) => {
+    const age = ageFromYob(item.yearOfBirth);
+    const selected = item.id === rawTransferSelectedCaseId ? " selected" : "";
+    return `
+      <button class="raw-transfer-case${selected}" type="button" data-raw-case-id="${attr(item.id)}">
+        <span class="raw-transfer-case-id">#${esc(item.localId || "—")}</span>
+        <span class="raw-transfer-case-main">
+          <b>${esc(patientSexLabel(item.sex))} • ${esc(age || "—")} ${uiLang === "hu" ? "év" : "y"}</b>
+          <small>${esc(item.mainComplaint || "—")}</small>
+        </span>
+        <span class="raw-transfer-case-arrow">›</span>
+      </button>
+    `;
+  }).join("");
+
+  host.querySelectorAll("[data-raw-case-id]").forEach((button) => {
+    button.onclick = async () => {
+      const caseId = button.dataset.rawCaseId;
+      if (caseId === rawTransferSelectedCaseId) return;
+      if (rawTransferDirty) {
+        const discard = window.confirm(
+          uiLang === "hu"
+            ? "A még el nem küldött szöveg elveszik. Másik esetre vált?"
+            : "Unsaved raw data will be lost. Switch cases?"
+        );
+        if (!discard) return;
+      }
+      rawTransferSelectedCaseId = caseId;
+      rawTransferDirty = false;
+      renderRawTransferCaseList();
+      await loadRawTransferEditor(caseId);
+    };
+  });
+}
+
+async function loadRawTransferEditor(caseId) {
+  const title = document.getElementById("rawTransferCaseTitle");
+  const meta = document.getElementById("rawTransferCaseMeta");
+  const textarea = document.getElementById("rawTransferText");
+  const save = document.getElementById("rawTransferSaveBtn");
+  const status = document.getElementById("rawTransferStatus");
+  const patient = (rawTransferWorkspace.cases || []).find((item) => item.id === caseId);
+
+  if (!patient || !textarea || !save) return;
+
+  title.textContent = `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId || "—"}`;
+  meta.textContent = `${patientSexLabel(patient.sex)} • ${ageFromYob(patient.yearOfBirth) || "—"} ${uiLang === "hu" ? "év" : "y"} • ${patient.mainComplaint || "—"}`;
+  textarea.disabled = true;
+  save.disabled = true;
+  if (status) status.textContent = uiLang === "hu" ? "Raw data betöltése…" : "Loading raw data…";
+
+  try {
+    const record = await window.BachSBOBackend.getCaseRawData(caseId);
+    if (rawTransferSelectedCaseId !== caseId || appMode !== "raw") return;
+    textarea.value = record?.content || "";
+    textarea.disabled = false;
+    save.disabled = !textarea.value.trim();
+    rawTransferDirty = false;
+    if (status) {
+      status.textContent = record?.updatedAt
+        ? (uiLang === "hu"
+          ? `Utolsó küldés: ${rawDataUpdatedLabel(record.updatedAt)}`
+          : `Last sent: ${rawDataUpdatedLabel(record.updatedAt)}`)
+        : (uiLang === "hu" ? "Készen áll a Heidi transcript fogadására." : "Ready for Heidi transcript.");
+    }
+    textarea.focus();
+  } catch (error) {
+    textarea.disabled = false;
+    if (status) status.textContent = error?.message || "Raw data load failed.";
+  }
+}
+
+async function saveRawTransferData() {
+  const caseId = rawTransferSelectedCaseId;
+  const textarea = document.getElementById("rawTransferText");
+  const save = document.getElementById("rawTransferSaveBtn");
+  const status = document.getElementById("rawTransferStatus");
+  if (!caseId || !textarea || !textarea.value.trim()) return;
+
+  save.disabled = true;
+  if (status) status.textContent = uiLang === "hu" ? "Küldés…" : "Sending…";
+
+  try {
+    const record = await window.BachSBOBackend.saveCaseRawData(caseId, textarea.value);
+    rawTransferDirty = false;
+    if (status) {
+      status.textContent = uiLang === "hu"
+        ? `✓ Raw data elküldve • ${rawDataUpdatedLabel(record.updatedAt)}`
+        : `✓ Raw data sent • ${rawDataUpdatedLabel(record.updatedAt)}`;
+    }
+    flash(uiLang === "hu" ? "Raw data elküldve." : "Raw data sent.");
+  } catch (error) {
+    if (status) status.textContent = error?.message || (uiLang === "hu" ? "Küldési hiba." : "Send failed.");
+    handleBackendError(error);
+  } finally {
+    save.disabled = !textarea.value.trim();
+  }
+}
+
+async function refreshRawTransferWorkspace({ preserveEditor = true } = {}) {
+  if (appMode !== "raw") return;
+
+  try {
+    const workspace = await window.BachSBOBackend.loadRawTransferWorkspace();
+    rawTransferWorkspace = workspace || { shift: null, cases: [] };
+
+    if (
+      rawTransferSelectedCaseId &&
+      !(rawTransferWorkspace.cases || []).some((item) => item.id === rawTransferSelectedCaseId)
+    ) {
+      rawTransferSelectedCaseId = null;
+      rawTransferDirty = false;
+    }
+
+    renderRawTransferMode();
+
+    if (rawTransferSelectedCaseId && !preserveEditor && !rawTransferDirty) {
+      await loadRawTransferEditor(rawTransferSelectedCaseId);
+    }
+  } catch (error) {
+    handleBackendError(error);
+  }
+}
+
+function renderRawTransferMode() {
+  if (appMode !== "raw") return;
+
+  document.body.classList.add("raw-transfer-mode");
+  document.getElementById("rawTransferView")?.classList.remove("hidden");
+  document.getElementById("noShiftView")?.classList.add("hidden");
+  document.getElementById("patientsView")?.classList.add("hidden");
+  document.getElementById("aiLearningView")?.classList.add("hidden");
+  document.getElementById("adminView")?.classList.add("hidden");
+
+  renderRawTransferHeader();
+
+  const hasShift = Boolean(rawTransferWorkspace.shift);
+  document.getElementById("rawTransferNoShift")?.classList.toggle("hidden", hasShift);
+  document.getElementById("rawTransferWorkspace")?.classList.toggle("hidden", !hasShift);
+
+  if (!hasShift) return;
+  renderRawTransferCaseList();
+
+  if (!rawTransferSelectedCaseId) {
+    const title = document.getElementById("rawTransferCaseTitle");
+    const meta = document.getElementById("rawTransferCaseMeta");
+    const textarea = document.getElementById("rawTransferText");
+    const save = document.getElementById("rawTransferSaveBtn");
+    const status = document.getElementById("rawTransferStatus");
+    if (title) title.textContent = t("selectCasePrompt");
+    if (meta) meta.textContent = "";
+    if (textarea) {
+      textarea.value = "";
+      textarea.disabled = true;
+    }
+    if (save) save.disabled = true;
+    if (status) status.textContent = "";
+  }
+}
+
+function renderCurrentMode() {
+  if (appMode === "raw") {
+    renderRawTransferMode();
+    return;
+  }
+  if (appMode === "normal") {
+    document.body.classList.remove("raw-transfer-mode");
+    document.getElementById("rawTransferView")?.classList.add("hidden");
+    renderApp();
+  }
+}
+
 function renderHeader() {
   const meta = document.getElementById("shiftMeta");
   const actions = document.getElementById("topActions");
@@ -912,7 +1259,9 @@ function renderHeader() {
     meta.innerHTML = `<span class="metric">${hu ? "Nincs aktív műszak" : "No active shift"}</span>`;
     actions.innerHTML =
       sessionSecurityHtml() +
+      `<button class="btn" id="switchModeBtn">${t("chooseMode")}</button>` +
       `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
+    document.getElementById("switchModeBtn").onclick = showModeChooser;
     document.getElementById("signOutBtn").onclick = signOut;
     bindSessionSecurityControls();
     return;
@@ -931,14 +1280,19 @@ function renderHeader() {
 
   actions.innerHTML =
     sessionSecurityHtml() +
+    `<button class="btn" id="switchModeBtn">${t("chooseMode")}</button>` +
     `<button class="btn danger" id="endShiftBtn">${hu ? "MŰSZAK LEZÁRÁSA" : "END SHIFT"}</button>` +
     `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
+  document.getElementById("switchModeBtn").onclick = showModeChooser;
   document.getElementById("endShiftBtn").onclick = endShiftStep1;
   document.getElementById("signOutBtn").onclick = signOut;
   bindSessionSecurityControls();
 }
 
 function renderApp() {
+  if (appMode !== "normal") return;
+  document.body.classList.remove("raw-transfer-mode");
+  document.getElementById("rawTransferView")?.classList.add("hidden");
   renderHeader();
 
   const learning = currentView === "learning";
@@ -1121,6 +1475,7 @@ function renderPatients() {
     document.getElementById("recordSubtitle").textContent = t("selectCasePrompt");
     document.getElementById("patientStatusBadge").innerHTML = "";
     paintRecordHeaderSex("");
+    disconnectNormalRawData();
   }
 }
 
@@ -1366,6 +1721,7 @@ function loadPatientForm() {
   refreshNarrativeFields(patient);
   renderSummaryStatus(patient);
   renderCaseEditState(patient);
+  connectNormalRawData(patient.id);
 }
 
 function renderCaseEditState(patient) {
@@ -2785,6 +3141,9 @@ async function enforcePasswordReauth() {
 
 async function signOut() {
   clearPasswordReauthTimer();
+  stopRawTransferRefreshTimer();
+  disconnectNormalRawData();
+  appMode = null;
   try {
     await window.BachSBOBackend.signOut();
     state = defaultState();
@@ -2803,6 +3162,89 @@ function showSetupRequired() {
     <p>Configure <code>config.js</code>, apply both Supabase migrations, deploy <code>clinical-store</code>, and set its AI privacy secret.</p>
     <p class="subtle">See docs/BACKEND_SETUP.md and docs/PRIVACY.md.</p>
   `);
+}
+
+function showModeChooser() {
+  if (!backendReady || !currentUser) return;
+  const hu = uiLang === "hu";
+
+  modal(`
+    <div class="mode-picker">
+      <div class="mode-picker-head">
+        <h3>${hu ? "Munkamód kiválasztása" : "Choose working mode"}</h3>
+        <p class="subtle">${hu
+          ? "Ezen az eszközön melyik felületet szeretné használni?"
+          : "Which interface do you want to use on this device?"}</p>
+      </div>
+      <div class="mode-picker-grid">
+        <button class="mode-picker-card normal" id="chooseNormalMode" type="button">
+          <span class="mode-picker-icon">🩺</span>
+          <strong>${hu ? "Normál mód" : "Normal mode"}</strong>
+          <small>${hu
+            ? "Betegkövetés, vizsgálatok, dokumentáció, AI adatbevitel és összefoglaló."
+            : "Patient tracking, tests, documentation, AI data entry and summary."}</small>
+        </button>
+        <button class="mode-picker-card raw" id="chooseRawMode" type="button">
+          <span class="mode-picker-icon">📲</span>
+          <strong>Raw Data Transfer</strong>
+          <small>${hu
+            ? "iPhone mód: aktív beteg kiválasztása, Heidi transcript beillesztése és küldése."
+            : "iPhone mode: select an active case, paste the Heidi transcript and send it."}</small>
+        </button>
+      </div>
+      <div id="modePickerStatus" class="subtle"></div>
+    </div>
+  `);
+
+  const status = document.getElementById("modePickerStatus");
+  const normal = document.getElementById("chooseNormalMode");
+  const raw = document.getElementById("chooseRawMode");
+
+  const choose = async (mode) => {
+    normal.disabled = true;
+    raw.disabled = true;
+    status.textContent = hu ? "Betöltés…" : "Loading…";
+    try {
+      await enterAppMode(mode);
+      closeModal();
+    } catch (error) {
+      status.textContent = error?.message || (hu ? "A mód nem tölthető be." : "Could not load mode.");
+      normal.disabled = false;
+      raw.disabled = false;
+    }
+  };
+
+  normal.onclick = () => void choose("normal");
+  raw.onclick = () => void choose("raw");
+}
+
+async function enterAppMode(mode) {
+  if (!["normal", "raw"].includes(mode)) throw new Error("Invalid app mode.");
+
+  stopRawTransferRefreshTimer();
+  disconnectNormalRawData();
+  appMode = mode;
+  rawTransferSelectedCaseId = null;
+  rawTransferDirty = false;
+
+  if (mode === "normal") {
+    rawTransferWorkspace = { shift: null, cases: [] };
+    state = await window.BachSBOBackend.loadState();
+    selectedPatientId = null;
+    currentView = "patients";
+    renderCurrentMode();
+    void refreshShiftCaseCounter({ force: true });
+  } else {
+    state = defaultState();
+    selectedPatientId = null;
+    rawTransferWorkspace = await window.BachSBOBackend.loadRawTransferWorkspace();
+    renderCurrentMode();
+    rawTransferRefreshTimer = setInterval(() => {
+      void refreshRawTransferWorkspace({ preserveEditor: true });
+    }, 15000);
+  }
+
+  schedulePasswordReauth();
 }
 
 function showSignIn() {
@@ -2853,12 +3295,10 @@ function showSignIn() {
       const session =
         await window.BachSBOBackend.signInWithPassword(password.value);
       currentUser = session.user;
-      state = await window.BachSBOBackend.loadState();
       backendReady = true;
       password.value = "";
       closeModal();
-      renderApp();
-      schedulePasswordReauth();
+      showModeChooser();
     } catch (error) {
       message.textContent = error?.message || "Sign in failed.";
       password.value = "";
@@ -2889,12 +3329,9 @@ async function bootstrap() {
     }
 
     currentUser = result.session.user;
-    state = await window.BachSBOBackend.loadState();
     backendReady = true;
     closeModal();
-    renderApp();
-    schedulePasswordReauth();
-    void refreshShiftCaseCounter({ force: true });
+    showModeChooser();
   } catch (error) {
     console.error(error);
     modal(`
@@ -3010,8 +3447,8 @@ document.getElementById("patientForm").addEventListener("submit", (event) => {
   event.preventDefault();
 });
 
-document.getElementById("langEnBtn").onclick = () => { applyLanguage("en"); renderApp(); };
-document.getElementById("langHuBtn").onclick = () => { applyLanguage("hu"); renderApp(); };
+document.getElementById("langEnBtn").onclick = () => { applyLanguage("en"); renderCurrentMode(); };
+document.getElementById("langHuBtn").onclick = () => { applyLanguage("hu"); renderCurrentMode(); };
 document.getElementById("patientsNav").onclick = () => setView("patients");
 document.getElementById("aiLearningNav").onclick = () => setView("learning");
 document.getElementById("adminNav").onclick = () => setView("admin");
@@ -3042,6 +3479,27 @@ document.getElementById("addRadiologyBtn").onclick = () => addInvestigation("ima
 document.getElementById("addConsultBtn").onclick = () => addInvestigation("consultation");
 document.getElementById("generateSummaryBtn").onclick = generateSummary;
 document.getElementById("finalizeSummaryBtn").onclick = finalizeSummary;
+document.getElementById("rawTransferRefreshBtn").onclick = () =>
+  refreshRawTransferWorkspace({ preserveEditor: true });
+document.getElementById("rawTransferSaveBtn").onclick = saveRawTransferData;
+document.getElementById("rawTransferClearLocalBtn").onclick = () => {
+  const textarea = document.getElementById("rawTransferText");
+  if (!textarea || textarea.disabled) return;
+  textarea.value = "";
+  rawTransferDirty = true;
+  document.getElementById("rawTransferSaveBtn").disabled = true;
+  document.getElementById("rawTransferStatus").textContent =
+    uiLang === "hu" ? "A helyi mező kiürítve. A szerveren tárolt korábbi raw data változatlan." : "Local field cleared. Previously saved server data is unchanged.";
+};
+document.getElementById("rawTransferText").addEventListener("input", () => {
+  rawTransferDirty = true;
+  const text = document.getElementById("rawTransferText").value;
+  document.getElementById("rawTransferSaveBtn").disabled =
+    !rawTransferSelectedCaseId || !text.trim();
+});
+document.getElementById("normalRawRefreshBtn").onclick = () => refreshNormalRawData();
+document.getElementById("normalRawUseAiBtn").onclick = useNormalRawDataInAi;
+document.getElementById("normalRawDeleteBtn").onclick = deleteNormalRawData;
 
 document.getElementById("fSummary").addEventListener("input", () => {
   const patient = patientById(selectedPatientId);
@@ -3052,15 +3510,17 @@ document.getElementById("fSummary").addEventListener("input", () => {
 });
 
 window.addEventListener("focus", () => {
-  void refreshShiftCaseCounter({ force: true });
+  if (appMode === "raw") void refreshRawTransferWorkspace({ preserveEditor: true });
+  else if (appMode === "normal") void refreshShiftCaseCounter({ force: true });
 });
 window.addEventListener("pageshow", () => {
-  void refreshShiftCaseCounter({ force: true });
+  if (appMode === "raw") void refreshRawTransferWorkspace({ preserveEditor: true });
+  else if (appMode === "normal") void refreshShiftCaseCounter({ force: true });
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    void refreshShiftCaseCounter({ force: true });
-  }
+  if (document.visibilityState !== "visible") return;
+  if (appMode === "raw") void refreshRawTransferWorkspace({ preserveEditor: true });
+  else if (appMode === "normal") void refreshShiftCaseCounter({ force: true });
 });
 
 applyLanguage(uiLang);

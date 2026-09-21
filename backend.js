@@ -146,7 +146,7 @@
     const db = requireClient();
     const { data, error } = await db
       .from("shifts")
-      .select("id, started_at, status")
+      .select("id, started_at, status, next_case_number")
       .eq("status", "active")
       .maybeSingle();
 
@@ -163,7 +163,8 @@
       return {
         id: existing.id,
         startedAt: existing.started_at,
-        status: existing.status
+        status: existing.status,
+        nextCaseNumber: Number(existing.next_case_number || 1)
       };
     }
 
@@ -177,7 +178,7 @@
     const { data, error } = await db
       .from("shifts")
       .insert(row)
-      .select("id, started_at, status")
+      .select("id, started_at, status, next_case_number")
       .single();
 
     if (error) {
@@ -188,7 +189,8 @@
         return {
           id: active.id,
           startedAt: active.started_at,
-          status: active.status
+          status: active.status,
+          nextCaseNumber: Number(active.next_case_number || 1)
         };
       }
       assertOk(error, "Start shift");
@@ -197,7 +199,8 @@
     return {
       id: data.id,
       startedAt: data.started_at,
-      status: data.status
+      status: data.status,
+      nextCaseNumber: Number(data.next_case_number || 1)
     };
   }
 
@@ -330,7 +333,8 @@
       shift: {
         id: shiftRow.id,
         startedAt: shiftRow.started_at,
-        status: shiftRow.status
+        status: shiftRow.status,
+        nextCaseNumber: Number(shiftRow.next_case_number || 1)
       },
       patients,
       references: []
@@ -385,6 +389,19 @@
         state
       },
       "Clinical privacy service"
+    );
+  }
+
+  async function allocateCaseLocalId(shiftId) {
+    if (!shiftId) throw new Error("Missing shift ID.");
+
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "allocate_case_id",
+        shiftId
+      },
+      "Case ID allocation"
     );
   }
 
@@ -624,6 +641,7 @@
     closeShift,
     loadState,
     saveState,
+    allocateCaseLocalId,
     savePatient,
     updateCaseMetadata,
     finalizePatient,

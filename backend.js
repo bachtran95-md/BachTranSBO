@@ -440,19 +440,6 @@
     );
   }
 
-  async function updateCaseMetadata(caseId, metadata) {
-    if (!caseId) throw new Error("Missing case ID.");
-
-    return invokeAuthedFunction(
-      "clinical-store",
-      {
-        action: "update_case_metadata",
-        caseId,
-        metadata
-      },
-      "Case metadata save"
-    );
-  }
 
   async function finalizePatient(shiftId, patient) {
     if (!shiftId || !patient?.summaryFinalizedAt || !patient.summaryFinalizedText) {
@@ -660,7 +647,6 @@
     saveState,
     allocateCaseLocalId,
     savePatient,
-    updateCaseMetadata,
     finalizePatient,
     reopenCase,
     deleteCase,

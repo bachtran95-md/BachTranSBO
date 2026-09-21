@@ -251,6 +251,12 @@ const backendMock = String.raw`
       return { doctorDecision, decidedAt: new Date().toISOString() };
     },
     async caseAssistantExtract(_caseId, source) {
+      if (window.__BACH_E2E_DROP_ASSISTANT_CORE_DURING_EXTRACT) {
+        window.__BACH_E2E_DROP_ASSISTANT_CORE_DURING_EXTRACT = false;
+        const savedCore = window.BachAssistantCore;
+        window.BachAssistantCore = undefined;
+        setTimeout(() => { window.BachAssistantCore = savedCore; }, 50);
+      }
       if (/hypertonia/i.test(source)) {
         return {
           items: [{
@@ -781,6 +787,19 @@ if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)
 
 await beta.locator("#cockpitDataEntryBtn").click();
 await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
+
+// Regression: losing the global validation-core reference while the extraction
+// request is in flight must not break preview rendering.
+await beta.evaluate(() => { window.__BACH_E2E_DROP_ASSISTANT_CORE_DURING_EXTRACT = true; });
+await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
+await beta.locator("#cockpitExtractText").click();
+await beta.locator(".cockpit-extract-item").waitFor();
+const validationStatus = await beta.locator("#cockpitExtractStatus").textContent();
+if (/validációs modul nem érhető el|validation core is unavailable/i.test(validationStatus || "")) {
+  throw new Error("Extraction lost the validation core during the API round trip");
+}
+await beta.waitForTimeout(80);
+
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item").waitFor();

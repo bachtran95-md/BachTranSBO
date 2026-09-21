@@ -331,6 +331,13 @@ function activeShiftPatients() {
 }
 
 function nextPatientId() {
+  const counter = Number(state.shift?.nextCaseNumber);
+  if (Number.isInteger(counter) && counter > 0) {
+    return String(counter).padStart(2, "0");
+  }
+
+  // Backward-compatible fallback for old state snapshots that predate
+  // the DB-backed per-shift counter.
   const maxId = activeShiftPatients().reduce((max, patient) => {
     const value = Number.parseInt(String(patient.localId || ""), 10);
     return Number.isFinite(value) ? Math.max(max, value) : max;
@@ -1089,10 +1096,27 @@ async function addPatient() {
   }
   document.getElementById("newYob").value = yob;
 
+  let allocation;
+  try {
+    allocation = await window.BachSBOBackend.allocateCaseLocalId(state.shift.id);
+  } catch (error) {
+    handleBackendError(error);
+    return;
+  }
+
+  const allocatedLocalId = String(allocation?.localId || "").trim();
+  const allocatedCaseNumber = Number(allocation?.caseNumber);
+  if (!allocatedLocalId || !Number.isInteger(allocatedCaseNumber) || allocatedCaseNumber < 1) {
+    handleBackendError(new Error("Invalid case ID allocation response."));
+    return;
+  }
+
+  state.shift.nextCaseNumber = Number(allocation.nextCaseNumber || allocatedCaseNumber + 1);
+
   const patient = {
     id: crypto.randomUUID(),
     shiftId: state.shift.id,
-    localId: nextPatientId(),
+    localId: allocatedLocalId,
     sex,
     yob,
     mainComplaint,

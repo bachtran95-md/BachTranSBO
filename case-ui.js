@@ -10,14 +10,15 @@
   const DISCHARGE_PREFIX = "Otthonába bocsátáskor: ";
   let lastLoadedCaseId = "";
   let lastSaveFailedAt = 0;
+  let metadataDirtyCaseId = "";
 
   const ARRIVAL_OPTIONS = [
     ["", "— select —", "— válasszon —"],
     ["omsz", "OMSz transported", "OMSz szállította"],
     ["esetkocsi", "Emergency unit transported", "Esetkocsi szállította"],
-    ["walk_in", "Arrived walking", "saját lábán érkezett"],
-    ["gp_referral", "With GP referral", "HO beutalóval"],
-    ["other", "Other", "egyéb"]
+    ["walk_in", "Arrived walking", "Saját lábán érkezett"],
+    ["gp_referral", "With GP referral", "Háziorvosi beutalóval"],
+    ["other", "Other", "Egyéb"]
   ];
 
   const SEX_VALUES = ["F", "M", "O"];
@@ -147,38 +148,6 @@
     if (!st) return;
     st.textContent = label(en, hu);
     st.style.color = isError ? "#b91c1c" : "";
-  }
-
-  function backendReady() {
-    return Boolean(window.BachSBOBackend?.getSession);
-  }
-
-  function db() {
-    if (!window.supabase?.createClient) return null;
-    if (!window.__BachSBOInlineCaseClient) {
-      const c = window.BACH_SBO_CONFIG || {};
-      window.__BachSBOInlineCaseClient = window.supabase.createClient(
-        c.supabaseUrl,
-        c.supabasePublishableKey,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-      );
-    }
-    return window.__BachSBOInlineCaseClient;
-  }
-
-  async function syncedClient() {
-    const client = db();
-    if (!client) throw new Error("Supabase client is not available.");
-    if (backendReady()) {
-      const session = await window.BachSBOBackend.getSession();
-      if (session?.access_token && session?.refresh_token) {
-        await client.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token
-        });
-      }
-    }
-    return client;
   }
 
   function inlineHost() {
@@ -346,7 +315,7 @@
           </div>
           <div class="field">
             <label data-ice-label="age">Age</label>
-            <input id="iceAge" inputmode="numeric" maxlength="3" placeholder="auto" autocomplete="off" />
+            <input id="iceAge" placeholder="auto" readonly aria-readonly="true" tabindex="-1" />
           </div>
         </div>
         <div class="field">
@@ -418,50 +387,50 @@
     const id = selectedId();
     if (!id) return;
     const host = inlineHost();
+
+    if (metadataDirtyCaseId === id && inlineDetailsLoadedFor(id)) return;
     if (host && host.dataset.pendingCaseId !== id && host.dataset.loadedCaseId !== id) {
       clearInlineDetails(id);
     }
-    mirrorSelectedDisplayIntoInline({ force: false });
-    if (!force) {
-      if (id === lastLoadedCaseId && isEditingCaseDetails()) return;
-      if (Date.now() - lastSaveFailedAt < 3000) return;
+    if (!force && id === lastLoadedCaseId && isEditingCaseDetails()) return;
+
+    const data = window.BachSBOClinicalUi?.getCaseMetadata?.(id);
+    if (!data || selectedId() !== id) return;
+
+    const sex = normalizeSex(data.sex);
+    const sexEl = document.getElementById("iceSex");
+    const yobEl = document.getElementById("iceYob");
+    const ageEl = document.getElementById("iceAge");
+    const arrivalEl = document.getElementById("iceArrival");
+    const arrivalOtherEl = document.getElementById("iceArrivalOther");
+
+    if (sexEl) {
+      sexEl.value = sex;
+      paintSexSelect(sexEl);
     }
-    try {
-      const client = await syncedClient();
-      const { data, error } = await client
-        .from("cases")
-        .select("id, sex, year_of_birth, main_complaint, arrival_mode, arrival_other, disposition, other_details")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data || selectedId() !== id) {
-        mirrorSelectedDisplayIntoInline({ force: false });
-        setTimeout(() => loadSelected({ force: true }), 700);
-        return;
+    if (yobEl) yobEl.value = data.year_of_birth ? String(data.year_of_birth) : "";
+    if (ageEl) ageEl.value = ageFromYob(data.year_of_birth);
+    if (arrivalEl) arrivalEl.value = data.arrival_mode || "";
+    if (arrivalOtherEl) arrivalOtherEl.value = data.arrival_other || "";
+    document.getElementById("iceArrivalOtherWrap")?.classList.toggle(
+      "hidden",
+      (data.arrival_mode || "") !== "other"
+    );
+
+    if ((document.getElementById("fDisposition")?.value || "") === "discharged") {
+      const discharge = document.getElementById("fDischargeCondition");
+      if (discharge && !discharge.value) {
+        discharge.value = dischargeConditionTextFromStored(data.other_details);
       }
-      const sex = normalizeSex(data.sex);
-      document.getElementById("iceSex").value = sex;
-      paintSexSelect(document.getElementById("iceSex"));
-      document.getElementById("iceYob").value = data.year_of_birth ? String(data.year_of_birth) : "";
-      document.getElementById("iceAge").value = ageFromYob(data.year_of_birth);
-      document.getElementById("iceArrival").value = data.arrival_mode || "";
-      document.getElementById("iceArrivalOther").value = data.arrival_other || "";
-      document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (data.arrival_mode || "") !== "other");
-      if ((document.getElementById("fDisposition")?.value || data.disposition) === "discharged") {
-        const discharge = document.getElementById("fDischargeCondition");
-        if (discharge && !discharge.value) discharge.value = dischargeConditionTextFromStored(data.other_details);
-      }
-      ensureDischargeConditionUi();
-      lastLoadedCaseId = id;
-      if (host) {
-        host.dataset.pendingCaseId = id;
-        host.dataset.loadedCaseId = id;
-      }
-      enhanceSexUi();
-    } catch (error) {
-      mirrorSelectedDisplayIntoInline({ force: false });
-      console.warn("Inline case load failed", error);
     }
+
+    ensureDischargeConditionUi();
+    lastLoadedCaseId = id;
+    if (host) {
+      host.dataset.pendingCaseId = id;
+      host.dataset.loadedCaseId = id;
+    }
+    enhanceSexUi();
   }
 
   function buildPayload() {
@@ -485,6 +454,15 @@
     }
     if (!yobText || validYob) payload.year_of_birth = validYob ? yobNum : null;
     return { payload, partialYob };
+  }
+
+  function syncDraftIntoPatientState() {
+    const id = selectedId();
+    if (!id) return;
+    const { payload, partialYob } = buildPayload();
+    if (partialYob) return;
+    window.BachSBOClinicalUi?.applyCaseMetadata?.(id, payload);
+    rowUpdate(payload);
   }
 
   function repairPatientLocalId(patient) {
@@ -517,7 +495,15 @@
     if (tds[2] && hasYob) tds[2].textContent = displayAge || "";
     if (tds[3]) tds[3].textContent = document.getElementById("fMainComplaint")?.value || tds[3].textContent || "";
     const subtitle = document.getElementById("recordSubtitle");
-    if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} y • ${document.getElementById("fMainComplaint")?.value || ""}`;
+    if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
+
+    const header = document.getElementById("recordHeader");
+    if (header) {
+      header.classList.remove("sex-female", "sex-male", "sex-other");
+      if (sex === "F") header.classList.add("sex-female");
+      else if (sex === "M") header.classList.add("sex-male");
+      else if (sex === "O") header.classList.add("sex-other");
+    }
   }
 
   function mirrorPatientIntoInline(patient) {
@@ -585,13 +571,14 @@
 
     const originalSavePatient = backend.savePatient;
     if (typeof originalSavePatient === "function") {
-      backend.savePatient = function patchedSavePatient(shiftId, patient) {
+      backend.savePatient = function patchedSavePatient(shiftId, patient, options = {}) {
         mergeInlineDetailsIntoPatient(patient);
-        if (!validateDischargeCondition(patient)) {
+        const silentAutosave = Boolean(options?.silentAutosave);
+        if (!silentAutosave && !validateDischargeCondition(patient)) {
           return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
         }
         return Promise.resolve(originalSavePatient.call(this, shiftId, patient)).then((result) => {
-          scheduleLoadRetries();
+          if (!silentAutosave) scheduleLoadRetries();
           return result;
         });
       };
@@ -637,11 +624,11 @@
     }
     try {
       setStatus("Saving case details…", "Esetadatok mentése…");
-      const backend = window.BachSBOBackend;
-      if (!backend?.updateCaseMetadata) {
+      const clinicalUi = window.BachSBOClinicalUi;
+      if (!clinicalUi?.saveCaseMetadata) {
         throw new Error(label(
-          "Secure case metadata save is not available.",
-          "A biztonságos esetadat-mentés nem érhető el."
+          "Single-source case metadata save is not available.",
+          "Az egységes esetadat-mentés nem érhető el."
         ));
       }
       const metadata = {
@@ -656,7 +643,7 @@
       if (Object.prototype.hasOwnProperty.call(payload, "other_details")) {
         metadata.otherDetails = payload.other_details || "";
       }
-      const result = await backend.updateCaseMetadata(id, metadata);
+      const result = await clinicalUi.saveCaseMetadata(id, metadata);
       const saved = result?.metadata || {};
       if (Object.prototype.hasOwnProperty.call(saved, "main_complaint")) {
         const complaint = document.getElementById("fMainComplaint");
@@ -666,11 +653,15 @@
         const arrivalOther = document.getElementById("iceArrivalOther");
         if (arrivalOther) arrivalOther.value = saved.arrival_other || "";
       }
-      rowUpdate(Object.keys(saved).length ? saved : payload);
+      const authoritative = Object.keys(saved).length ? saved : payload;
+      window.BachSBOClinicalUi?.applyCaseMetadata?.(id, authoritative);
+      rowUpdate(authoritative);
+      metadataDirtyCaseId = "";
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
       loadSelected({ force: true });
     } catch (error) {
+      metadataDirtyCaseId = id;
       lastSaveFailedAt = Date.now();
       const detail = error?.message ? ` (${error.message})` : "";
       setStatus(`Could not save case details${detail}.`, `Nem sikerült menteni az esetadatokat${detail}.`, true);
@@ -714,29 +705,21 @@
   }
 
   function wireUi() {
-    const ids = ["iceSex", "iceYob", "iceAge", "iceArrival", "iceArrivalOther", "fMainComplaint"];
+    const ids = ["iceSex", "iceYob", "iceArrival", "iceArrivalOther", "fMainComplaint"];
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (!el || el.dataset.iceWired === "true") return;
       el.dataset.iceWired = "true";
       const handler = () => {
+        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
         const yob = document.getElementById("iceYob");
         const age = document.getElementById("iceAge");
         const arrival = document.getElementById("iceArrival");
         if (id === "iceYob" && age && yob) age.value = ageFromYob(yob.value);
-        if (id === "iceAge" && age && yob) {
-          const normalizedAge = String(age.value || "").replace(/[^0-9]/g, "");
-          age.value = normalizedAge;
-          if (!normalizedAge) {
-            yob.value = "";
-          } else {
-            const derivedYob = yobFromAge(normalizedAge);
-            if (derivedYob) yob.value = derivedYob;
-          }
-        }
         if (id === "iceSex") paintSexSelect(el);
         document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (arrival?.value || "") !== "other");
-        scheduleSave(id === "iceYob" || id === "iceAge" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
+        syncDraftIntoPatientState();
+        scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
       el.addEventListener("input", handler);
       el.addEventListener("change", handler);
@@ -770,8 +753,6 @@
     installBackendPayloadBridge();
     enhanceSexUi();
 
-    setTimeout(() => window.applyLanguage?.("hu"), 250);
-    setTimeout(() => window.applyLanguage?.("hu"), 900);
     new MutationObserver(() => {
       clearTimeout(window.__iceRefresh);
       window.__iceRefresh = setTimeout(() => {
@@ -783,16 +764,13 @@
       }, 120);
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
     document.addEventListener("click", (event) => {
-      const selectedCaseRow = event.target?.closest?.("#patientTbody tr[data-id]");
-      const editingCaseDetails = event.target?.closest?.(
-        "#inlineCaseEditor, #patientForm input, #patientForm textarea, #patientForm select, #patientForm button"
-      );
+      // Patient switching is now an awaited autosave transaction in app.js.
+      // Do not force-refresh metadata while the old case is still being saved.
+      if (event.target?.closest?.("#patientTbody tr[data-id]")) return;
+
       setTimeout(() => {
         mirrorSelectedDisplayIntoInline({ force: false });
-        // Force a backend refresh only when the user actually selects a case.
-        // Never force-refresh while editing demographics/clinical controls,
-        // otherwise a delayed click refresh can overwrite in-progress Age/YOB/Arrival edits.
-        loadSelected({ force: Boolean(selectedCaseRow) && !editingCaseDetails });
+        loadSelected({ force: false });
         enhanceSexUi();
       }, 100);
     }, true);

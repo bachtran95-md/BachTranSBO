@@ -10,6 +10,9 @@
   let extractionLoadToken = 0;
   let patientBoardLoad = null;
   let extractionPreviewState = null;
+  let caseAutosaveTimer = null;
+  let caseAutosaveInFlight = false;
+  let caseAutosaveQueued = false;
   const patientProgressByCase = new Map();
   const assistantStateByCase = new Map();
 
@@ -49,8 +52,12 @@
     const body = String(entry?.bodyPart || "").trim();
     const modality = String(entry?.modality || "").trim();
     const other = String(entry?.otherTest || "").trim();
-    if (modality === "other") return [body, other].filter(Boolean).join(" — ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
-    return [body, modality].filter(Boolean).join(" ") || `${label("Radiology", "Radiológia")} ${index + 1}`;
+    const detail = modality === "other"
+      ? [body, other].filter(Boolean).join(" — ")
+      : [body, modality].filter(Boolean).join(" ");
+    return detail
+      ? `${label("Radiology", "Radiológia")} · ${detail}`
+      : `${label("Radiology", "Radiológia")} ${index + 1}`;
   }
 
   function patientTestItems(patient) {
@@ -63,10 +70,15 @@
         name: /\bVVG\b/i.test(String(tests.gas.text || "")) ? "VVG" : "AVG"
       }] : []),
       ...(tests.radiology || []).map((entry, index) => ({ entry, name: radiologyLabel(entry, index) })),
-      ...(tests.consultations || []).map((entry, index) => ({
-        entry,
-        name: String(entry?.type || "").trim() || `${label("Consultation", "Konzílium")} ${index + 1}`
-      }))
+      ...(tests.consultations || []).map((entry, index) => {
+        const specialty = String(entry?.type || "").trim();
+        return {
+          entry,
+          name: specialty
+            ? `${label("Consultation", "Konzílium")} · ${specialty}`
+            : `${label("Consultation", "Konzílium")} ${index + 1}`
+        };
+      })
     ].map((item) => ({ ...item, status: testEntryStatus(item.entry) }));
   }
 
@@ -119,6 +131,76 @@
     };
   }
 
+  function narrativeResolved(key) {
+    const field = document.querySelector(`[data-narrative-field="${key}"]`);
+    return Boolean(field?.classList.contains("result") || field?.classList.contains("none"));
+  }
+
+  function hasValue(id) {
+    return Boolean(String(document.getElementById(id)?.value || "").trim());
+  }
+
+  function tabSummaryGaps() {
+    const arrival = document.getElementById("iceArrival")?.value || "";
+    const disposition = document.getElementById("fDisposition")?.value || "";
+    const testsPending = [...document.querySelectorAll('[data-cockpit-panel="tests"] .test-card')]
+      .some((card) => !card.classList.contains("result") && !card.classList.contains("notordered"));
+
+    const clinical =
+      !hasValue("fMainComplaint") ||
+      !hasValue("iceSex") ||
+      !hasValue("iceYob") ||
+      !arrival ||
+      (arrival === "other" && !hasValue("iceArrivalOther")) ||
+      !narrativeResolved("complaint") ||
+      !narrativeResolved("history");
+
+    const tests = !narrativeResolved("physical") || testsPending;
+    const course = !narrativeResolved("therapy") || !narrativeResolved("course");
+
+    let decision = !narrativeResolved("diagnoses") || !disposition;
+    if (disposition === "discharged") {
+      const recommendation = [...document.querySelectorAll("[data-rec]")]
+        .some((input) => String(input.value || "").trim());
+      decision = decision || !hasValue("fDischargeCondition") || !recommendation;
+    } else if (disposition === "admitted") {
+      decision = decision || !hasValue("fWard");
+    } else if (disposition === "other") {
+      decision = decision || !hasValue("fOtherOutcome");
+    }
+
+    return { clinical, tests, course, disposition: decision };
+  }
+
+  function syncTabWarnings() {
+    const hasCase = Boolean(selectedCaseId());
+    const gaps = hasCase ? tabSummaryGaps() : {};
+    const summaryReady =
+      hasCase &&
+      ["clinical", "tests", "course", "disposition"].every((key) => !gaps[key]);
+
+    document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
+      const key = button.dataset.cockpitTab;
+      const warn = key !== "summary" && Boolean(gaps[key]);
+      const ready = key === "summary" && summaryReady;
+
+      button.classList.toggle("has-summary-gap", warn);
+      button.classList.toggle("summary-ready", ready);
+
+      button.title = warn
+        ? label(
+            "Missing information in this tab may affect the Summary.",
+            "Ebben a fülben hiányzó adat befolyásolhatja az összefoglalót."
+          )
+        : ready
+        ? label(
+            "Summary is ready. Open this tab to review or generate it.",
+            "Az összefoglaló készíthető. Nyissa meg ezt a fület az ellenőrzéshez vagy generáláshoz."
+          )
+        : "";
+    });
+  }
+
   function createTabBar() {
     const form = document.getElementById("patientForm");
     if (!form || document.getElementById("cockpitCaseTabs")) return;
@@ -169,10 +251,21 @@
     if (aiButton) aiButton.textContent = label("AI", "AI");
     syncRailLabels();
     syncUnifiedTestLabels();
+    syncTabWarnings();
   }
 
   function activateTab(tab) {
-    activeTab = tab || "clinical";
+    const nextTab = tab || "clinical";
+
+    if (nextTab !== activeTab) {
+      // Capture every visible/hidden form control into the in-memory patient
+      // before changing panel visibility, then persist that snapshot.
+      window.BachSBOClinicalUi?.commitCurrentDraft?.();
+      clearTimeout(caseAutosaveTimer);
+      void runCaseAutosave();
+    }
+
+    activeTab = nextTab;
     document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
       button.classList.toggle("active", button.dataset.cockpitTab === activeTab);
     });
@@ -227,70 +320,19 @@
         </div>
       </div>
 
-      <div class="cockpit-rail-card cockpit-doc-review-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitDocumentationTitle">🔎 Documentation review</strong>
-            <div class="cockpit-rail-sub" id="cockpitDocumentationSub"></div>
-          </div>
-          <span id="cockpitDocumentationCount" class="cockpit-summary-badge neutral">0</span>
-        </div>
-        <div class="cockpit-rail-body">
-          <div id="cockpitDocumentationReview" class="cockpit-documentation-review"></div>
-        </div>
-      </div>
-
-      <div class="cockpit-rail-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitSummaryTitle">📝 Summary</strong>
-            <div class="cockpit-rail-sub" id="cockpitSummarySub"></div>
-          </div>
-          <span id="cockpitSummaryBadge" class="cockpit-summary-badge">—</span>
-        </div>
-        <div class="cockpit-rail-body">
-          <div id="cockpitSummaryReadiness" class="cockpit-readiness"></div>
-          <div class="cockpit-rail-actions">
-            <button class="btn primary" id="cockpitOpenSummary" type="button"></button>
-            <button class="btn" id="cockpitGenerateSummary" type="button"></button>
-          </div>
-          <button class="btn success cockpit-wide-btn" id="cockpitFinalizeSummary" type="button"></button>
-        </div>
-      </div>
-
-      <div class="cockpit-rail-card cockpit-paste-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitPasteTitle"></strong>
-            <div class="cockpit-rail-sub" id="cockpitPasteSub"></div>
-          </div>
-        </div>
-        <div class="cockpit-rail-body">
-          <textarea id="cockpitPasteText" class="cockpit-paste-text" maxlength="30000"></textarea>
-          <div class="cockpit-paste-meta">
-            <span id="cockpitPasteHint"></span>
-            <span id="cockpitPasteCount">0 / 30000</span>
-          </div>
-          <button class="btn cockpit-wide-btn" id="cockpitExtractText" type="button"></button>
-          <div id="cockpitExtractStatus" class="cockpit-status"></div>
-          <div id="cockpitExtractPreview"></div>
-        </div>
-      </div>
     `;
     grid.appendChild(rail);
 
     document.getElementById("cockpitAnalyzeCase")?.addEventListener("click", analyzeCurrentCase);
-    document.getElementById("cockpitOpenSummary")?.addEventListener("click", () => activateTab("summary"));
-    document.getElementById("cockpitGenerateSummary")?.addEventListener("click", () => {
-      activateTab("summary");
-      document.getElementById("generateSummaryBtn")?.click();
-    });
-    document.getElementById("cockpitFinalizeSummary")?.addEventListener("click", () => {
-      activateTab("summary");
-      document.getElementById("finalizeSummaryBtn")?.click();
-    });
     document.getElementById("cockpitExtractText")?.addEventListener("click", extractPastedText);
     document.getElementById("cockpitPasteText")?.addEventListener("input", updatePasteCount);
+    document.getElementById("cockpitDataEntryBtn")?.addEventListener("click", openDataEntryDialog);
+    document.getElementById("cockpitDataEntryClose")?.addEventListener("click", closeDataEntryDialog);
+    document.getElementById("cockpitDataEntryOverlay")?.addEventListener("click", (event) => {
+      if (event.target?.id === "cockpitDataEntryOverlay") closeDataEntryDialog();
+    });
+    document.getElementById("cockpitExtractConfirmCancel")?.addEventListener("click", closeExtractionConfirmation);
+    document.getElementById("cockpitExtractConfirmApply")?.addEventListener("click", applyAcceptedExtraction);
 
     const toggle = document.createElement("button");
     toggle.id = "cockpitAiToggle";
@@ -325,28 +367,13 @@
         "Válasszon aktív esetet, majd indítsa az asszisztenst. A javaslatok nem módosítják automatikusan a dokumentációt."
       )
     );
-    set("cockpitSummaryTitle", "📝 " + label("Summary", "Összefoglaló"));
-    set(
-      "cockpitSummarySub",
-      label("Confirmed facts only", "Csak dokumentált tények")
-    );
-    set("cockpitDocumentationTitle", label("🔎 Documentation review", "🔎 Dokumentációs ellenőrzés"));
-    set(
-      "cockpitDocumentationSub",
-      label(
-        "Required, missing, pending and conflicting information. Review only; nothing is written from this panel.",
-        "Kötelező, hiányzó, függő és ellentmondásos információk. Csak ellenőrzés; ez a panel nem ír adatot."
-      )
-    );
-    set("cockpitOpenSummary", label("OPEN", "MEGNYITÁS"));
-    set("cockpitGenerateSummary", label("GENERATE", "GENERÁLÁS"));
-    set("cockpitFinalizeSummary", label("FINALIZE SUMMARY", "ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE"));
-    set("cockpitPasteTitle", label("New note / Heidi update", "Új jegyzet / Heidi frissítés"));
+    set("cockpitPasteTitle", label("✨ AI-assisted data entry", "✨ AI-assisted adatbevitel"));
+    set("cockpitDataEntryBtn", label("✨ AI DATA ENTRY", "✨ AI ADATBEVITEL"));
     set(
       "cockpitPasteSub",
       label(
-        "Paste only newly received information. Existing chart data is compared before applying.",
-        "Csak az újonnan érkezett információt illessze be. Alkalmazás előtt összehasonlítjuk a meglévő dokumentációval."
+        "Paste newly received information. Existing chart data is compared, and every fact requires review before writing.",
+        "Illessze be az újonnan érkezett információt. Összehasonlítjuk a meglévő dokumentációval, és minden tény beírás előtt ellenőrzendő."
       )
     );
     set("cockpitPasteHint", label("Incremental update", "Kiegészítő frissítés"));
@@ -517,45 +544,25 @@
     const form = document.getElementById("patientForm");
     const tabs = document.getElementById("cockpitCaseTabs");
     const hasCase = Boolean(form && !form.classList.contains("hidden") && selectedCaseId());
+    const caseClosed = Boolean(form?.classList.contains("case-readonly"));
     tabs?.classList.toggle("hidden", !hasCase);
 
-    const gate = document.getElementById("summaryGate");
-    const badge = document.getElementById("cockpitSummaryBadge");
-    const readiness = document.getElementById("cockpitSummaryReadiness");
-    const generate = document.getElementById("cockpitGenerateSummary");
-    const finalize = document.getElementById("cockpitFinalizeSummary");
     const analyze = document.getElementById("cockpitAnalyzeCase");
+    const dataEntry = document.getElementById("cockpitDataEntryBtn");
     const extract = document.getElementById("cockpitExtractText");
 
     if (analyze) analyze.disabled = !hasCase || assistantBusy;
-    if (extract) extract.disabled = !hasCase || assistantBusy;
+    if (dataEntry) {
+      dataEntry.disabled = !hasCase || caseClosed || assistantBusy;
+      dataEntry.title = caseClosed
+        ? label("Reopen the case before AI-assisted data entry.", "AI-assisted adatbevitel előtt nyissa újra az esetet.")
+        : "";
+    }
+    if (extract) extract.disabled = !hasCase || caseClosed || assistantBusy;
     renderDocumentationReview();
 
-    if (!hasCase) {
-      if (badge) {
-        badge.textContent = label("No case", "Nincs eset");
-        badge.className = "cockpit-summary-badge neutral";
-      }
-      if (readiness) {
-        readiness.textContent = label("Select a case to continue.", "Válasszon esetet a folytatáshoz.");
-      }
-      if (generate) generate.disabled = true;
-      if (finalize) finalize.disabled = true;
-      return;
-    }
-
-    const ready = gate?.classList.contains("ready");
-    const caseId = selectedCaseId();
-    const progress = progressFromVisibleForm() || patientProgressByCase.get(caseId) || null;
-    if (badge) {
-      badge.textContent = ready ? label("Ready", "Kész") : label("Blocked", "Blokkolt");
-      badge.className = "cockpit-summary-badge " + (ready ? "ready" : "blocked");
-    }
-    if (readiness) {
-      readiness.innerHTML = renderSummaryProgress(progress, ready);
-    }
-    if (generate) generate.disabled = !ready;
-    if (finalize) finalize.disabled = Boolean(document.getElementById("finalizeSummaryBtn")?.disabled);
+    syncTabWarnings();
+    if (!hasCase) return;
   }
 
   async function analyzeCurrentCase() {
@@ -589,7 +596,7 @@
     } catch (error) {
       if (!requestCaseId || selectedCaseId() === requestCaseId) {
         if (status) status.textContent = error?.message || label("Analysis failed.", "Elemzés sikertelen.");
-        if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || "Analysis failed.")}</div>`;
+        if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || label("Analysis failed.", "Elemzés sikertelen."))}</div>`;
       }
     } finally {
       assistantBusy = false;
@@ -599,14 +606,14 @@
 
   function decisionUiValue(value) {
     if (value === "already_done") return "done";
-    if (value === "not_applicable") return "na";
-    return value || "pending";
+    if (value === "not_applicable") return "pending";
+    return ["done", "yes", "no"].includes(value) ? value : "pending";
   }
 
   function priorityMeta(priority) {
-    if (priority === "now") return { icon: "●", label: "NOW" };
-    if (priority === "next") return { icon: "●", label: "NEXT" };
-    return { icon: "○", label: "CONSIDER" };
+    if (priority === "now") return { icon: "●", label: label("NOW", "MOST") };
+    if (priority === "next") return { icon: "●", label: label("NEXT", "KÖVETKEZŐ") };
+    return { icon: "○", label: label("CONSIDER", "MÉRLEGELENDŐ") };
   }
 
   async function saveAssistantDecision(button) {
@@ -633,12 +640,16 @@
         suggestion.doctorDecision = updated.doctorDecision;
         suggestion.decidedAt = updated.decidedAt;
       }
+      const uiDecision = decisionUiValue(updated.doctorDecision);
       row?.querySelectorAll(".cockpit-decision").forEach((node) => {
-        node.classList.toggle(
-          "selected",
-          node.dataset.decision === decisionUiValue(updated.doctorDecision)
-        );
+        node.classList.toggle("selected", node.dataset.decision === uiDecision);
       });
+      if (item) {
+        ["done", "yes", "no"].forEach((value) => {
+          item.classList.toggle("decision-" + value, value === uiDecision);
+        });
+        item.dataset.doctorDecision = uiDecision;
+      }
     } catch (error) {
       if (selectedCaseId() === caseId) {
         const status = document.getElementById("cockpitAssistantStatus");
@@ -701,7 +712,7 @@
       }).filter(Boolean).join("<br>");
 
       return `
-        <article class="cockpit-todo-item priority-${esc(item.priority || "consider")}" data-item-id="${esc(item.id || "")}">
+        <article class="cockpit-todo-item priority-${esc(item.priority || "consider")} ${decision !== "pending" ? "decision-" + esc(decision) : ""}" data-item-id="${esc(item.id || "")}" data-doctor-decision="${esc(decision)}">
           <div class="cockpit-todo-main">
             <span class="cockpit-priority">${meta.icon} ${meta.label}</span>
             <strong class="cockpit-todo-title">${esc(item.title || "")}</strong>
@@ -715,10 +726,9 @@
             </details>
           </div>
           <div class="cockpit-decision-row">
+            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
             <button type="button" data-decision="yes" class="cockpit-decision yes ${decision === "yes" ? "selected" : ""}">YES</button>
             <button type="button" data-decision="no" class="cockpit-decision no ${decision === "no" ? "selected" : ""}">NO</button>
-            <button type="button" data-decision="done" class="cockpit-decision done ${decision === "done" ? "selected" : ""}">DONE</button>
-            <button type="button" data-decision="na" class="cockpit-decision na ${decision === "na" ? "selected" : ""}">N/A</button>
           </div>
         </article>
       `;
@@ -762,6 +772,65 @@
       if (token !== assistantLoadToken) return;
       if (status) status.textContent = error?.message || label("Could not load assistant state.", "Az asszisztens állapot betöltése sikertelen.");
     }
+  }
+
+  function openDataEntryDialog() {
+    const id = selectedCaseId();
+    const form = document.getElementById("patientForm");
+    if (!id || form?.classList.contains("case-readonly")) return;
+
+    const overlay = document.getElementById("cockpitDataEntryOverlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("cockpit-data-entry-open");
+    document.getElementById("cockpitPasteText")?.focus();
+  }
+
+  function closeDataEntryDialog() {
+    if (assistantBusy) return;
+    closeExtractionConfirmation();
+    const overlay = document.getElementById("cockpitDataEntryOverlay");
+    if (!overlay) return;
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("cockpit-data-entry-open");
+  }
+
+  function closeExtractionConfirmation() {
+    const overlay = document.getElementById("cockpitExtractConfirmOverlay");
+    if (!overlay) return;
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  function acceptedExtractionNodes() {
+    const preview = document.getElementById("cockpitExtractPreview");
+    if (!preview) return [];
+    return [...preview.querySelectorAll(".cockpit-extract-item")]
+      .filter((node) => node.dataset.decision === "accept" && node.dataset.applied !== "true");
+  }
+
+  function requestExtractionApplyConfirmation() {
+    if (assistantBusy) return;
+    const accepted = acceptedExtractionNodes();
+    if (!accepted.length) return;
+
+    const overlay = document.getElementById("cockpitExtractConfirmOverlay");
+    const title = document.getElementById("cockpitExtractConfirmTitle");
+    const textNode = document.getElementById("cockpitExtractConfirmText");
+    const apply = document.getElementById("cockpitExtractConfirmApply");
+    if (!overlay || !textNode || !apply) return;
+
+    if (title) title.textContent = label("Confirm AI-assisted entry", "AI-assisted adatbevitel megerősítése");
+    textNode.textContent = label(
+      `${accepted.length} accepted item(s) will be written to the selected patient's chart. Please confirm after reviewing them.`,
+      `${accepted.length} elfogadott elem kerül beírásra a kiválasztott beteg dokumentációjába. Ellenőrzés után erősítse meg.`
+    );
+    apply.textContent = label("CONFIRM AND WRITE", "MEGERŐSÍTÉS ÉS BEÍRÁS");
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
   }
 
   async function extractPastedText() {
@@ -837,6 +906,7 @@
 
   async function applyAcceptedExtraction() {
     if (assistantBusy) return;
+    closeExtractionConfirmation();
     const preview = document.getElementById("cockpitExtractPreview");
     const status = document.getElementById("cockpitExtractStatus");
     const state = extractionPreviewState;
@@ -858,8 +928,7 @@
       return;
     }
 
-    const selected = [...preview.querySelectorAll(".cockpit-extract-item")]
-      .filter((node) => node.dataset.decision === "accept" && node.dataset.applied !== "true")
+    const selected = acceptedExtractionNodes()
       .map((node) => {
         const index = Number(node.dataset.index);
         const item = structuredClone(state.items[index]);
@@ -949,7 +1018,7 @@
     const itemHtml = items.map((item, index) => `
       <div class="cockpit-extract-item action-${esc(item.action)}" data-index="${index}" data-decision="">
         <div class="cockpit-extract-head">
-          <strong>${esc(item.label || item.target || "Fact")}</strong>
+          <strong>${esc(item.label || item.target || label("Fact", "Tény"))}</strong>
           <span class="cockpit-extract-action ${esc(item.action)}">${esc(extractionActionLabel(item.action))}</span>
         </div>
         ${extractionCurrentValue(item)}
@@ -1005,7 +1074,7 @@
       });
     });
 
-    document.getElementById("cockpitApplyAccepted")?.addEventListener("click", applyAcceptedExtraction);
+    document.getElementById("cockpitApplyAccepted")?.addEventListener("click", requestExtractionApplyConfirmation);
     renderDocumentationReview();
     refreshExtractionApplyButton();
   }
@@ -1150,12 +1219,33 @@
       dots.dataset.cockpitOrdered = "true";
     }
 
+    const dynamicGrid = card.querySelector(".dynamic-grid");
+    const typeInput = dynamicGrid?.querySelector(":scope > [data-type]");
+    if (
+      dynamicGrid &&
+      typeInput &&
+      String(context?.key || "").startsWith("consultations-") &&
+      !dynamicGrid.querySelector(":scope > .cockpit-consultation-identity")
+    ) {
+      const identity = document.createElement("div");
+      identity.className = "cockpit-consultation-identity";
+      const prefix = document.createElement("span");
+      prefix.className = "cockpit-consultation-prefix";
+      prefix.textContent = label("Consultation", "Konzílium");
+      dynamicGrid.insertBefore(identity, typeInput);
+      identity.append(prefix, typeInput);
+    }
+
     const radiologyGrid = card.querySelector(".radiology-grid");
     if (radiologyGrid && !radiologyGrid.querySelector(":scope > .cockpit-radiology-identity")) {
       const identity = document.createElement("div");
       identity.className = "cockpit-radiology-identity";
+      const prefix = document.createElement("span");
+      prefix.className = "cockpit-radiology-prefix";
+      prefix.textContent = label("Radiology", "Radiológia");
       const first = radiologyGrid.firstElementChild;
       if (first) radiologyGrid.insertBefore(identity, first);
+      identity.appendChild(prefix);
       ["[data-body]", "[data-modality]", "[data-other]"].forEach((selector) => {
         const control = radiologyGrid.querySelector(`:scope > ${selector}`);
         if (control) identity.appendChild(control);
@@ -1163,7 +1253,7 @@
     }
 
     if (context.kind === "dynamic") {
-      const type = String(context.entry?.type || "").trim();
+      const type = String(context.entry?.type || typeInput?.value || "").trim();
       const isOther = /^Egyéb\s+—\s+/i.test(type);
       const cleanType = isOther ? type.replace(/^Egyéb\s+—\s+/i, "") : type;
       const index = Number(String(context.key || "").split("-").at(-1)) + 1;
@@ -1185,7 +1275,13 @@
   }
 
   function compactTestCards(panel) {
-    panel.querySelectorAll(".test-card").forEach((card) => decorateTestCard(card));
+    panel.querySelectorAll(".test-card").forEach((card) => {
+      const key = card.dataset.card || "";
+      decorateTestCard(card, {
+        key,
+        kind: key.startsWith("consultations-") ? "dynamic" : ""
+      });
+    });
   }
 
   function selectedAddTestKind() {
@@ -1298,6 +1394,18 @@
       document.getElementById("fOthers")?.closest(".field")?.classList.add("cockpit-legacy-others");
     }
 
+    let legend = document.getElementById("cockpitInvestigationsLegend");
+    if (!legend) {
+      legend = document.createElement("div");
+      legend.id = "cockpitInvestigationsLegend";
+      legend.className = "cockpit-investigations-legend";
+      list.insertAdjacentElement("afterend", legend);
+    }
+    legend.innerHTML = label(
+      '<span class="legend-item"><span class="legend-dot grey"></span>Grey = not ordered</span><span class="legend-item"><span class="legend-dot orange"></span>Orange = waiting / pending</span><span class="legend-item"><span class="legend-dot green"></span>Green = result available / completed</span>',
+      '<span class="legend-item"><span class="legend-dot grey"></span>Szürke = nem történt</span><span class="legend-item"><span class="legend-dot orange"></span>Narancs = függő / eredményre vár</span><span class="legend-item"><span class="legend-dot green"></span>Zöld = eredmény rendelkezésre áll / kész</span>'
+    );
+
     syncUnifiedTestLabels();
     compactTestCards(panel);
   }
@@ -1385,9 +1493,30 @@
     other.classList.remove("hidden");
   }
 
+  function syncDischargeConditionVisual() {
+    const disposition = document.getElementById("fDisposition")?.value || "";
+    const wrap = document.getElementById("dischargeConditionWrap");
+    const field = document.getElementById("fDischargeCondition");
+    const state = document.getElementById("dischargeConditionState");
+    if (!wrap || !field || !state) return;
+
+    const visible = disposition === "discharged";
+    const complete = Boolean(String(field.value || "").trim());
+
+    wrap.classList.toggle("hidden", !visible);
+    wrap.classList.toggle("waiting", visible && !complete);
+    wrap.classList.toggle("result", visible && complete);
+
+    state.textContent = complete
+      ? label("COMPLETE", "KÉSZ")
+      : label("REQUIRED", "KÖTELEZŐ");
+    state.className = `field-state ${complete ? "result" : "waiting"}`;
+  }
+
   function enhanceDispositionUi() {
     ensureWardPicker();
     syncWardPicker();
+    syncDischargeConditionVisual();
 
     const note = document.getElementById("fAdmissionNote");
     if (note) {
@@ -1416,6 +1545,7 @@
       const extraction = document.getElementById("cockpitExtractPreview");
       if (extraction) extraction.innerHTML = "";
       extractionPreviewState = null;
+      closeDataEntryDialog();
       renderDocumentationReview();
       enhanceDispositionUi();
       loadAssistantStateForCurrentCase();
@@ -1469,8 +1599,64 @@
     syncRailState();
   }
 
+  function scheduleCaseAutosave(delay = 700) {
+    const form = document.getElementById("patientForm");
+    if (!form || form.classList.contains("hidden") || !selectedCaseId()) return;
+
+    clearTimeout(caseAutosaveTimer);
+    caseAutosaveTimer = setTimeout(runCaseAutosave, Math.max(0, delay));
+  }
+
+  async function runCaseAutosave() {
+    const save = window.BachSBOClinicalUi?.autosaveCurrentCase;
+    if (typeof save !== "function" || !selectedCaseId()) return;
+
+    if (caseAutosaveInFlight) {
+      caseAutosaveQueued = true;
+      return;
+    }
+
+    caseAutosaveInFlight = true;
+    try {
+      await save();
+    } catch (error) {
+      console.warn("Beta autosave failed", error);
+    } finally {
+      caseAutosaveInFlight = false;
+      if (caseAutosaveQueued) {
+        caseAutosaveQueued = false;
+        scheduleCaseAutosave(120);
+      }
+    }
+  }
+
   function installSync() {
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!document.getElementById("cockpitExtractConfirmOverlay")?.classList.contains("hidden")) {
+        closeExtractionConfirmation();
+        return;
+      }
+      if (!document.getElementById("cockpitDataEntryOverlay")?.classList.contains("hidden")) {
+        closeDataEntryDialog();
+      }
+    }, true);
+
     document.addEventListener("input", (event) => {
+      if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
+
+      if (
+        event.target?.matches?.("#patientForm textarea, #patientForm input") &&
+        !event.target.disabled &&
+        !event.target.readOnly &&
+        event.target.type !== "button"
+      ) {
+        // Keep the in-memory draft current immediately; only the network write
+        // remains debounced.
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
+        scheduleCaseAutosave(2500);
+      }
+
       setTimeout(syncRailState, 0);
       const id = selectedCaseId();
       if (
@@ -1485,8 +1671,54 @@
         }
       }
     }, true);
-    document.addEventListener("change", () => setTimeout(syncRailState, 0), true);
+    document.addEventListener("change", (event) => {
+      if (event.target?.id === "fDisposition" || event.target?.id === "fDischargeCondition") {
+        syncDischargeConditionVisual();
+      }
+
+      if (
+        event.target?.matches?.("#patientForm select") &&
+        !event.target.disabled
+      ) {
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
+        scheduleCaseAutosave(600);
+      }
+
+      setTimeout(syncRailState, 0);
+    }, true);
+
+    document.addEventListener("focusout", (event) => {
+      if (
+        event.target?.matches?.("#patientForm textarea, #patientForm input") &&
+        !event.target.disabled &&
+        !event.target.readOnly &&
+        event.target.type !== "button"
+      ) {
+        // Keep blur lightweight: cache immediately, persist in the background.
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
+        scheduleCaseAutosave(900);
+      }
+    }, true);
     document.addEventListener("click", (event) => {
+      const autosaveAction = event.target?.closest?.(
+        "#patientForm [data-mode-choice], " +
+        "#patientForm [data-none-toggle], " +
+        "#patientForm [data-delete-test], " +
+        "#patientForm [data-del-rec], " +
+        "#patientForm #addRecBtn, " +
+        "#patientForm #addLabBtn, " +
+        "#patientForm #addRadiologyBtn, " +
+        "#patientForm #addConsultBtn, " +
+        "#patientForm #cockpitAddTest"
+      );
+      if (autosaveAction) {
+        // Let the button's own handler mutate the case first, then capture and save.
+        setTimeout(() => {
+          window.BachSBOClinicalUi?.commitCurrentDraft?.();
+          scheduleCaseAutosave(500);
+        }, 0);
+      }
+
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
         setTimeout(updateTabLabels, 0);
       }

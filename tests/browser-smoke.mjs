@@ -631,6 +631,40 @@ if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);
 }
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
+
+// Unified Add Test must react to one selection + one click, with no hidden-button forwarding.
+const radiologyCountBeforeAdd = await beta.locator('#radiologyCards .test-card').count();
+await beta.locator("#cockpitTestType").selectOption("imaging");
+if ((await beta.locator("#cockpitTestType").inputValue()) !== "imaging") {
+  throw new Error("Unified test type selector did not retain the selected imaging option");
+}
+await beta.locator("#cockpitAddTest").click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#radiologyCards .test-card").length === expected,
+  radiologyCountBeforeAdd + 1
+);
+const addedRadiology = beta.locator('#radiologyCards .test-card').last();
+const deleteAtEnd = await addedRadiology.evaluate((card) => {
+  const result = card.querySelector("textarea");
+  const remove = card.querySelector("[data-delete-test]");
+  const dots = card.querySelector(".mode-dots");
+  if (!result || !remove || !dots) return null;
+  const rr = result.getBoundingClientRect();
+  const dr = remove.getBoundingClientRect();
+  return {
+    deleteAfterResult: dr.left >= rr.right - 2,
+    deleteInsideDots: dots.contains(remove)
+  };
+});
+if (!deleteAtEnd?.deleteAfterResult || deleteAtEnd?.deleteInsideDots) {
+  throw new Error("Investigation delete action is not isolated at the end of the row: " + JSON.stringify(deleteAtEnd));
+}
+await addedRadiology.locator("[data-delete-test]").click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#radiologyCards .test-card").length === expected,
+  radiologyCountBeforeAdd
+);
+
 const consultationPrefix = beta.locator('#consultCards [data-card="consultations-0"] .cockpit-consultation-prefix');
 await consultationPrefix.waitFor({ state: "visible" });
 if (!/Consultation|Konzílium/.test(await consultationPrefix.textContent())) {

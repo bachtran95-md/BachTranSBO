@@ -756,16 +756,13 @@
       }, 120);
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
     document.addEventListener("click", (event) => {
-      const selectedCaseRow = event.target?.closest?.("#patientTbody tr[data-id]");
-      const editingCaseDetails = event.target?.closest?.(
-        "#inlineCaseEditor, #patientForm input, #patientForm textarea, #patientForm select, #patientForm button"
-      );
+      // Patient switching is now an awaited autosave transaction in app.js.
+      // Do not force-refresh metadata while the old case is still being saved.
+      if (event.target?.closest?.("#patientTbody tr[data-id]")) return;
+
       setTimeout(() => {
         mirrorSelectedDisplayIntoInline({ force: false });
-        // Force a backend refresh only when the user actually selects a case.
-        // Never force-refresh while editing demographics/clinical controls,
-        // otherwise a delayed click refresh can overwrite in-progress Age/YOB/Arrival edits.
-        loadSelected({ force: Boolean(selectedCaseRow) && !editingCaseDetails });
+        loadSelected({ force: false });
         enhanceSexUi();
       }, 100);
     }, true);

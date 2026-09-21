@@ -546,9 +546,16 @@
     const id = selectedId();
     if (!id) return;
     const { payload, partialYob } = buildPayload();
-    if (partialYob) return;
-    window.BachSBOClinicalUi?.applyCaseMetadata?.(id, payload);
-    rowUpdate(payload);
+
+    // Canonical in-memory state must reflect that an incomplete/invalid YOB is
+    // unresolved immediately, while saveSelected() still blocks persistence of
+    // the partial value itself.
+    const canonicalPayload = partialYob
+      ? { ...payload, year_of_birth: null }
+      : payload;
+
+    window.BachSBOClinicalUi?.applyCaseMetadata?.(id, canonicalPayload);
+    rowUpdate(canonicalPayload);
   }
 
   function repairPatientLocalId(patient) {

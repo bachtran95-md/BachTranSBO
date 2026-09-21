@@ -335,6 +335,10 @@ function normalizeRadiologyEntry(entry) {
   if (entry.modality === undefined) entry.modality = "";
   if (entry.otherTest === undefined) entry.otherTest = "";
 
+  const genericRadiologyLabels = new Set(["radiology", "radiológia"]);
+  const legacyType = String(entry.type || "").trim();
+  const legacyTypeIsGeneric = genericRadiologyLabels.has(legacyType.toLowerCase());
+
   const legacyModality = String(entry.modality || "").trim().toLowerCase();
   if (["ultrahang", "uh", "ultrasound"].includes(legacyModality)) {
     entry.modality = "US";
@@ -346,9 +350,27 @@ function normalizeRadiologyEntry(entry) {
     entry.modality = "Contrast CT";
   }
 
-  if (!entry.bodyPart && !entry.modality && !entry.otherTest && (entry.type || "").trim()) {
+  // Older autosaves could persist the display fallback "Radiology" as if it
+  // were a user-entered custom modality. Repair that state instead of showing
+  // a phantom "Other / Radiology" input on the next render.
+  const otherIsGeneric = genericRadiologyLabels.has(
+    String(entry.otherTest || "").trim().toLowerCase()
+  );
+  if (
+    !String(entry.bodyPart || "").trim() &&
+    String(entry.modality || "").trim().toLowerCase() === "other" &&
+    otherIsGeneric
+  ) {
+    entry.modality = "";
+    entry.otherTest = "";
+    entry.type = "";
+  }
+
+  if (!entry.bodyPart && !entry.modality && !entry.otherTest && legacyType && !legacyTypeIsGeneric) {
     entry.modality = "other";
-    entry.otherTest = (entry.type || "").trim();
+    entry.otherTest = legacyType;
+  } else if (!entry.bodyPart && !entry.modality && !entry.otherTest && legacyTypeIsGeneric) {
+    entry.type = "";
   }
   return entry;
 }
@@ -1332,7 +1354,10 @@ function renderRadiologyCards(patient) {
       entry.bodyPart = body.value;
       entry.modality = modality.value;
       entry.otherTest = other.value;
-      entry.type = radiologyType(entry);
+      entry.type =
+        entry.bodyPart || entry.modality || entry.otherTest
+          ? radiologyType(entry)
+          : "";
       other.classList.toggle("hidden", entry.modality !== "other");
       card.querySelector(".radiology-grid").classList.toggle("has-other", entry.modality === "other");
       card.querySelector("[data-rad-label]").textContent = entry.type;
@@ -1560,7 +1585,10 @@ function collectTestDraftsFromDom(patient) {
     entry.bodyPart = card.querySelector("[data-body]")?.value || "";
     entry.modality = card.querySelector("[data-modality]")?.value || "";
     entry.otherTest = card.querySelector("[data-other]")?.value || "";
-    entry.type = radiologyType(entry);
+    entry.type =
+        entry.bodyPart || entry.modality || entry.otherTest
+          ? radiologyType(entry)
+          : "";
   });
 }
 

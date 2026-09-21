@@ -1694,6 +1694,10 @@ function updateDispositionVisibility() {
   document
     .getElementById("otherFields")
     .classList.toggle("hidden", value !== "other");
+
+  document
+    .getElementById("fixedSummaryFooterField")
+    ?.classList.toggle("hidden", value !== "discharged");
 }
 
 function renderRecommendations(patient) {
@@ -1749,10 +1753,11 @@ function syncFixedSummaryFooter() {
   if (field) field.value = SUMMARY_FIXED_FOOTER;
 }
 
-function summaryWithFixedFooter(summaryText) {
+function summaryWithFixedFooter(summaryText, disposition = "") {
   const main = String(summaryText || "").trim();
-  const footer = SUMMARY_FIXED_FOOTER.trim();
+  if (String(disposition || "").trim() !== "discharged") return main;
 
+  const footer = SUMMARY_FIXED_FOOTER.trim();
   if (!main) return footer;
   if (main.endsWith(footer)) return main;
 
@@ -1873,7 +1878,8 @@ async function finalizeSummary() {
   }
 
   const clipboardText = summaryWithFixedFooter(
-    patient.summaryFinalizedText || patient.summary || text
+    patient.summaryFinalizedText || patient.summary || text,
+    patient.disposition
   );
 
   try {

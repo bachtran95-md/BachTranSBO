@@ -406,6 +406,23 @@ if (!(await page.locator("#patientTbody").textContent()).includes("Existing smok
 await page.locator("#newSex").selectOption("F");
 await page.locator("#newYob").fill("1988");
 await page.locator("#newComplaint").fill("E2E synthetic complaint");
+await page.evaluate(() => {
+  const button = document.querySelector("#addPatientBtn");
+  const original = button?.onclick;
+  if (!button || typeof original !== "function") return;
+  button.onclick = async function (...args) {
+    window.__BACH_ADD_PATIENT_CALLED = true;
+    try {
+      const result = await original.apply(this, args);
+      window.__BACH_ADD_PATIENT_RESULT = "resolved";
+      return result;
+    } catch (error) {
+      window.__BACH_ADD_PATIENT_RESULT = "rejected";
+      window.__BACH_ADD_PATIENT_ERROR = String(error?.stack || error);
+      throw error;
+    }
+  };
+});
 await page.locator("#addPatientBtn").click();
 await page.waitForTimeout(500);
 const addPatientDiag = await page.evaluate(() => {
@@ -420,7 +437,10 @@ const addPatientDiag = await page.evaluate(() => {
     complaint: document.querySelector("#newComplaint")?.value || "",
     addDisabled: Boolean(document.querySelector("#addPatientBtn")?.disabled),
     addOnclickType: typeof document.querySelector("#addPatientBtn")?.onclick,
-    addOnclickSource: String(document.querySelector("#addPatientBtn")?.onclick || "").slice(0, 120)
+    addOnclickSource: String(document.querySelector("#addPatientBtn")?.onclick || "").slice(0, 120),
+    addCalled: Boolean(window.__BACH_ADD_PATIENT_CALLED),
+    addResult: window.__BACH_ADD_PATIENT_RESULT || "",
+    addError: window.__BACH_ADD_PATIENT_ERROR || ""
   };
 });
 if (addPatientDiag.rowCount !== 2) {

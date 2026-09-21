@@ -31,39 +31,33 @@
   const lang = () => document.documentElement.lang === "hu" ? "hu" : "en";
   const label = (en, hu) => lang() === "hu" ? hu : en;
 
-  function ageFromYob(yob) {
-    const y = Number(yob);
-    if (!Number.isInteger(y) || y < 1900 || y > YEAR) return "";
-    return String(YEAR - y);
-  }
-
-  function yobFromAge(age) {
-    const a = Number(String(age || "").replace(/[^0-9]/g, ""));
-    if (!Number.isInteger(a) || a < 0 || a > 130) return "";
-    return String(YEAR - a);
+  function clinicalUi() {
+    return window.BachSBOClinicalUi || null;
   }
 
   function normalizeYob(value) {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    const digits = raw.replace(/[^0-9]/g, "");
-    if (digits.length === 4) {
-      const y = Number(digits);
-      return Number.isInteger(y) && y >= 1900 && y <= YEAR ? String(y) : "";
-    }
-    if (digits.length === 2 || digits.length === 3) {
-      // Treat short values as age, matching the Add Case helper text "1955 or 55".
-      return yobFromAge(digits);
-    }
-    return "";
+    return clinicalUi()?.normalizeYob?.(value) || "";
+  }
+
+  function ageFromYob(yob) {
+    const value = clinicalUi()?.ageFromYob?.(yob);
+    return value === 0 ? "0" : String(value || "");
   }
 
   function normalizeSex(value) {
+    const canonical = clinicalUi()?.normalizeSex?.(value);
+    if (canonical) return canonical;
+
+    // Bootstrap-only fallback before app.js publishes the canonical helpers.
     const raw = String(value || "").trim().toLowerCase();
-    if (["f", "female", "woman", "nő", "no", "nőbeteg", "w"].includes(raw)) return "F";
     if (["m", "male", "man", "férfi", "ferfi", "férfibeteg"].includes(raw)) return "M";
+    if (["f", "female", "woman", "nő", "no", "nőbeteg", "w"].includes(raw)) return "F";
     if (["o", "other", "egyéb", "egyeb", "x", "nonbinary", "non-binary"].includes(raw)) return "O";
     return "";
+  }
+
+  function normalizeArrivalMode(value) {
+    return clinicalUi()?.normalizeArrivalMode?.(value) || "";
   }
 
   function sexLabel(value) {
@@ -282,42 +276,10 @@
     }
   }
 
-  function getSelectedDisplayDemographics() {
-    const row = selectedRow();
-    const tds = row ? [...row.querySelectorAll("td")] : [];
-    let sex = normalizeSex(tds[1]?.textContent || "");
-    let age = String(tds[2]?.textContent || "").match(/\d+/)?.[0] || "";
-
-    const subtitle = document.getElementById("recordSubtitle")?.textContent || "";
-    const subtitleParts = subtitle.split("•").map((x) => x.trim());
-    if (!sex && subtitleParts[0]) sex = normalizeSex(subtitleParts[0]);
-    if (!age && subtitleParts[1]) age = subtitleParts[1].match(/\d+/)?.[0] || "";
-
-    return { sex, age, yob: yobFromAge(age) };
-  }
-
-  function mirrorSelectedDisplayIntoInline({ force = false } = {}) {
-    if (!ensureUi()) return;
-    const id = selectedId();
-    if (!id || inlineDetailsLoadedFor(id)) return;
-    if (!force && isEditingCaseDetails()) return;
-
-    const { sex, yob } = getSelectedDisplayDemographics();
-    const sexEl = document.getElementById("iceSex");
-    const yobEl = document.getElementById("iceYob");
-    const ageEl = document.getElementById("iceAge");
-
-    if (sex && sexEl && (!sexEl.value || force)) {
-      sexEl.value = sex;
-      syncSexChoiceUi(sex);
-    }
-    if (yob && yobEl && (!yobEl.value || force)) {
-      yobEl.value = yob;
-      if (ageEl) ageEl.value = ageFromYob(yob);
-    }
-
-    const host = inlineHost();
-    if (host) host.dataset.pendingCaseId = id;
+  // Demographics are never reconstructed from rendered table text or subtitle.
+  // patient state in app.js is the only authority; loadSelected() renders from it.
+  function mirrorSelectedDisplayIntoInline() {
+    return;
   }
 
   function dischargeConditionTextFromStored(value) {
@@ -559,12 +521,13 @@
   }
 
   function buildPayload() {
-    const arrival = document.getElementById("iceArrival")?.value || "";
+    const arrival = normalizeArrivalMode(document.getElementById("iceArrival")?.value);
     const yobText = String(document.getElementById("iceYob")?.value || "").trim();
-    const yobNum = Number(yobText);
-    const validYob = Number.isInteger(yobNum) && yobNum >= 1900 && yobNum <= YEAR;
+    const normalizedYob = normalizeYob(yobText);
+    const validYob = Boolean(normalizedYob);
     const partialYob = Boolean(yobText) && !validYob;
-    document.getElementById("iceAge").value = validYob ? ageFromYob(yobNum) : "";
+    const age = document.getElementById("iceAge");
+    if (age) age.value = validYob ? ageFromYob(normalizedYob) : "";
     const disposition = document.getElementById("fDisposition")?.value || "";
     const discharge = getDischargeCondition();
     const payload = {
@@ -577,8 +540,8 @@
     if (disposition === "discharged") {
       payload.other_details = discharge ? `${DISCHARGE_PREFIX}${discharge}` : "";
     }
-    if (!yobText || validYob) payload.year_of_birth = validYob ? yobNum : null;
-    return { payload, partialYob };
+    if (!yobText || validYob) payload.year_of_birth = validYob ? Number(normalizedYob) : null;
+    return { payload, partialYob, normalizedYob };
   }
 
   function syncDraftIntoPatientState() {
@@ -650,36 +613,19 @@
 
   function mergeInlineDetailsIntoPatient(patient) {
     if (!patient) return patient;
-    if (patient.sex) patient.sex = normalizeSex(patient.sex) || patient.sex;
-    if (patient.yob) patient.yob = normalizeYob(patient.yob) || patient.yob;
-    if (patient.id === selectedId()) {
-      repairPatientLocalId(patient);
-      mirrorPatientIntoInline(patient);
+
+    // Persistence must consume canonical app state, never scrape demographics
+    // back out of the DOM. UI events update app state through applyCaseMetadata().
+    const metadata = clinicalUi()?.getCaseMetadata?.(patient.id);
+    if (metadata) {
+      patient.sex = normalizeSex(metadata.sex);
+      patient.yob = normalizeYob(metadata.year_of_birth);
+      patient.arrivalMode = normalizeArrivalMode(metadata.arrival_mode);
+      patient.arrivalOther = patient.arrivalMode === "other" ? metadata.arrival_other || "" : "";
     }
+
+    if (patient.id === selectedId()) repairPatientLocalId(patient);
     mergeDischargeConditionIntoPatient(patient);
-
-    if (patient.id !== selectedId() || !inlineDetailsLoadedFor(patient.id)) {
-      return patient;
-    }
-
-    const { payload, partialYob } = buildPayload();
-    if (partialYob) {
-      setStatus("Enter a 4-digit birth year before saving or generating.", "Mentés vagy generálás előtt adjon meg 4 jegyű születési évet.", true);
-      return patient;
-    }
-    patient.sex = payload.sex || "";
-    if (Object.prototype.hasOwnProperty.call(payload, "year_of_birth")) {
-      patient.yob = payload.year_of_birth ? String(payload.year_of_birth) : "";
-    }
-    patient.mainComplaint = payload.main_complaint || patient.mainComplaint || "";
-    patient.arrivalMode = payload.arrival_mode || "";
-    patient.arrivalOther = payload.arrival_other || "";
-    if ((document.getElementById("fDisposition")?.value || "") === "discharged") {
-      patient.disposition = "discharged";
-      patient.otherDetails = payload.other_details || "";
-    }
-    patient.updatedAt = new Date().toISOString();
-    rowUpdate(payload);
     return patient;
   }
 
@@ -854,6 +800,15 @@
       el.addEventListener("change", handler);
       el.addEventListener("blur", () => {
         if (id === "iceArrival") paintArrivalSelect(el);
+        if (id === "iceYob") {
+          const normalized = normalizeYob(el.value);
+          if (normalized) {
+            el.value = normalized;
+            const age = document.getElementById("iceAge");
+            if (age) age.value = ageFromYob(normalized);
+            syncDraftIntoPatientState();
+          }
+        }
         scheduleSave(50);
       });
     });

@@ -27,8 +27,8 @@ const backendMock = String.raw`
       physicalSkipped: true,
       tests: {
         labs: [entry("30000000-0000-4000-8000-000000000001")],
-        ekg: entry("30000000-0000-4000-8000-000000000002"),
-        gas: entry("30000000-0000-4000-8000-000000000003"),
+        ekgs: [entry("30000000-0000-4000-8000-000000000002")],
+        gases: [entry("30000000-0000-4000-8000-000000000003")],
         radiology: [{ ...entry("30000000-0000-4000-8000-000000000004"), bodyPart: "", modality: "", otherTest: "" }],
         consultations: [entry("30000000-0000-4000-8000-000000000005")]
       },
@@ -405,7 +405,7 @@ await page.evaluate(() => {
   const state = JSON.parse(localStorage.getItem(key) || "{}");
   const p = state?.patients?.[0];
   if (!p) return;
-  for (const entry of [p.tests?.ekg, p.tests?.gas, p.tests?.radiology?.[0]]) {
+  for (const entry of [p.tests?.ekgs?.[0], p.tests?.gases?.[0], p.tests?.radiology?.[0]]) {
     if (!entry) continue;
     entry.mode = "waiting";
     entry.text = "";
@@ -455,7 +455,7 @@ await beta.waitForFunction(() =>
   Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))
 );
 const pendingSummary = await caseRow.locator(".cockpit-test-summary").textContent();
-for (const expected of ["EKG", "AVG", "koponya Native CT", "Consultation · Kardiológia"]) {
+for (const expected of ["EKG 1", "AVG 1", "koponya Native CT", "Consultation · Kardiológia"]) {
   if (!pendingSummary.includes(expected)) {
     throw new Error(`Case list hid pending test ${expected}: ${pendingSummary}`);
   }
@@ -614,16 +614,16 @@ if ((await beta.locator("#fDischargeCondition").inputValue()) !== "Panaszmentes,
 // Regression from the uploaded recording: typing into a result must not remove
 // Beta's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();
-await beta.locator('[data-card="ekg"].cockpit-test-row').waitFor();
-if (await beta.locator('[data-card="ekg"] .test-save').isVisible()) {
+await beta.locator('[data-card="ekg-0"].cockpit-test-row').waitFor();
+if (await beta.locator('[data-card="ekg-0"] .test-save').isVisible()) {
   throw new Error("Beta still shows the redundant Save Result button");
 }
-await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("temporary EKG text");
-let testClasses = await beta.locator('[data-card="ekg"]').getAttribute("class");
+await beta.locator('[data-card="ekg-0"] textarea[data-text="ekg-0"]').fill("temporary EKG text");
+let testClasses = await beta.locator('[data-card="ekg-0"]').getAttribute("class");
 if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`EKG card lost compact layout while typing: ${testClasses}`);
 }
-await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("");
+await beta.locator('[data-card="ekg-0"] textarea[data-text="ekg-0"]').fill("");
 await beta.locator('[data-card="radiology-0"].cockpit-test-row').waitFor();
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("temporary radiology text");
 testClasses = await beta.locator('[data-card="radiology-0"]').getAttribute("class");
@@ -631,6 +631,34 @@ if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);
 }
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
+
+// Unified test menu order is clinically fixed and must retain the free-form Other option.
+const unifiedTestOptions = await beta.locator("#cockpitTestType option").evaluateAll((nodes) =>
+  nodes.map((node) => node.value)
+);
+const expectedUnifiedOrder = ["lab", "ekg", "gas", "imaging", "consultation", "other"];
+if (JSON.stringify(unifiedTestOptions) !== JSON.stringify(expectedUnifiedOrder)) {
+  throw new Error("Unexpected unified investigation order: " + JSON.stringify(unifiedTestOptions));
+}
+
+// EKG and AVG are multi-entry groups and must add with one click.
+const ekgCountBeforeAdd = await beta.locator('#ekgCard .test-card').count();
+await beta.locator("#cockpitTestType").selectOption("ekg");
+await beta.locator("#cockpitAddTest").click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#ekgCard .test-card").length === expected,
+  ekgCountBeforeAdd + 1
+);
+await beta.locator('#ekgCard .test-card').last().locator("[data-delete-test]").click();
+
+const gasCountBeforeAdd = await beta.locator('#gasCard .test-card').count();
+await beta.locator("#cockpitTestType").selectOption("gas");
+await beta.locator("#cockpitAddTest").click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#gasCard .test-card").length === expected,
+  gasCountBeforeAdd + 1
+);
+await beta.locator('#gasCard .test-card').last().locator("[data-delete-test]").click();
 
 // Unified Add Test must react to one selection + one click, with no hidden-button forwarding.
 const radiologyCountBeforeAdd = await beta.locator('#radiologyCards .test-card').count();

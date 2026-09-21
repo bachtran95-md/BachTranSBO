@@ -1464,7 +1464,7 @@
         // Keep the in-memory draft current immediately; only the network write
         // remains debounced.
         window.BachSBOClinicalUi?.commitCurrentDraft?.();
-        scheduleCaseAutosave(700);
+        scheduleCaseAutosave(2500);
       }
 
       setTimeout(syncRailState, 0);
@@ -1491,7 +1491,7 @@
         !event.target.disabled
       ) {
         window.BachSBOClinicalUi?.commitCurrentDraft?.();
-        scheduleCaseAutosave(100);
+        scheduleCaseAutosave(600);
       }
 
       setTimeout(syncRailState, 0);
@@ -1504,9 +1504,9 @@
         !event.target.readOnly &&
         event.target.type !== "button"
       ) {
+        // Keep blur lightweight: cache immediately, persist in the background.
         window.BachSBOClinicalUi?.commitCurrentDraft?.();
-        clearTimeout(caseAutosaveTimer);
-        void runCaseAutosave();
+        scheduleCaseAutosave(900);
       }
     }, true);
     document.addEventListener("click", (event) => {
@@ -1525,7 +1525,7 @@
         // Let the button's own handler mutate the case first, then capture and save.
         setTimeout(() => {
           window.BachSBOClinicalUi?.commitCurrentDraft?.();
-          scheduleCaseAutosave(80);
+          scheduleCaseAutosave(500);
         }, 0);
       }
 

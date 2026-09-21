@@ -57,12 +57,8 @@ jobs:
             echo "case-ui.js must not maintain an independent cases data path; demographics must use BachSBOClinicalUi/app state."
             exit 1
           fi
-          if ! grep -q 'action: "update_case_metadata"' backend.js; then
-            echo "backend.js is missing the secure update_case_metadata bridge."
-            exit 1
-          fi
-          if ! grep -q 'body?.action === "update_case_metadata"' supabase/functions/clinical-store/index.ts; then
-            echo "clinical-store is missing update_case_metadata."
+          if grep -R -E 'updateCaseMetadata|update_case_metadata|saveCaseMetadata' app.js case-ui.js backend.js cockpit-beta.js tests/browser-smoke.mjs supabase/functions/clinical-store/index.ts; then
+            echo "Metadata must persist through the canonical patient save path, not a separate metadata action."
             exit 1
           fi
           if grep -q "MutationObserver" cockpit-beta.js; then
@@ -123,6 +119,14 @@ jobs:
           fi
           if grep -E -q 'function (patientTestItems|patientProgress|progressFromVisibleForm|testEntryStatus)\(' cockpit-beta.js; then
             echo "cockpit-beta.js must not duplicate canonical investigation/progress logic."
+            exit 1
+          fi
+          if grep -E -q 'function (narrativeResolved|clinicalMetadata|validClinicalYob|validClinicalSex)\(' cockpit-beta.js; then
+            echo "cockpit-beta.js must not duplicate canonical workflow completion logic."
+            exit 1
+          fi
+          if ! grep -q 'getWorkflowStatus' app.js; then
+            echo "app.js must expose canonical workflow status."
             exit 1
           fi
           if grep -q 'Object.assign(current, result.patient)' app.js; then

@@ -5,6 +5,8 @@ let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
 const patientSaveQueues = new Map();
+let caseCounterRefreshPromise = null;
+let caseCounterLastCheckedAt = 0;
 const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
 const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
@@ -379,6 +381,40 @@ function nextPatientId() {
   }, 0);
 
   return String(maxId + 1).padStart(2, "0");
+}
+
+async function refreshShiftCaseCounter({ force = false } = {}) {
+  if (!backendReady || !state.shift) return null;
+  const getter = window.BachSBOBackend?.getShiftCaseCounter;
+  if (typeof getter !== "function") return null;
+
+  const now = Date.now();
+  if (!force && now - caseCounterLastCheckedAt < 2500) return null;
+  if (caseCounterRefreshPromise) return caseCounterRefreshPromise;
+
+  const shiftId = state.shift.id;
+  caseCounterRefreshPromise = (async () => {
+    try {
+      const live = await getter(shiftId);
+      if (!state.shift || state.shift.id !== shiftId) return null;
+
+      const nextCaseNumber = Number(live?.nextCaseNumber);
+      if (!Number.isInteger(nextCaseNumber) || nextCaseNumber < 1) return null;
+
+      state.shift.nextCaseNumber = nextCaseNumber;
+      const preview = document.getElementById("newId");
+      if (preview) preview.value = String(nextCaseNumber).padStart(2, "0");
+      caseCounterLastCheckedAt = Date.now();
+      return nextCaseNumber;
+    } catch (error) {
+      console.warn("Case counter refresh failed", error);
+      return null;
+    } finally {
+      caseCounterRefreshPromise = null;
+    }
+  })();
+
+  return caseCounterRefreshPromise;
 }
 
 function patientById(id) {
@@ -864,6 +900,10 @@ function setView(view) {
   currentView = view;
   renderApp();
 
+  if (view === "patients") {
+    void refreshShiftCaseCounter({ force: true });
+  }
+
   if (view === "learning") {
     renderLearningDashboard().catch(handleBackendError);
   }
@@ -947,6 +987,7 @@ function patientListStatusHtml(patient) {
 
 function renderPatients() {
   document.getElementById("newId").value = nextPatientId();
+  void refreshShiftCaseCounter();
 
   const tbody = document.getElementById("patientTbody");
   tbody.innerHTML = "";
@@ -2647,6 +2688,7 @@ async function bootstrap() {
     backendReady = true;
     closeModal();
     renderApp();
+    void refreshShiftCaseCounter({ force: true });
   } catch (error) {
     console.error(error);
     modal(`
@@ -2800,6 +2842,18 @@ document.getElementById("fSummary").addEventListener("input", () => {
   if (patient) {
     renderSummaryStatus(patient);
     refreshSummaryControls(patient);
+  }
+});
+
+window.addEventListener("focus", () => {
+  void refreshShiftCaseCounter({ force: true });
+});
+window.addEventListener("pageshow", () => {
+  void refreshShiftCaseCounter({ force: true });
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    void refreshShiftCaseCounter({ force: true });
   }
 });
 

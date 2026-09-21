@@ -324,18 +324,6 @@
     return window.BachSBOClinicalUi?.commitCurrentDraft?.() || null;
   }
 
-  function scheduleDischargeAutosave(delay = SAVE_DELAY_MS) {
-    clearTimeout(window.__iceDischargeTimer);
-    window.__iceDischargeTimer = setTimeout(() => {
-      commitDischargeDraft();
-      const save = window.BachSBOClinicalUi?.autosaveCurrentCase;
-      if (typeof save !== "function") return;
-      Promise.resolve(save()).catch((error) => {
-        console.warn("Discharge draft autosave failed", error);
-      });
-    }, delay);
-  }
-
   function isEditingCaseDetails() {
     const active = document.activeElement;
     return Boolean(active && (active.closest?.("#inlineCaseEditor") || active.id === "fMainComplaint" || active.id === "fDischargeCondition"));
@@ -569,45 +557,31 @@
   async function saveSelected() {
     const id = selectedId();
     if (!id || !inlineDetailsLoadedFor(id)) return;
+
     const { payload, partialYob } = buildPayload();
     if (partialYob) {
-      setStatus("Enter a 4-digit birth year between 1900 and current year.", "Adjon meg 4 jegyű születési évet 1900 és az aktuális év között.", false);
+      setStatus(
+        "Enter a 4-digit birth year between 1900 and current year.",
+        "Adjon meg 4 jegyű születési évet 1900 és az aktuális év között.",
+        false
+      );
       rowUpdate(payload);
       return;
     }
+
     try {
       setStatus("Saving case details…", "Esetadatok mentése…");
-      const clinicalUi = window.BachSBOClinicalUi;
-      if (!clinicalUi?.saveCaseMetadata) {
+      syncDraftIntoPatientState();
+
+      const save = window.BachSBOClinicalUi?.autosaveCurrentCase;
+      if (typeof save !== "function") {
         throw new Error(label(
-          "Single-source case metadata save is not available.",
-          "Az egységes esetadat-mentés nem érhető el."
+          "Canonical case autosave is not available.",
+          "Az egységes eset-automatikus mentés nem érhető el."
         ));
       }
-      const metadata = {
-        sex: payload.sex,
-        yearOfBirth: Object.prototype.hasOwnProperty.call(payload, "year_of_birth")
-          ? payload.year_of_birth
-          : null,
-        mainComplaint: payload.main_complaint || "",
-        arrivalMode: payload.arrival_mode || "",
-        arrivalOther: payload.arrival_other || "",
-        disposition: payload.disposition || "",
-        dischargeCondition: payload.discharge_condition || ""
-      };
-      const result = await clinicalUi.saveCaseMetadata(id, metadata);
-      const saved = result?.metadata || {};
-      if (Object.prototype.hasOwnProperty.call(saved, "main_complaint")) {
-        const complaint = document.getElementById("fMainComplaint");
-        if (complaint) complaint.value = saved.main_complaint || "";
-      }
-      if (Object.prototype.hasOwnProperty.call(saved, "arrival_other")) {
-        const arrivalOther = document.getElementById("iceArrivalOther");
-        if (arrivalOther) arrivalOther.value = saved.arrival_other || "";
-      }
-      const authoritative = Object.keys(saved).length ? saved : payload;
-      window.BachSBOClinicalUi?.applyCaseMetadata?.(id, authoritative);
-      rowUpdate(authoritative);
+
+      await save();
       metadataDirtyCaseId = "";
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
@@ -616,8 +590,12 @@
       metadataDirtyCaseId = id;
       lastSaveFailedAt = Date.now();
       const detail = error?.message ? ` (${error.message})` : "";
-      setStatus(`Could not save case details${detail}.`, `Nem sikerült menteni az esetadatokat${detail}.`, true);
-      console.warn("Inline case save failed", error);
+      setStatus(
+        `Could not save case details${detail}.`,
+        `Nem sikerült menteni az esetadatokat${detail}.`,
+        true
+      );
+      console.warn("Inline case autosave failed", error);
     }
   }
 
@@ -706,7 +684,6 @@
         commitDischargeDraft();
         syncDraftIntoPatientState();
         scheduleSave(100);
-        scheduleDischargeAutosave(100);
       });
     }
     const discharge = document.getElementById("fDischargeCondition");
@@ -718,11 +695,9 @@
         commitDischargeDraft();
         syncDraftIntoPatientState();
         scheduleSave(SAVE_DELAY_MS);
-        scheduleDischargeAutosave(SAVE_DELAY_MS);
       });
       discharge.addEventListener("blur", () => {
         scheduleSave(50);
-        scheduleDischargeAutosave(50);
       });
     }
   }

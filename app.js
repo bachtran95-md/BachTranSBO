@@ -109,7 +109,7 @@ function t(key) {
 }
 
 function applyLanguage(lang) {
-  uiLang = I18N[lang] ? lang : "en";
+  uiLang = I18N[lang] ? lang : "hu";
   document.documentElement.lang = uiLang === "hu" ? "hu" : "en";
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const value = I18N[uiLang][el.dataset.i18n];
@@ -1126,7 +1126,7 @@ function renderDynamicCards(hostId, entries, label, prefix, placeholder) {
 
         <button type="button" class="btn small primary test-save" data-save="${key}"
           ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>
-          SAVE RESULT
+          ${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}
         </button>
       </div>
     `;
@@ -2072,7 +2072,7 @@ async function generateSkillSuggestion() {
   const button = document.getElementById("generateSkillSuggestionBtn");
   button.disabled = true;
   const old = button.textContent;
-  button.textContent = "ANALYZING…";
+  button.textContent = uiLang === "hu" ? "ELEMZÉS…" : "ANALYZING…";
 
   try {
     await window.BachSBOBackend.analyzeSkill();

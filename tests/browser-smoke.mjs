@@ -617,11 +617,24 @@ const expectedYob = String(new Date().getFullYear() - 44);
 
 // Invalid/incomplete YOB must keep Klinikum orange; Age itself is derived and
 // is not an independent requirement.
-await beta.locator("#iceYob").fill("12");
+await beta.locator("#iceYob").fill("1");
 await beta.locator("#iceYob").dispatchEvent("input");
 await beta.waitForFunction(() =>
   document.querySelector('[data-cockpit-tab="clinical"]')?.classList.contains("has-summary-gap")
 );
+
+// Two-digit YOB is a birth-year shorthand everywhere, never an age.
+// In 2026, for example, 55 means 1955 rather than "55 years old".
+await beta.locator("#iceYob").fill("55");
+await beta.locator("#iceYob").dispatchEvent("change");
+await beta.locator("#iceYob").blur();
+await beta.waitForFunction(() => {
+  const currentYear = new Date().getFullYear();
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  return document.querySelector("#iceYob")?.value === "1955" &&
+    document.querySelector("#iceAge")?.value === String(currentYear - 1955) &&
+    String(meta?.year_of_birth || "") === "1955";
+});
 
 await beta.locator("#iceYob").fill(expectedYob);
 await beta.locator("#iceYob").dispatchEvent("change");
@@ -658,6 +671,18 @@ await beta.waitForFunction(() => document.querySelector("#iceAge")?.value === "4
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
+
+// Klinikum completion must come from canonical patient demographics, with Age
+// derived from YOB and no second demographic state in the DOM.
+await beta.waitForFunction(() => {
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  const clinicalTab = document.querySelector('[data-cockpit-tab="clinical"]');
+  return meta?.sex === "F" &&
+    String(meta?.year_of_birth || "") === String(new Date().getFullYear() - 44) &&
+    meta?.arrival_mode === "omsz" &&
+    clinicalTab &&
+    !clinicalTab.classList.contains("has-summary-gap");
+});
 
 // Single-source invariant: the app patient model and Esetlista must change
 // immediately, before the 900ms autosave reaches the backend.

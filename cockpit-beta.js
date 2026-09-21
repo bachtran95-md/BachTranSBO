@@ -319,25 +319,18 @@
         </div>
       </div>
 
-      <div class="cockpit-rail-card cockpit-paste-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitPasteTitle"></strong>
-            <div class="cockpit-rail-sub" id="cockpitPasteSub"></div>
-          </div>
-        </div>
-        <div class="cockpit-rail-body">
-          <textarea id="cockpitPasteText" class="cockpit-paste-text" maxlength="30000"></textarea>
-          <button class="btn cockpit-wide-btn" id="cockpitExtractText" type="button"></button>
-          <div id="cockpitExtractStatus" class="cockpit-status"></div>
-          <div id="cockpitExtractPreview"></div>
-        </div>
-      </div>
     `;
     grid.appendChild(rail);
 
     document.getElementById("cockpitAnalyzeCase")?.addEventListener("click", analyzeCurrentCase);
     document.getElementById("cockpitExtractText")?.addEventListener("click", extractPastedText);
+    document.getElementById("cockpitDataEntryBtn")?.addEventListener("click", openDataEntryDialog);
+    document.getElementById("cockpitDataEntryClose")?.addEventListener("click", closeDataEntryDialog);
+    document.getElementById("cockpitDataEntryOverlay")?.addEventListener("click", (event) => {
+      if (event.target?.id === "cockpitDataEntryOverlay") closeDataEntryDialog();
+    });
+    document.getElementById("cockpitExtractConfirmCancel")?.addEventListener("click", closeExtractionConfirmation);
+    document.getElementById("cockpitExtractConfirmApply")?.addEventListener("click", applyAcceptedExtraction);
 
     const toggle = document.createElement("button");
     toggle.id = "cockpitAiToggle";
@@ -372,12 +365,13 @@
         "Válasszon aktív esetet, majd indítsa az asszisztenst. A javaslatok nem módosítják automatikusan a dokumentációt."
       )
     );
-    set("cockpitPasteTitle", label("Paste note / Heidi text", "Jegyzet / Heidi szöveg"));
+    set("cockpitPasteTitle", label("✨ AI-assisted data entry", "✨ AI-assisted adatbevitel"));
+    set("cockpitDataEntryBtn", label("✨ AI DATA ENTRY", "✨ AI ADATBEVITEL"));
     set(
       "cockpitPasteSub",
       label(
-        "Extract documented facts first; review before applying.",
-        "Először dokumentált tények kinyerése; alkalmazás előtt ellenőrizendő."
+        "Paste a note or Heidi text. Review every extracted fact before writing it to the chart.",
+        "Illessze be a jegyzetet vagy Heidi szöveget. Minden kinyert tényt ellenőrizzen a dokumentációba írás előtt."
       )
     );
     set("cockpitExtractText", label("EXTRACT FACTS", "TÉNYEK KINYERÉSE"));
@@ -541,9 +535,11 @@
     tabs?.classList.toggle("hidden", !hasCase);
 
     const analyze = document.getElementById("cockpitAnalyzeCase");
+    const dataEntry = document.getElementById("cockpitDataEntryBtn");
     const extract = document.getElementById("cockpitExtractText");
 
     if (analyze) analyze.disabled = !hasCase || assistantBusy;
+    if (dataEntry) dataEntry.disabled = !hasCase || assistantBusy;
     if (extract) extract.disabled = !hasCase || assistantBusy;
     renderDocumentationReview();
 
@@ -760,6 +756,64 @@
     }
   }
 
+  function openDataEntryDialog() {
+    const id = selectedCaseId();
+    if (!id) return;
+
+    const overlay = document.getElementById("cockpitDataEntryOverlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("cockpit-data-entry-open");
+    document.getElementById("cockpitPasteText")?.focus();
+  }
+
+  function closeDataEntryDialog() {
+    if (assistantBusy) return;
+    closeExtractionConfirmation();
+    const overlay = document.getElementById("cockpitDataEntryOverlay");
+    if (!overlay) return;
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("cockpit-data-entry-open");
+  }
+
+  function closeExtractionConfirmation() {
+    const overlay = document.getElementById("cockpitExtractConfirmOverlay");
+    if (!overlay) return;
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  function acceptedExtractionNodes() {
+    const preview = document.getElementById("cockpitExtractPreview");
+    if (!preview) return [];
+    return [...preview.querySelectorAll(".cockpit-extract-item")]
+      .filter((node) => node.dataset.decision === "accept" && node.dataset.applied !== "true");
+  }
+
+  function requestExtractionApplyConfirmation() {
+    if (assistantBusy) return;
+    const accepted = acceptedExtractionNodes();
+    if (!accepted.length) return;
+
+    const overlay = document.getElementById("cockpitExtractConfirmOverlay");
+    const title = document.getElementById("cockpitExtractConfirmTitle");
+    const textNode = document.getElementById("cockpitExtractConfirmText");
+    const apply = document.getElementById("cockpitExtractConfirmApply");
+    if (!overlay || !textNode || !apply) return;
+
+    if (title) title.textContent = label("Confirm AI-assisted entry", "AI-assisted adatbevitel megerősítése");
+    textNode.textContent = label(
+      `${accepted.length} accepted item(s) will be written to the selected patient's chart. Please confirm after reviewing them.`,
+      `${accepted.length} elfogadott elem kerül beírásra a kiválasztott beteg dokumentációjába. Ellenőrzés után erősítse meg.`
+    );
+    apply.textContent = label("CONFIRM AND WRITE", "MEGERŐSÍTÉS ÉS BEÍRÁS");
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+
   async function extractPastedText() {
     if (assistantBusy) return;
     const text = document.getElementById("cockpitPasteText")?.value || "";
@@ -817,6 +871,7 @@
 
   async function applyAcceptedExtraction() {
     if (assistantBusy) return;
+    closeExtractionConfirmation();
     const preview = document.getElementById("cockpitExtractPreview");
     const status = document.getElementById("cockpitExtractStatus");
     const state = extractionPreviewState;
@@ -838,8 +893,7 @@
       return;
     }
 
-    const selected = [...preview.querySelectorAll(".cockpit-extract-item")]
-      .filter((node) => node.dataset.decision === "accept" && node.dataset.applied !== "true")
+    const selected = acceptedExtractionNodes()
       .map((node) => {
         const index = Number(node.dataset.index);
         const item = structuredClone(state.items[index]);
@@ -948,7 +1002,7 @@
       });
     });
 
-    document.getElementById("cockpitApplyAccepted")?.addEventListener("click", applyAcceptedExtraction);
+    document.getElementById("cockpitApplyAccepted")?.addEventListener("click", requestExtractionApplyConfirmation);
     renderDocumentationReview();
     refreshExtractionApplyButton();
   }
@@ -1367,6 +1421,7 @@
       const extraction = document.getElementById("cockpitExtractPreview");
       if (extraction) extraction.innerHTML = "";
       extractionPreviewState = null;
+      closeDataEntryDialog();
       renderDocumentationReview();
       enhanceDispositionUi();
       loadAssistantStateForCurrentCase();

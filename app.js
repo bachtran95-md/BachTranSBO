@@ -1478,6 +1478,7 @@ function renderPatients() {
   } else {
     document.getElementById("patientForm").classList.add("hidden");
     document.getElementById("noPatientSelected").classList.remove("hidden");
+    document.getElementById("normalRawDataInbox")?.classList.add("hidden");
     document.getElementById("recordTitle").textContent = uiLang === "hu" ? "Eset részletei" : "Case detail";
     document.getElementById("recordSubtitle").textContent = t("selectCasePrompt");
     document.getElementById("patientStatusBadge").innerHTML = "";
@@ -1674,6 +1675,7 @@ function loadPatientForm() {
 
   document.getElementById("patientForm").classList.remove("hidden");
   document.getElementById("noPatientSelected").classList.add("hidden");
+  document.getElementById("normalRawDataInbox")?.classList.remove("hidden");
 
   document.getElementById("recordTitle").textContent =
     `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId}`;

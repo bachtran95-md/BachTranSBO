@@ -7,6 +7,8 @@ let currentView = "patients";
 const patientSaveQueues = new Map();
 let caseCounterRefreshPromise = null;
 let caseCounterLastCheckedAt = 0;
+let passwordReauthTimer = null;
+let passwordReauthInProgress = false;
 const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
 const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
@@ -996,6 +998,7 @@ async function changeAdminPassword() {
     document.getElementById("newAdminPassword").value = "";
     document.getElementById("confirmAdminPassword").value = "";
     message.textContent = uiLang === "hu" ? "A jelszó sikeresen módosítva." : "Password changed successfully.";
+    schedulePasswordReauth();
   } catch (error) {
     message.textContent = error?.message || (uiLang === "hu" ? "A jelszó módosítása sikertelen." : "Could not change password.");
   } finally {
@@ -2235,6 +2238,7 @@ function endShiftStep2() {
       selectedPatientId = null;
       closeModal();
       renderApp();
+      schedulePasswordReauth();
     } catch (error) {
       endFinal.disabled = false;
       handleBackendError(error);
@@ -2608,7 +2612,70 @@ async function generateSkillSuggestion() {
   }
 }
 
+function clearPasswordReauthTimer() {
+  if (passwordReauthTimer) {
+    clearTimeout(passwordReauthTimer);
+    passwordReauthTimer = null;
+  }
+}
+
+function schedulePasswordReauth() {
+  clearPasswordReauthTimer();
+  if (!backendReady || !currentUser?.id) return;
+
+  const status = window.BachSBOBackend.getPasswordReauthStatus(currentUser.id);
+  if (status.required) {
+    queueMicrotask(() => void enforcePasswordReauth());
+    return;
+  }
+
+  // Re-check at the deadline instead of blindly signing out. Another tab may
+  // have completed a fresh password authentication in the meantime.
+  const delay = Math.max(250, Number(status.remainingMs || 0) + 25);
+  passwordReauthTimer = setTimeout(() => void enforcePasswordReauth(), delay);
+}
+
+async function enforcePasswordReauth() {
+  if (passwordReauthInProgress || !currentUser?.id) return;
+
+  const status = window.BachSBOBackend.getPasswordReauthStatus(currentUser.id);
+  if (!status.required) {
+    schedulePasswordReauth();
+    return;
+  }
+
+  passwordReauthInProgress = true;
+  clearPasswordReauthTimer();
+
+  // Preserve the current draft when possible before locking the session.
+  try {
+    if (backendReady && stateDirty && state.shift && selectedPatientId) {
+      await persistNow({
+        reloadForm: false,
+        silentAutosave: true,
+        allowIncompleteWorkflow: true
+      });
+    }
+  } catch (error) {
+    console.warn("Autosave before password reauthentication failed.", error);
+  }
+
+  try {
+    await window.BachSBOBackend.requirePasswordReauth(currentUser.id);
+  } catch (error) {
+    console.error("Password reauthentication sign-out failed.", error);
+  } finally {
+    state = defaultState();
+    selectedPatientId = null;
+    currentUser = null;
+    backendReady = false;
+    passwordReauthInProgress = false;
+    window.location.reload();
+  }
+}
+
 async function signOut() {
+  clearPasswordReauthTimer();
   try {
     await window.BachSBOBackend.signOut();
     state = defaultState();
@@ -2635,6 +2702,7 @@ function showSignIn() {
   modal(uiLang === "hu" ? `
     <h3>Admin bejelentkezés</h3>
     <p class="subtle">${esc(adminEmail)}</p>
+    <p class="subtle">Biztonsági okból 60 percenként ismételt jelszavas bejelentkezés szükséges.</p>
     <div class="field">
       <label>Jelszó</label>
       <input id="authPassword" type="password" autocomplete="current-password"
@@ -2647,6 +2715,7 @@ function showSignIn() {
   ` : `
     <h3>Admin sign in</h3>
     <p class="subtle">${esc(adminEmail)}</p>
+    <p class="subtle">For security, password sign-in is required again every 60 minutes.</p>
     <div class="field">
       <label>Password</label>
       <input id="authPassword" type="password" autocomplete="current-password"
@@ -2714,6 +2783,7 @@ async function bootstrap() {
     backendReady = true;
     closeModal();
     renderApp();
+    schedulePasswordReauth();
     void refreshShiftCaseCounter({ force: true });
   } catch (error) {
     console.error(error);

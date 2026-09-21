@@ -43,7 +43,7 @@ const I18N = {
     additionalNote:"Additional note", outcome:"Outcome", details:"Details",
     caseSummary:"5. Case summary",
     summaryInfo:"Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.",
-    generateSummary:"✨ GENERATE SUMMARY", summaryEditable:"Summary — editable",
+    generateSummary:"GENERATE SUMMARY", summaryEditable:"Summary — editable",
     finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE", autosaveHint:"Autosave active",
     diagnosesNote:"Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.",
     learningDesc:"Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.",
@@ -94,7 +94,7 @@ const I18N = {
     additionalNote:"Kiegészítő megjegyzés", outcome:"Kimenetel", details:"Részletek",
     caseSummary:"5. Összefoglaló",
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
-    generateSummary:"✨ ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
+    generateSummary:"ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
     finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE", autosaveHint:"Automatikus mentés aktív",
     diagnosesNote:"Csak az orvos által rögzített diagnózisok. Az összefoglaló nem állíthat fel új diagnózist a vizsgálati eredményekből.",
     learningDesc:"Orvos által jóváhagyott tanulás a véglegesített összefoglalókból. A rendszer nem módosítja automatikusan a fő Skill-t.",
@@ -1686,10 +1686,11 @@ async function generateSummary() {
   commitFilledTestResults(patient);
 
   const button = document.getElementById("generateSummaryBtn");
-  const oldLabel = button.textContent;
+  const buttonLabel = document.getElementById("generateSummaryLabel");
+  const oldLabel = buttonLabel?.textContent || "";
   button.dataset.busy = "true";
   button.disabled = true;
-  button.textContent = uiLang === "hu" ? "GENERÁLÁS…" : "GENERATING…";
+  if (buttonLabel) buttonLabel.textContent = uiLang === "hu" ? "GENERÁLÁS…" : "GENERATING…";
 
   try {
     // Persist first so the AI only sees the de-identified database copy.
@@ -1722,7 +1723,7 @@ async function generateSummary() {
     handleBackendError(error);
   } finally {
     button.dataset.busy = "false";
-    button.textContent = oldLabel;
+    if (buttonLabel) buttonLabel.textContent = oldLabel;
     refreshSummaryControls(patient);
   }
 }

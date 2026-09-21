@@ -563,26 +563,97 @@ function narrativeWaitingLabels(patient) {
     .map(([, config]) => t(config.labelKey));
 }
 
-function dischargeConditionWaitingLabels(patient) {
-  if (
-    patient?.disposition === "discharged" &&
-    !String(patient.dischargeCondition || "").trim()
-  ) {
-    return [
-      uiLang === "hu"
-        ? "Milyen állapotban, panasz?"
-        : "Condition / symptoms at discharge"
-    ];
+function workflowStatus(patient) {
+  if (!patient) {
+    return {
+      sections: {
+        clinical: { complete: false, blockers: [] },
+        tests: { complete: false, blockers: [] },
+        course: { complete: false, blockers: [] },
+        disposition: { complete: false, blockers: [] }
+      },
+      blockers: [],
+      summaryReady: false
+    };
   }
-  return [];
+
+  const clinicalBlockers = [];
+  if (!String(patient.mainComplaint || "").trim()) clinicalBlockers.push(t("mainComplaint"));
+  if (!normalizeSex(patient.sex)) clinicalBlockers.push(t("sex"));
+  if (!normalizeYob(patient.yob)) clinicalBlockers.push(t("yob"));
+
+  const arrivalMode = normalizeArrivalMode(patient.arrivalMode);
+  if (!arrivalMode) {
+    clinicalBlockers.push(uiLang === "hu" ? "SBO-ra érkezés módja" : "Arrival to SBO");
+  } else if (arrivalMode === "other" && !String(patient.arrivalOther || "").trim()) {
+    clinicalBlockers.push(uiLang === "hu" ? "Érkezés részletei" : "Arrival details");
+  }
+
+  for (const key of ["complaint", "history"]) {
+    if (narrativeStatus(patient, key) === "waiting") {
+      clinicalBlockers.push(t(NARRATIVE_FIELDS[key].labelKey));
+    }
+  }
+
+  const testsBlockers = [];
+  if (narrativeStatus(patient, "physical") === "waiting") {
+    testsBlockers.push(t(NARRATIVE_FIELDS.physical.labelKey));
+  }
+  testsBlockers.push(...waitingLabels(patient));
+
+  const courseBlockers = [];
+  for (const key of ["therapy", "course"]) {
+    if (narrativeStatus(patient, key) === "waiting") {
+      courseBlockers.push(t(NARRATIVE_FIELDS[key].labelKey));
+    }
+  }
+
+  const dispositionBlockers = [];
+  if (narrativeStatus(patient, "diagnoses") === "waiting") {
+    dispositionBlockers.push(t(NARRATIVE_FIELDS.diagnoses.labelKey));
+  }
+
+  const disposition = String(patient.disposition || "").trim();
+  if (!disposition) {
+    dispositionBlockers.push(t("disposition"));
+  } else if (disposition === "discharged") {
+    if (!String(patient.dischargeCondition || "").trim()) {
+      dispositionBlockers.push(
+        uiLang === "hu"
+          ? "Milyen állapotban, panasz?"
+          : "Condition / symptoms at discharge"
+      );
+    }
+    const hasRecommendation = (patient.recommendations || [])
+      .some((value) => String(value || "").trim());
+    if (!hasRecommendation) dispositionBlockers.push(t("homePlan"));
+  } else if (disposition === "admitted") {
+    if (!String(patient.ward || "").trim()) dispositionBlockers.push(t("ward"));
+  } else if (disposition === "other") {
+    if (!String(patient.otherOutcome || "").trim()) dispositionBlockers.push(t("outcome"));
+  }
+
+  const sections = {
+    clinical: { complete: clinicalBlockers.length === 0, blockers: clinicalBlockers },
+    tests: { complete: testsBlockers.length === 0, blockers: testsBlockers },
+    course: { complete: courseBlockers.length === 0, blockers: courseBlockers },
+    disposition: { complete: dispositionBlockers.length === 0, blockers: dispositionBlockers }
+  };
+  const blockers = Object.values(sections).flatMap((section) => section.blockers);
+
+  return {
+    sections,
+    blockers,
+    summaryReady: blockers.length === 0
+  };
 }
 
 function workflowBlockers(patient) {
-  return [
-    ...narrativeWaitingLabels(patient),
-    ...waitingLabels(patient),
-    ...dischargeConditionWaitingLabels(patient)
-  ];
+  return workflowStatus(patient).blockers;
+}
+
+function getWorkflowStatus(caseId = selectedPatientId) {
+  return structuredClone(workflowStatus(patientById(caseId)));
 }
 
 function persistenceValidationError(patient) {
@@ -2744,7 +2815,8 @@ window.BachSBOClinicalUi = Object.freeze({
   normalizeArrivalMode,
   testEntryStatus: entryStatus,
   getPatientSnapshot,
-  getPatientProgress
+  getPatientProgress,
+  getWorkflowStatus
 });
 
 function flash(message) {

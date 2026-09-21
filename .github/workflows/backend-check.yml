@@ -73,8 +73,12 @@ jobs:
             echo "beta.html must load cockpit-beta.js."
             exit 1
           fi
-          if grep -q 'cockpit-beta.js' index.html; then
-            echo "Production index.html must remain on the stable UI."
+          if ! grep -q 'cockpit-beta.js' index.html; then
+            echo "Production index.html must load the promoted cockpit UI."
+            exit 1
+          fi
+          if grep -q 'cockpit-beta.js' recovery.html; then
+            echo "recovery.html must remain on the pre-promotion UI."
             exit 1
           fi
           if ! grep -q 'action: "delete_case"' backend.js; then

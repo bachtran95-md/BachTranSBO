@@ -234,6 +234,35 @@ missing_information lists only critical unknown prerequisites relevant to that i
 source_urls may contain ONLY exact URLs included in the evidence bundle. For a non-missing-information recommendation, include at least one supporting source URL when available.
 Do not include duplicate recommendations.`;
 
+function validateExtractionProposal(data: any, source: string) {
+  if (!data || !Array.isArray(data.items) || !Array.isArray(data.warnings)) {
+    throw new Error("Invalid analysis response.");
+  }
+
+  const validItems = [];
+  let withheld = Math.max(0, data.items.length - 40);
+  for (const item of data.items.slice(0, 40)) {
+    try {
+      const validated = core.validateProposal({ items: [item], warnings: [] }, source);
+      if (validated.items[0]) validItems.push(validated.items[0]);
+    } catch {
+      // Fail closed per item instead of discarding the whole extraction.
+      withheld += 1;
+    }
+  }
+
+  const warnings = data.warnings
+    .filter((value: unknown) => typeof value === "string")
+    .slice(0, 19);
+  if (withheld) {
+    warnings.push(
+      `${withheld} extracted item(s) were withheld because their source evidence could not be verified exactly.`,
+    );
+  }
+
+  return core.validateProposal({ items: validItems, warnings }, source);
+}
+
 function cleanTest(entry: any) {
   const testFields = [
     "type",
@@ -605,6 +634,7 @@ export async function handler(req: Request) {
     return json({ error: "Owner authentication required." }, 401);
   }
 
+  let stage = "request";
   try {
     if (Number(req.headers.get("content-length") || 0) > 180000) {
       return json({ error: "Request too large." }, 413);
@@ -626,6 +656,7 @@ export async function handler(req: Request) {
       return json({ error: "A saved case is required." }, 400);
     }
 
+    stage = "case_access";
     const db = serviceClient();
     const owned = await verifyOwnedCase(db, user.id, body.caseId);
 
@@ -703,7 +734,9 @@ export async function handler(req: Request) {
         return json({ error: "Paste 1–30,000 characters." }, 400);
       }
 
+      stage = "privacy_filter";
       const source = await deidentifyAssistantText(body.text);
+      stage = "extraction_model";
       const { result, model } = await modelCall(
         extractionInstructions,
         source,
@@ -719,7 +752,8 @@ export async function handler(req: Request) {
         },
       );
 
-      const proposal = core.validateProposal(
+      stage = "response_validation";
+      const proposal = validateExtractionProposal(
         JSON.parse(responseText(result)),
         source,
       );
@@ -826,11 +860,29 @@ export async function handler(req: Request) {
       blocks: evidence.blocks,
       stale: false,
     });
-  } catch {
+  } catch (error) {
+    console.error("Case Assistant failed", {
+      stage,
+      message: error instanceof Error ? error.message : String(error),
+    });
+
+    const messages: Record<string, string> = {
+      case_access:
+        "Case Assistant could not verify access to this saved case. No clinical fields were changed.",
+      privacy_filter:
+        "Case Assistant privacy filtering could not be completed. No clinical fields were changed.",
+      extraction_model:
+        "Case Assistant AI extraction could not be completed. Check model/API access. No clinical fields were changed.",
+      response_validation:
+        "Case Assistant returned an unusable extraction response. No clinical fields were changed.",
+    };
+
     return json(
       {
         error:
+          messages[stage] ||
           "Analysis could not be completed. Privacy filtering, model access, guideline retrieval or assistant state storage failed. No clinical fields were changed.",
+        code: `case_assistant_${stage}_failed`,
       },
       502,
     );

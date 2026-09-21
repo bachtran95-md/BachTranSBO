@@ -63,11 +63,11 @@
     const tests = patient?.tests || {};
     return [
       ...(tests.labs || []).map((entry, index) => ({ entry, name: `Lab ${index + 1}` })),
-      ...(tests.ekg ? [{ entry: tests.ekg, name: "EKG" }] : []),
-      ...(tests.gas ? [{
-        entry: tests.gas,
-        name: /\bVVG\b/i.test(String(tests.gas.text || "")) ? "VVG" : "AVG"
-      }] : []),
+      ...(tests.ekgs || []).map((entry, index) => ({ entry, name: `EKG ${index + 1}` })),
+      ...(tests.gases || []).map((entry, index) => ({
+        entry,
+        name: `${/\bVVG\b/i.test(String(entry?.text || "")) ? "VVG" : "AVG"} ${index + 1}`
+      })),
       ...(tests.radiology || []).map((entry, index) => ({ entry, name: radiologyLabel(entry, index) })),
       ...(tests.consultations || []).map((entry, index) => {
         const specialty = String(entry?.type || "").trim();
@@ -1125,7 +1125,9 @@
     if (type) {
       const optionLabels = {
         lab: label("Lab", "Labor"),
-        imaging: label("Imaging", "Képalkotó"),
+        ekg: "EKG",
+        gas: "AVG",
+        imaging: label("Radiology", "Radiológia"),
         consultation: label("Consultation", "Konzílium"),
         other: label("Other", "Egyéb")
       };
@@ -1271,7 +1273,9 @@
         <div class="cockpit-add-test-controls">
           <select id="cockpitTestType" aria-label="${label("Test type", "Vizsgálat típusa")}">
             <option value="lab">Lab</option>
-            <option value="imaging">Imaging</option>
+            <option value="ekg">EKG</option>
+            <option value="gas">AVG</option>
+            <option value="imaging">Radiology</option>
             <option value="consultation">Consultation</option>
             <option value="other">Other</option>
           </select>

@@ -311,7 +311,19 @@
           <span class="cockpit-ai-badge">AI · <span id="cockpitAssistantCount">0</span></span>
         </div>
         <div class="cockpit-rail-body">
-          <button class="btn primary cockpit-wide-btn" id="cockpitAnalyzeCase" type="button"></button>
+          <button class="btn cockpit-wide-btn cockpit-ai-action cockpit-ai-action-analysis" id="cockpitAnalyzeCase" type="button">
+            <svg class="cockpit-ai-logo" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+  </g>
+</svg>
+            <span id="cockpitAnalyzeCaseLabel"></span>
+          </button>
           <div id="cockpitAssistantStatus" class="cockpit-status"></div>
           <div id="cockpitAssistantResults" class="cockpit-assistant-results">
             <div class="subtle cockpit-empty-ai" id="cockpitAssistantEmpty"></div>
@@ -357,7 +369,7 @@
         "Irányelv-alapú döntéstámogatás. A döntés az orvosé."
       )
     );
-    set("cockpitAnalyzeCase", label("ANALYZE CURRENT CASE", "AKTUÁLIS ESET ELEMZÉSE"));
+    set("cockpitAnalyzeCaseLabel", label("ANALYZE CURRENT CASE", "AKTUÁLIS ESET ELEMZÉSE"));
     set(
       "cockpitAssistantEmpty",
       label(
@@ -366,7 +378,7 @@
       )
     );
     set("cockpitPasteTitle", label("✨ AI-assisted data entry", "✨ AI-assisted adatbevitel"));
-    set("cockpitDataEntryBtn", label("✨ AI DATA ENTRY", "✨ AI ADATBEVITEL"));
+    set("cockpitDataEntryLabel", label("AI DATA ENTRY", "AI ADATBEVITEL"));
     set(
       "cockpitPasteSub",
       label(

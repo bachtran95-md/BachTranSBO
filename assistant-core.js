@@ -78,7 +78,7 @@
           throw new Error("Invalid test status.");
         }
 
-        next.tests ||= { labs: [], radiology: [], consultations: [] };
+        next.tests ||= { labs: [], ekgs: [], gases: [], radiology: [], consultations: [] };
         const entry = {
           id: uuid(),
           type: item.label || "",
@@ -87,46 +87,40 @@
           savedText: item.status === "result" ? item.text.trim() : ""
         };
 
-        if (["ekg", "gas"].includes(item.target)) {
-          const old = next.tests[item.target];
-          if (old?.text?.trim() || old?.savedText?.trim()) {
-            throw new Error(
-              item.target.toUpperCase() +
-                " already has a result. Review it manually; it was not overwritten."
-            );
-          }
-          next.tests[item.target] = { ...entry, id: old?.id || entry.id };
+        const group =
+          item.target === "lab"
+            ? "labs"
+            : item.target === "ekg"
+              ? "ekgs"
+              : item.target === "gas"
+                ? "gases"
+                : item.target === "radiology"
+                  ? "radiology"
+                  : "consultations";
+        next.tests[group] ||= [];
+
+        const simpleGroup = ["labs", "ekgs", "gases"].includes(group);
+        const empty = next.tests[group].findIndex(
+          e => !e.text?.trim() && !e.savedText?.trim() && (simpleGroup || !e.type?.trim())
+        );
+
+        if (empty < 0 && next.tests[group].length >= 999) {
+          throw new Error("The maximum of 999 entries for this investigation type has been reached.");
+        }
+
+        if (group === "radiology") {
+          Object.assign(entry, {
+            bodyPart: "",
+            modality: "other",
+            otherTest: item.label || "Imaging"
+          });
+        }
+
+        if (empty >= 0) {
+          entry.id = next.tests[group][empty].id;
+          next.tests[group][empty] = entry;
         } else {
-          const group =
-            item.target === "lab"
-              ? "labs"
-              : item.target === "radiology"
-                ? "radiology"
-                : "consultations";
-          next.tests[group] ||= [];
-
-          const empty = next.tests[group].findIndex(
-            e => !e.text?.trim() && !e.savedText?.trim() && !e.type?.trim()
-          );
-
-          if (group === "labs" && empty < 0 && next.tests[group].length >= 3) {
-            throw new Error("All three lab cards are occupied. Review the result manually.");
-          }
-
-          if (group === "radiology") {
-            Object.assign(entry, {
-              bodyPart: "",
-              modality: "other",
-              otherTest: item.label || "Imaging"
-            });
-          }
-
-          if (empty >= 0) {
-            entry.id = next.tests[group][empty].id;
-            next.tests[group][empty] = entry;
-          } else {
-            next.tests[group].push(entry);
-          }
+          next.tests[group].push(entry);
         }
       }
     }

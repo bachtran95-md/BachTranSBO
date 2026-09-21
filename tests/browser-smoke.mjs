@@ -890,13 +890,13 @@ if (JSON.stringify(unifiedTestOptions) !== JSON.stringify(expectedUnifiedOrder))
 }
 
 // Every unified investigation type must add exactly one entry from the promoted Stable menu.
-const labCountBeforeAdd = await beta.locator('#labCard .test-card').count();
+const labCountBeforeAdd = await beta.locator('#labCards .test-card').count();
 await beta.locator('#cockpitAddTestMenu [data-add-test-type="lab"]').click();
 await beta.waitForFunction((expected) =>
-  document.querySelectorAll("#labCard .test-card").length === expected,
+  document.querySelectorAll("#labCards .test-card").length === expected,
   labCountBeforeAdd + 1
 );
-await beta.locator('#labCard .test-card').last().locator("[data-delete-test]").click();
+await beta.locator('#labCards .test-card').last().locator("[data-delete-test]").click();
 
 const consultationCountBeforeAdd = await beta.locator('#consultCards .test-card').count();
 await beta.locator("#cockpitAddTest").click();

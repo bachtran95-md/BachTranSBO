@@ -163,7 +163,38 @@ async function aiScrubItems(
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ model, input: prompt }),
+    body: JSON.stringify({
+      model,
+      store: false,
+      input: prompt,
+      max_output_tokens: 6000,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "deidentified_items",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            required: ["items"],
+            properties: {
+              items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["key", "text"],
+                  properties: {
+                    key: { type: "string" },
+                    text: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -174,6 +205,9 @@ async function aiScrubItems(
   }
 
   const payload = await response.json();
+  if (payload?.status && payload.status !== "completed") {
+    throw new Error("AI de-identification response was incomplete; analysis aborted.");
+  }
   const raw = responseText(payload)
     .replace(/^\`\`\`(?:json)?\s*/i, "")
     .replace(/\s*\`\`\`$/i, "");

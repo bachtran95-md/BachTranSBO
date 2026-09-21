@@ -189,7 +189,10 @@ async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
 
 function handleBackendError(error) {
   console.error(error);
-  flash("Backend error: " + (error?.message || "Unknown error"));
+  flash(
+    (uiLang === "hu" ? "Backend hiba: " : "Backend error: ") +
+    (error?.message || (uiLang === "hu" ? "Ismeretlen hiba" : "Unknown error"))
+  );
 }
 
 function nowIso() {
@@ -985,9 +988,9 @@ function renderAllTests(patient) {
   renderDynamicCards(
     "consultCards",
     patient.tests.consultations,
-    "Consultation",
+    uiLang === "hu" ? "Konzílium" : "Consultation",
     "consultations",
-    "Type e.g. Cardiology, Neurology"
+    uiLang === "hu" ? "Szakterület, pl. Kardiológia, Neurológia" : "Type e.g. Cardiology, Neurology"
   );
   refreshSummaryControls(patient);
 }
@@ -1768,7 +1771,7 @@ function renderCorpusRevisions(revisions) {
   if (!host) return;
 
   if (!revisions.length) {
-    host.innerHTML = '<div class="subtle">No finalized revisions yet.</div>';
+    host.innerHTML = `<div class="subtle">${uiLang === "hu" ? "Még nincs véglegesített revízió." : "No finalized revisions yet."}</div>`;
     return;
   }
 
@@ -1784,7 +1787,7 @@ function renderCorpusRevisions(revisions) {
       <div class="learning-item corpus-review-item">
         <div class="learning-item-head">
           <div>
-            <b>Finalized revision</b>
+            <b>${uiLang === "hu" ? "Véglegesített revízió" : "Finalized revision"}</b>
             <div class="subtle">${esc(finalized)}${item.model ? ` • ${esc(item.model)}` : ""}</div>
           </div>
           <span class="badge ${status === "approved" ? "done" : "rejected"}">
@@ -1792,14 +1795,14 @@ function renderCorpusRevisions(revisions) {
           </span>
         </div>
         <div class="learning-text corpus-finalized-text">${esc(item.finalized_text || "")}</div>
-        ${item.learning_note ? `<div class="footer-note">Review note: ${esc(item.learning_note)}</div>` : ""}
-        ${reviewed ? `<div class="footer-note">Reviewed: ${esc(reviewed)}</div>` : ""}
+        ${item.learning_note ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrzési megjegyzés" : "Review note"}: ${esc(item.learning_note)}</div>` : ""}
+        ${reviewed ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrizve" : "Reviewed"}: ${esc(reviewed)}</div>` : ""}
         <div class="learning-actions">
           <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
-            APPROVE
+            ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
           </button>
           <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
-            EXCLUDE
+            ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
           </button>
         </div>
       </div>
@@ -1811,11 +1814,15 @@ function renderCorpusRevisions(revisions) {
       const decision = button.dataset.decision;
       const revisionId = button.dataset.corpusReview;
       const verb = decision === "approved" ? "approve" : "exclude";
-      if (!window.confirm(`Confirm ${verb} for AI learning?`)) return;
+      if (!window.confirm(
+        uiLang === "hu"
+          ? `Megerősíti ezt a döntést az AI-tanuláshoz? (${verb})`
+          : `Confirm ${verb} for AI learning?`
+      )) return;
 
       let note = "";
       if (decision === "excluded") {
-        note = window.prompt("Optional reason for exclusion:", "") || "";
+        note = window.prompt(uiLang === "hu" ? "A kizárás oka (opcionális):" : "Optional reason for exclusion:", "") || "";
       }
 
       host.querySelectorAll(`[data-corpus-review="${revisionId}"]`).forEach((x) => {
@@ -1830,12 +1837,12 @@ function renderCorpusRevisions(revisions) {
         );
         learningMessage(
           decision === "approved"
-            ? "Revision approved for AI learning."
-            : "Revision excluded from AI learning."
+            ? (uiLang === "hu" ? "A revízió jóváhagyva az AI-tanuláshoz." : "Revision approved for AI learning.")
+            : (uiLang === "hu" ? "A revízió kizárva az AI-tanulásból." : "Revision excluded from AI learning.")
         );
         await renderLearningDashboard();
       } catch (error) {
-        learningMessage(error?.message || "Corpus review failed.", true);
+        learningMessage(error?.message || (uiLang === "hu" ? "A korpusz ellenőrzése sikertelen." : "Corpus review failed."), true);
       }
     };
   });
@@ -1845,7 +1852,9 @@ function renderStyleProfiles(profiles, coachRuns = []) {
   const host = document.getElementById("styleProfilesList");
   if (!profiles.length) {
     host.innerHTML =
-      '<div class="subtle">No style profile yet. Finalize at least 5 approved distinct cases, then generate a candidate.</div>';
+      `<div class="subtle">${uiLang === "hu"
+        ? "Még nincs stílusprofil. Véglegesítsen legalább 5 jóváhagyott, különböző esetet, majd generáljon jelöltet."
+        : "No style profile yet. Finalize at least 5 approved distinct cases, then generate a candidate."}</div>`;
     return;
   }
 
@@ -1966,7 +1975,9 @@ function renderSkillSuggestions(suggestions) {
   const host = document.getElementById("skillSuggestionsList");
   if (!suggestions.length) {
     host.innerHTML =
-      '<div class="subtle">No Skill suggestions yet. At least 10 Generated → Finalized pairs are required.</div>';
+      `<div class="subtle">${uiLang === "hu"
+        ? "Még nincs Skill-javaslat. Legalább 10 Generált → Véglegesített pár szükséges."
+        : "No Skill suggestions yet. At least 10 Generated → Finalized pairs are required."}</div>`;
     return;
   }
 
@@ -2005,10 +2016,10 @@ function renderSkillSuggestions(suggestions) {
           button.dataset.skillReview,
           button.dataset.decision
         );
-        learningMessage(result?.note || "Suggestion reviewed.");
+        learningMessage(result?.note || (uiLang === "hu" ? "A javaslat ellenőrizve." : "Suggestion reviewed."));
         await renderLearningDashboard();
       } catch (error) {
-        learningMessage(error?.message || "Suggestion review failed.", true);
+        learningMessage(error?.message || (uiLang === "hu" ? "A javaslat ellenőrzése sikertelen." : "Suggestion review failed."), true);
       } finally {
         button.disabled = false;
       }
@@ -2058,11 +2069,13 @@ async function generateStyleCandidate() {
       : "";
     const warning = result?.coachWarning ? ` ${result.coachWarning}` : "";
     learningMessage(
-      `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.${maturity}${warning}`
+      uiLang === "hu"
+        ? `Stílusjelölt v${result?.candidate?.version || "?"} létrehozva. Aktiválás előtt ellenőrizze.${maturity}${warning}`
+        : `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.${maturity}${warning}`
     );
     await renderLearningDashboard();
   } catch (error) {
-    learningMessage(error?.message || "Style analysis failed.", true);
+    learningMessage(error?.message || (uiLang === "hu" ? "A stíluselemzés sikertelen." : "Style analysis failed."), true);
   } finally {
     button.textContent = old;
   }
@@ -2077,11 +2090,13 @@ async function generateSkillSuggestion() {
   try {
     await window.BachSBOBackend.analyzeSkill();
     learningMessage(
-      "Pending Skill suggestion created. It will not change the active Skill."
+      uiLang === "hu"
+        ? "Függő Skill-javaslat létrehozva. Ez nem módosítja az aktív Skill-t."
+        : "Pending Skill suggestion created. It will not change the active Skill."
     );
     await renderLearningDashboard();
   } catch (error) {
-    learningMessage(error?.message || "Skill analysis failed.", true);
+    learningMessage(error?.message || (uiLang === "hu" ? "A Skill elemzése sikertelen." : "Skill analysis failed."), true);
   } finally {
     button.textContent = old;
   }

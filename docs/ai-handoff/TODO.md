@@ -4,6 +4,8 @@ Keep this list short and ordered. Move completed work into `PROJECT_STATE.md` in
 
 ## NOW — AI Assistance for Summary
 
+- [ ] Merge and deploy the Beta incremental Heidi + Investigation Add-test branch, wait for Pages + Backend checks, then verify live: later history append, waiting Lab/consultation completion, duplicate suppression, conflict lockout, immediate Add-test persistence, and failed-save rollback. Keep stable `/` unchanged.
+
 - [x] Replace the cockpit MutationObserver with an observer-free event/timer model in isolated `/beta.html`; stable `/` remains default.
 - [x] Add browser-level Chromium smoke test covering login → load existing cases → add case → delete synthetic case → reload, plus beta load.
 

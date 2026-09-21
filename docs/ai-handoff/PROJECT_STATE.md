@@ -53,6 +53,34 @@ Verified behavior:
 
 Stable `/` remains unchanged. This workflow is available only on `/beta.html` until Beta is explicitly approved for promotion.
 
+## Beta incremental Heidi update milestone — 2026-09-21 (branch, pending deployment)
+
+Implementation is complete on branch `codex/beta-heidi-incremental-20260921`; it is not yet a production claim.
+
+- Repeated short Heidi notes are treated as incremental updates rather than full-case replacements.
+- Extracted facts are reconciled against the physician's current draft as `add`, `update`, `duplicate`, or `conflict`.
+- Later history defaults to Append, including reopening a section previously marked None after explicit physician acceptance.
+- A uniquely matched waiting investigation is completed in place by stable entry ID; it is not duplicated.
+- Multiple possible Lab destinations, an already completed test with a different result, and Not ordered conflicts remain manual-review items.
+- Duplicate facts/results cannot be applied.
+- The review card shows current state, proposed state, reason, exact evidence, and retains the explicit Accept → Apply Accepted write boundary.
+- Switching cases invalidates in-flight extraction results.
+- Pages packaging now includes the Beta runtime modules and verifies all local HTML script references before upload.
+- Local assistant-core tests and the full Chromium browser smoke pass.
+
+Stable `/` has no new visible behavior. Live Beta verification and GitHub checks remain required after merge/deployment.
+
+## Beta Investigation Add-test follow-up — 2026-09-21 (branch, pending deployment)
+
+- The unified Add-test control now uses four direct Lab / Imaging / Consultation / Other buttons instead of a native dropdown.
+- Named test types require a name before creation and cards surface category plus subtype clearly.
+- Add now persists immediately through `clinical-store/save_patient`; it no longer relies on the in-memory-only `persist()` marker.
+- Backend failure restores the physician's exact pre-add draft and removes the unsaved card.
+- Lab capacity and validation failures are visible in the Investigation header rather than silently ignored.
+- Local Chromium smoke verifies successful Consultation persistence and failed Imaging rollback.
+
+No Supabase schema or production Edge Function change is required for this follow-up.
+
 ## Corpus review milestone — 2026-09-20
 
 Doctor-controlled finalized-corpus review is now implemented and deployed.

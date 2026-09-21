@@ -2,6 +2,8 @@
 
 Personal emergency-department command center for one active shift at a time, with permanent de-identified case storage and a future doctor-approved AI learning corpus.
 
+> **Start here:** [System Introduction](docs/SYSTEM_INTRO.md) — purpose, architecture, Case Assistant, privacy boundary, AI learning, and core system invariants.
+
 ## Current architecture
 
 - Frontend: standalone HTML/CSS/JavaScript served by GitHub Pages.

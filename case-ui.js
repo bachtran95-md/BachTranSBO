@@ -323,18 +323,8 @@
     return String(document.getElementById("fDischargeCondition")?.value || "").trim();
   }
 
-  function mergeDischargeConditionIntoPatient(patient) {
-    if (!patient) return;
-    const disposition = document.getElementById("fDisposition")?.value || patient.disposition || "";
-    const discharge = getDischargeCondition();
-    patient.disposition = disposition;
-    patient.dischargeCondition = discharge;
-  }
-
   function commitDischargeDraft() {
-    const patient = window.BachSBOClinicalUi?.commitCurrentDraft?.();
-    mergeDischargeConditionIntoPatient(patient);
-    return patient;
+    return window.BachSBOClinicalUi?.commitCurrentDraft?.() || null;
   }
 
   function scheduleDischargeAutosave(delay = SAVE_DELAY_MS) {
@@ -347,20 +337,6 @@
         console.warn("Discharge draft autosave failed", error);
       });
     }, delay);
-  }
-
-  function validateDischargeCondition(patient) {
-    const disposition = document.getElementById("fDisposition")?.value || patient?.disposition || "";
-    if (disposition !== "discharged") return true;
-    const text = getDischargeCondition();
-    ensureDischargeConditionUi();
-    if (text) return true;
-    setStatus(
-      "Enter condition / symptoms at discharge before saving or generating.",
-      "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?",
-      true
-    );
-    return false;
   }
 
   function isEditingCaseDetails() {
@@ -558,138 +534,6 @@
     rowUpdate(canonicalPayload);
   }
 
-  function repairPatientLocalId(patient) {
-    if (!patient) return patient;
-    const current = String(patient.localId || "").padStart(2, "0");
-    const otherIds = visibleTableLocalIds(patient.id).map((n) => String(n).padStart(2, "0"));
-    if (!current || otherIds.includes(current)) {
-      patient.localId = nextVisibleLocalId(patient.id);
-      patient.updatedAt = new Date().toISOString();
-      const row = selectedRow();
-      const idCell = row?.querySelector("td");
-      if (idCell) idCell.textContent = patient.localId;
-      const title = document.getElementById("recordTitle");
-      if (title) title.textContent = `${label("Case", "Eset")} ${patient.localId}`;
-      setStatus(`Duplicate case ID repaired to ${patient.localId}.`, `Ismétlődő esetazonosító javítva: ${patient.localId}.`, false);
-    } else {
-      patient.localId = current;
-    }
-    return patient;
-  }
-
-  function rowUpdate(payload) {
-    const row = selectedRow();
-    if (!row) return;
-    const tds = row.querySelectorAll("td");
-    const hasYob = Object.prototype.hasOwnProperty.call(payload, "year_of_birth");
-    const displayAge = hasYob ? ageFromYob(payload.year_of_birth) : (document.getElementById("iceAge")?.value || "");
-    const sex = normalizeSex(payload.sex);
-    if (tds[1]) tds[1].innerHTML = sexBadge(sex) || "";
-    if (tds[2] && hasYob) tds[2].textContent = displayAge || "";
-    if (tds[3]) tds[3].textContent = document.getElementById("fMainComplaint")?.value || tds[3].textContent || "";
-    const subtitle = document.getElementById("recordSubtitle");
-    if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
-
-    const header = document.getElementById("recordHeader");
-    if (header) {
-      header.classList.remove("sex-female", "sex-male", "sex-other");
-      if (sex === "F") header.classList.add("sex-female");
-      else if (sex === "M") header.classList.add("sex-male");
-      else if (sex === "O") header.classList.add("sex-other");
-    }
-  }
-
-  function mirrorPatientIntoInline(patient) {
-    if (!patient || patient.id !== selectedId() || !ensureUi()) return;
-    const sex = normalizeSex(patient.sex);
-    const yob = normalizeYob(patient.yob || patient.year_of_birth || patient.yearOfBirth || "");
-    const sexEl = document.getElementById("iceSex");
-    const yobEl = document.getElementById("iceYob");
-    const ageEl = document.getElementById("iceAge");
-    if (sex && sexEl) {
-      sexEl.value = sex;
-      syncSexChoiceUi(sex);
-    }
-    if (yob && yobEl) {
-      yobEl.value = yob;
-      if (ageEl) ageEl.value = ageFromYob(yob);
-    }
-  }
-
-  function mergeInlineDetailsIntoPatient(patient) {
-    if (!patient) return patient;
-
-    // Persistence must consume canonical app state, never scrape demographics
-    // back out of the DOM. UI events update app state through applyCaseMetadata().
-    const metadata = clinicalUi()?.getCaseMetadata?.(patient.id);
-    if (metadata) {
-      patient.sex = normalizeSex(metadata.sex);
-      patient.yob = normalizeYob(metadata.year_of_birth);
-      patient.arrivalMode = normalizeArrivalMode(metadata.arrival_mode);
-      patient.arrivalOther = patient.arrivalMode === "other" ? metadata.arrival_other || "" : "";
-    }
-
-    if (patient.id === selectedId()) repairPatientLocalId(patient);
-    mergeDischargeConditionIntoPatient(patient);
-    return patient;
-  }
-
-  function scheduleLoadRetries() {
-    [50, 180, 700, 1500].forEach((ms) => setTimeout(() => {
-      mirrorSelectedDisplayIntoInline({ force: false });
-      loadSelected({ force: true });
-    }, ms));
-  }
-
-  function installBackendPayloadBridge() {
-    const backend = window.BachSBOBackend;
-    if (!backend || backend.__inlineCaseDetailsBridge === true) return false;
-
-    const originalSavePatient = backend.savePatient;
-    if (typeof originalSavePatient === "function") {
-      backend.savePatient = function patchedSavePatient(shiftId, patient, options = {}) {
-        mergeInlineDetailsIntoPatient(patient);
-        const silentAutosave = Boolean(options?.silentAutosave);
-        const allowIncompleteWorkflow = Boolean(options?.allowIncompleteWorkflow);
-        if (!silentAutosave && !allowIncompleteWorkflow && !validateDischargeCondition(patient)) {
-          return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
-        }
-        return Promise.resolve(originalSavePatient.call(this, shiftId, patient, options)).then((result) => {
-          if (!silentAutosave) scheduleLoadRetries();
-          return result;
-        });
-      };
-    }
-
-    const originalFinalizePatient = backend.finalizePatient;
-    if (typeof originalFinalizePatient === "function") {
-      backend.finalizePatient = function patchedFinalizePatient(shiftId, patient) {
-        mergeInlineDetailsIntoPatient(patient);
-        if (!validateDischargeCondition(patient)) {
-          return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
-        }
-        return originalFinalizePatient.call(this, shiftId, patient);
-      };
-    }
-
-    const originalSaveState = backend.saveState;
-    if (typeof originalSaveState === "function") {
-      backend.saveState = function patchedSaveState(state) {
-        const id = selectedId();
-        const patients = Array.isArray(state?.patients) ? state.patients : [];
-        const patient = patients.find((item) => item?.id === id);
-        mergeInlineDetailsIntoPatient(patient);
-        return Promise.resolve(originalSaveState.call(this, state)).then((result) => {
-          scheduleLoadRetries();
-          return result;
-        });
-      };
-    }
-
-    Object.defineProperty(backend, "__inlineCaseDetailsBridge", { value: true, configurable: true });
-    return true;
-  }
-
   async function saveSelected() {
     const id = selectedId();
     if (!id || !inlineDetailsLoadedFor(id)) return;
@@ -858,14 +702,12 @@
     // If Beta provides a native inline editor, wire it immediately so
     // Age/YOB/Arrival work before any timer, observer, or case-selection click.
     ensureUi();
-    installBackendPayloadBridge();
     enhanceSexUi();
 
     new MutationObserver(() => {
       clearTimeout(window.__iceRefresh);
       window.__iceRefresh = setTimeout(() => {
         ensureUi();
-        installBackendPayloadBridge();
         enhanceSexUi();
         mirrorSelectedDisplayIntoInline({ force: false });
         loadSelected();
@@ -888,14 +730,12 @@
     }, true);
     setInterval(() => {
       ensureUi();
-      installBackendPayloadBridge();
       enhanceSexUi();
       mirrorSelectedDisplayIntoInline({ force: false });
       loadSelected();
     }, 1200);
     setTimeout(() => {
       loadSelected({ force: true });
-      installBackendPayloadBridge();
       enhanceSexUi();
       mirrorSelectedDisplayIntoInline({ force: true });
     }, 600);

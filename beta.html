@@ -273,8 +273,13 @@
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
-                  <div class="field">
-                    <label data-i18n="diagnoses">Diagnoses</label>
+                  <div class="field narrative-field waiting" id="diagnosesWrap">
+                    <div class="narrative-head">
+                      <label data-i18n="diagnoses">Diagnoses</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" id="diagnosesState">KÖTELEZŐ</span>
+                      </div>
+                    </div>
                     <textarea id="fDiagnoses" placeholder="Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia."></textarea>
                     <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
                   </div>
@@ -503,6 +508,6 @@
   <script src="assistant-core.js?beta=20260920-12"></script>
   <script src="app.js?v=cache-first-save-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=cache-first-save-20260921-1"></script>
+  <script src="cockpit-beta.js?beta=required-diagnoses-20260921-1"></script>
 </body>
 </html>

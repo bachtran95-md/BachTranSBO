@@ -198,25 +198,7 @@ const backendMock = String.raw`
       write(state);
       return { patient: clone(patient), removed: 0, report: null };
     },
-    async updateCaseMetadata(caseId, metadata) {
-      const state = read();
-      const p = state.patients.find((x) => x.id === caseId);
-      if (!p) throw new Error("Missing mock case");
-      p.sex = metadata.sex || "";
-      p.yob = metadata.yearOfBirth ? String(metadata.yearOfBirth) : "";
-      p.mainComplaint = metadata.mainComplaint || "";
-      p.arrivalMode = metadata.arrivalMode || "";
-      p.arrivalOther = p.arrivalMode === "other" ? metadata.arrivalOther || "" : "";
-      p.disposition = metadata.disposition || "";
-      p.dischargeCondition =
-        p.disposition === "discharged" ? metadata.dischargeCondition || "" : "";
-      if (Object.prototype.hasOwnProperty.call(metadata, "otherDetails")) {
-        p.otherDetails = metadata.otherDetails || "";
-      }
-      p.updatedAt = new Date().toISOString();
-      write(state);
-      return { metadata: row(p), removed: 0, report: null };
-    },
+
     async deleteCase(caseId) {
       const state = read();
       state.patients = state.patients.filter((p) => p.id !== caseId);

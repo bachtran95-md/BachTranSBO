@@ -131,7 +131,7 @@
       const checked = value === normalized ? " checked" : "";
       return `<label class="sex-choice sex-choice-${value.toLowerCase()}">
         <input type="radio" name="iceSexChoice" value="${value}"${checked} />
-        <span class="sex-choice-check" aria-hidden="true"></span>
+        <span class="sex-choice-check" aria-hidden="true">✓</span>
         <span data-sex-choice-label="${value}">${sexLabel(value)}</span>
       </label>`;
     }).join("");
@@ -337,11 +337,30 @@
   function mergeDischargeConditionIntoPatient(patient) {
     if (!patient) return;
     const disposition = document.getElementById("fDisposition")?.value || patient.disposition || "";
+    const discharge = getDischargeCondition();
+    patient.disposition = disposition;
+    patient.dischargeCondition = discharge;
     if (disposition === "discharged") {
-      const discharge = getDischargeCondition();
-      patient.disposition = "discharged";
       patient.otherDetails = discharge ? `${DISCHARGE_PREFIX}${discharge}` : "";
     }
+  }
+
+  function commitDischargeDraft() {
+    const patient = window.BachSBOClinicalUi?.commitCurrentDraft?.();
+    mergeDischargeConditionIntoPatient(patient);
+    return patient;
+  }
+
+  function scheduleDischargeAutosave(delay = SAVE_DELAY_MS) {
+    clearTimeout(window.__iceDischargeTimer);
+    window.__iceDischargeTimer = setTimeout(() => {
+      commitDischargeDraft();
+      const save = window.BachSBOClinicalUi?.autosaveCurrentCase;
+      if (typeof save !== "function") return;
+      Promise.resolve(save()).catch((error) => {
+        console.warn("Discharge draft autosave failed", error);
+      });
+    }, delay);
   }
 
   function validateDischargeCondition(patient) {
@@ -663,7 +682,7 @@
         if (!silentAutosave && !allowIncompleteWorkflow && !validateDischargeCondition(patient)) {
           return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
         }
-        return Promise.resolve(originalSavePatient.call(this, shiftId, patient)).then((result) => {
+        return Promise.resolve(originalSavePatient.call(this, shiftId, patient, options)).then((result) => {
           if (!silentAutosave) scheduleLoadRetries();
           return result;
         });
@@ -821,13 +840,21 @@
     const disposition = document.getElementById("fDisposition");
     if (disposition && disposition.dataset.dischargeWired !== "true") {
       disposition.dataset.dischargeWired = "true";
-      disposition.addEventListener("change", () => { ensureDischargeConditionUi(); scheduleSave(100); });
+      disposition.addEventListener("change", () => {
+        ensureDischargeConditionUi();
+        commitDischargeDraft();
+        scheduleDischargeAutosave(100);
+      });
     }
     const discharge = document.getElementById("fDischargeCondition");
     if (discharge && discharge.dataset.dischargeWired !== "true") {
       discharge.dataset.dischargeWired = "true";
-      discharge.addEventListener("input", () => { ensureDischargeConditionUi(); scheduleSave(SAVE_DELAY_MS); });
-      discharge.addEventListener("blur", () => scheduleSave(50));
+      discharge.addEventListener("input", () => {
+        ensureDischargeConditionUi();
+        commitDischargeDraft();
+        scheduleDischargeAutosave(SAVE_DELAY_MS);
+      });
+      discharge.addEventListener("blur", () => scheduleDischargeAutosave(50));
     }
   }
 

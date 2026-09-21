@@ -256,22 +256,48 @@ function fmtTime(iso) {
 }
 
 function normalizeYob(value) {
-  const text = String(value ?? "").trim();
-  if (/^\d{2}$/.test(text)) {
-    const n = Number(text);
-    const current2 = new Date().getFullYear() % 100;
-    return String(n <= current2 ? 2000 + n : 1900 + n);
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const digits = raw.replace(/[^0-9]/g, "");
+  const currentYear = new Date().getFullYear();
+
+  let year = null;
+  if (/^\d{4}$/.test(digits)) {
+    year = Number(digits);
+  } else if (/^\d{2}$/.test(digits)) {
+    const shortYear = Number(digits);
+    const current2 = currentYear % 100;
+    year = shortYear <= current2 ? 2000 + shortYear : 1900 + shortYear;
   }
-  return text;
+
+  if (!Number.isInteger(year) || year < 1900 || year > currentYear) return "";
+  return String(year);
 }
 
 function ageFromYob(yob) {
-  const year = parseInt(normalizeYob(yob), 10);
-  return year ? new Date().getFullYear() - year : "";
+  const normalized = normalizeYob(yob);
+  if (!normalized) return "";
+  return new Date().getFullYear() - Number(normalized);
+}
+
+function normalizeSex(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (["m", "male", "man", "férfi", "ferfi", "férfibeteg"].includes(raw)) return "M";
+  if (["f", "female", "woman", "nő", "no", "nőbeteg", "w"].includes(raw)) return "F";
+  if (["o", "other", "egyéb", "egyeb", "x", "nonbinary", "non-binary"].includes(raw)) return "O";
+  return "";
+}
+
+function normalizeArrivalMode(value) {
+  const normalized = String(value ?? "").trim();
+  return ["omsz", "esetkocsi", "walk_in", "gp_referral", "other"].includes(normalized)
+    ? normalized
+    : "";
 }
 
 function patientSexLabel(sex) {
-  const value = String(sex || "").trim().toUpperCase();
+  const value = normalizeSex(sex);
   if (value === "F") return uiLang === "hu" ? "Nő" : "Female";
   if (value === "M") return uiLang === "hu" ? "Férfi" : "Male";
   if (value === "O") return uiLang === "hu" ? "Egyéb" : "Other";
@@ -830,13 +856,16 @@ function syncPatientRowFromState(patient) {
 
 function caseMetadataFromPatient(patient) {
   if (!patient) return null;
+  const sex = normalizeSex(patient.sex);
+  const yob = normalizeYob(patient.yob);
+  const arrivalMode = normalizeArrivalMode(patient.arrivalMode);
   return {
     id: patient.id,
-    sex: patient.sex || null,
-    year_of_birth: patient.yob ? Number(patient.yob) : null,
+    sex: sex || null,
+    year_of_birth: yob ? Number(yob) : null,
     main_complaint: patient.mainComplaint || "",
-    arrival_mode: patient.arrivalMode || "",
-    arrival_other: patient.arrivalOther || "",
+    arrival_mode: arrivalMode,
+    arrival_other: arrivalMode === "other" ? patient.arrivalOther || "" : "",
     other_details: patient.otherDetails || ""
   };
 }
@@ -869,19 +898,20 @@ function applyCaseMetadata(caseId, metadata = {}) {
   if (!patient) return null;
 
   if (Object.prototype.hasOwnProperty.call(metadata, "sex")) {
-    patient.sex = metadata.sex || "";
+    patient.sex = normalizeSex(metadata.sex);
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "year_of_birth")) {
-    patient.yob = metadata.year_of_birth ? String(metadata.year_of_birth) : "";
+    patient.yob = normalizeYob(metadata.year_of_birth);
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "main_complaint")) {
     patient.mainComplaint = metadata.main_complaint || "";
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "arrival_mode")) {
-    patient.arrivalMode = metadata.arrival_mode || "";
+    patient.arrivalMode = normalizeArrivalMode(metadata.arrival_mode);
+    if (patient.arrivalMode !== "other") patient.arrivalOther = "";
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "arrival_other")) {
-    patient.arrivalOther = metadata.arrival_other || "";
+    patient.arrivalOther = patient.arrivalMode === "other" ? metadata.arrival_other || "" : "";
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
     patient.otherDetails = metadata.other_details || "";
@@ -902,7 +932,7 @@ function updateStatusCell(patient) {
 async function addPatient() {
   if (!state.shift) return;
 
-  const sex = document.getElementById("newSex").value;
+  const sex = normalizeSex(document.getElementById("newSex").value);
   const yob = normalizeYob(document.getElementById("newYob").value);
   const mainComplaint = document.getElementById("newComplaint").value.trim();
 
@@ -1606,9 +1636,9 @@ function collectForm() {
   const arrivalEl = document.getElementById("iceArrival");
   const arrivalOtherEl = document.getElementById("iceArrivalOther");
 
-  if (sexEl) patient.sex = sexEl.value || "";
-  if (yobEl) patient.yob = normalizeYob(yobEl.value || "");
-  if (arrivalEl) patient.arrivalMode = arrivalEl.value || "";
+  if (sexEl) patient.sex = normalizeSex(sexEl.value);
+  if (yobEl) patient.yob = normalizeYob(yobEl.value);
+  if (arrivalEl) patient.arrivalMode = normalizeArrivalMode(arrivalEl.value);
   if (arrivalOtherEl) {
     patient.arrivalOther = patient.arrivalMode === "other" ? arrivalOtherEl.value || "" : "";
   }
@@ -2551,7 +2581,11 @@ window.BachSBOClinicalUi = Object.freeze({
   commitCurrentDraft,
   addInvestigation,
   getCaseMetadata,
-  saveCaseMetadata
+  saveCaseMetadata,
+  normalizeYob,
+  ageFromYob,
+  normalizeSex,
+  normalizeArrivalMode
 });
 
 function flash(message) {

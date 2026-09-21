@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="hu">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -17,8 +17,8 @@
     </div>
     <div class="toolbar topbar-tools">
       <div class="lang-toggle" role="group" aria-label="Language">
-        <button class="lang-btn active" id="langEnBtn" type="button">EN</button>
-        <button class="lang-btn" id="langHuBtn" type="button">HU</button>
+        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
+        <button class="lang-btn active" id="langHuBtn" type="button">HU</button>
       </div>
       <div class="toolbar" id="topActions"></div>
     </div>
@@ -78,7 +78,7 @@
                 </div>
                 <div class="field">
                   <label data-i18n="mainComplaint">Main complaint</label>
-                  <input id="newComplaint" placeholder="Chest pain" />
+                  <input id="newComplaint" placeholder="Mellkasi fájdalom" />
                 </div>
                 <button class="btn primary" id="addPatientBtn" data-i18n="addCase">ADD CASE</button>
               </div>
@@ -163,7 +163,7 @@
                       </div>
                       <div class="field hidden cockpit-arrival-other" id="iceArrivalOtherWrap">
                         <label data-ice-label="arrivalOther">Arrival details</label>
-                        <input id="iceArrivalOther" placeholder="Describe arrival..." autocomplete="off" />
+                        <input id="iceArrivalOther" placeholder="Az érkezés módjának részletei…" autocomplete="off" />
                       </div>
                       <div class="toolbar cockpit-demographics-toolbar" style="justify-content:space-between;margin-top:8px">
                         <div class="subtle" id="iceStatus"></div>
@@ -179,7 +179,7 @@
                         <button class="btn small none-toggle" type="button" data-none-toggle="complaint" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
-                    <textarea id="fComplaint" placeholder="Manual input or paste from clipboard..."></textarea>
+                    <textarea id="fComplaint" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
                   </div>
                   <div class="field narrative-field waiting" data-narrative-field="history">
                     <div class="narrative-head">
@@ -189,7 +189,7 @@
                         <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
-                    <textarea id="fHistory" placeholder="Manual input or paste from clipboard..."></textarea>
+                    <textarea id="fHistory" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
                   </div>
                 </div>
 
@@ -275,16 +275,16 @@
                   </div>
                   <div class="field">
                     <label data-i18n="diagnoses">Diagnoses</label>
-                    <textarea id="fDiagnoses" placeholder="One diagnosis per line or separated by semicolons. Hungarian or Latin terms."></textarea>
+                    <textarea id="fDiagnoses" placeholder="Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia."></textarea>
                     <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
                   </div>
                   <div class="field">
                     <label data-i18n="disposition">Disposition</label>
                     <select id="fDisposition">
-                      <option value="">Active / in progress</option>
-                      <option value="discharged">Discharged</option>
-                      <option value="admitted">Admitted / transferred</option>
-                      <option value="other">Other</option>
+                      <option value="">Aktív / folyamatban</option>
+                      <option value="discharged">Otthonába bocsátva</option>
+                      <option value="admitted">Osztályos felvétel / áthelyezés</option>
+                      <option value="other">Egyéb</option>
                     </select>
                   </div>
 
@@ -296,7 +296,7 @@
                           <span class="field-state waiting" id="dischargeConditionState">REQUIRED</span>
                         </div>
                       </div>
-                      <textarea id="fDischargeCondition" placeholder="e.g. symptom-free, good general condition; no recurrent chest pain..."></textarea>
+                      <textarea id="fDischargeCondition" placeholder="Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…"></textarea>
                     </div>
                     <div class="field">
                       <label data-i18n="homePlan">Recommendation and plan at home</label>
@@ -329,7 +329,7 @@
                   <div id="otherFields" class="hidden">
                     <div class="field">
                       <label data-i18n="outcome">Outcome</label>
-                      <input id="fOtherOutcome" placeholder="Death, transfer, left against medical advice..." />
+                      <input id="fOtherOutcome" placeholder="Halál, áthelyezés, saját felelősségre távozás…" />
                     </div>
                     <div class="field">
                       <label data-i18n="details">Details</label>
@@ -352,7 +352,7 @@
                   <div class="summary-status" id="summaryStatus"></div>
                   <div class="field">
                     <label data-i18n="summaryEditable">Summary — editable</label>
-                    <textarea id="fSummary" class="summary-box" placeholder="Generated summary will appear here. You can edit it before Finalize."></textarea>
+                    <textarea id="fSummary" class="summary-box" placeholder="A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető."></textarea>
                   </div>
                   <div class="toolbar">
                     <button class="btn success" id="finalizeSummaryBtn" type="button" data-i18n="finalizeSummary">FINALIZE SUMMARY</button>
@@ -497,11 +497,11 @@
   <div id="modalHost"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
-  <script src="case-ui.js?beta=autosave-20260921-2"></script>
+  <script src="case-ui.js?beta=hu-default-20260921-1"></script>
   <script src="backend.js?v=learning-20260920-1"></script>
   <script src="assistant-core.js?beta=20260920-12"></script>
-  <script src="app.js?v=autosave-20260921-2"></script>
+  <script src="app.js?v=hu-default-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=investigation-legend-20260921-1"></script>
+  <script src="cockpit-beta.js?beta=hu-default-20260921-1"></script>
 </body>
 </html>

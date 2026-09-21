@@ -445,9 +445,10 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
 await beta.locator("#cockpitDataEntryBtn").waitFor({ state: "visible" });
-if (await beta.locator("#cockpitDataEntryBtn").isDisabled()) {
-  throw new Error("AI Data Entry header button is unexpectedly disabled for an active case");
-}
+await beta.waitForFunction(() => {
+  const button = document.querySelector("#cockpitDataEntryBtn");
+  return Boolean(button && !button.disabled);
+});
 
 const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 await beta.waitForFunction(() =>

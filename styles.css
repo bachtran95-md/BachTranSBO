@@ -1717,6 +1717,15 @@ body.cockpit-ui .cockpit-case-column [data-cockpit-panel="tests"] .test-card.coc
   border-radius:9px;
   background:#fff;
 }
+body.cockpit-ui .cockpit-case-column [data-cockpit-panel="tests"] .test-card.cockpit-test-row:not(.result):not(.notordered){
+  border-color:#fdb022;
+  background:#fff7ed;
+  box-shadow:0 0 0 1px rgba(247,144,9,.06);
+}
+body.cockpit-ui .cockpit-case-column [data-cockpit-panel="tests"] .test-card.cockpit-test-row:not(.result):not(.notordered) textarea{
+  border-color:#fed7aa;
+  background:#fffdfa;
+}
 body.cockpit-ui .cockpit-case-column [data-cockpit-panel="tests"] .test-card.cockpit-test-row.result{
   border-color:#abefc6;
   background:#f6fef9;

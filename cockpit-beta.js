@@ -1316,6 +1316,22 @@
     other.classList.remove("hidden");
   }
 
+  function syncDiagnosesVisual() {
+    const wrap = document.getElementById("diagnosesWrap");
+    const field = document.getElementById("fDiagnoses");
+    const state = document.getElementById("diagnosesState");
+    if (!wrap || !field || !state) return;
+
+    const complete = Boolean(String(field.value || "").trim());
+    wrap.classList.toggle("waiting", !complete);
+    wrap.classList.toggle("result", complete);
+
+    state.textContent = complete
+      ? label("COMPLETE", "KÉSZ")
+      : label("REQUIRED", "KÖTELEZŐ");
+    state.className = `field-state ${complete ? "result" : "waiting"}`;
+  }
+
   function syncDischargeConditionVisual() {
     const disposition = document.getElementById("fDisposition")?.value || "";
     const wrap = document.getElementById("dischargeConditionWrap");
@@ -1339,6 +1355,7 @@
   function enhanceDispositionUi() {
     ensureWardPicker();
     syncWardPicker();
+    syncDiagnosesVisual();
     syncDischargeConditionVisual();
 
     const note = document.getElementById("fAdmissionNote");
@@ -1454,6 +1471,7 @@
   function installSync() {
     document.addEventListener("input", (event) => {
       if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
+      if (event.target?.id === "fDiagnoses") syncDiagnosesVisual();
 
       if (
         event.target?.matches?.("#patientForm textarea, #patientForm input") &&
@@ -1485,6 +1503,7 @@
       if (event.target?.id === "fDisposition" || event.target?.id === "fDischargeCondition") {
         syncDischargeConditionVisual();
       }
+      if (event.target?.id === "fDiagnoses") syncDiagnosesVisual();
 
       if (
         event.target?.matches?.("#patientForm select") &&

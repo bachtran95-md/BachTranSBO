@@ -1412,7 +1412,10 @@ function wireCard(card, entry, key) {
     refreshVisual();
 
     if (key.startsWith("gas-")) {
-      const label = /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG";
+      const base = /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG";
+      const index = Number(key.split("-")[1] || 0);
+      const count = patientById(selectedPatientId)?.tests?.gases?.length || 1;
+      const label = count > 1 ? `${base} ${index + 1}` : base;
       card.querySelector(".test-name").textContent = label;
       card.querySelector(".gas-type").textContent = label;
     }

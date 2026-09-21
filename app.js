@@ -2120,9 +2120,73 @@ function getExtractionContext(caseId) {
   return structuredClone(current);
 }
 
+async function addInvestigationFromBeta(caseId, kind, rawName = "") {
+  if (!caseId || caseId !== selectedPatientId || !backendReady || !state.shift) {
+    throw new Error("The selected case changed. Select the case and try again.");
+  }
+  if (!["lab", "imaging", "consultation", "other"].includes(kind)) {
+    throw new Error("Invalid investigation type.");
+  }
+
+  const current = collectForm();
+  if (!current || current.id !== caseId) throw new Error("Current case is unavailable.");
+  if (isCompleted(current)) throw new Error("Reopen the completed case before adding a test.");
+
+  const index = state.patients.findIndex((patient) => patient.id === caseId);
+  if (index < 0) throw new Error("Selected case was not found.");
+
+  const doctorDraft = structuredClone(current);
+  const next = structuredClone(current);
+  const name = String(rawName || "").trim().slice(0, 160);
+  next.tests ||= { labs: [], radiology: [], consultations: [] };
+
+  if (kind === "lab") {
+    next.tests.labs ||= [];
+    if (next.tests.labs.length >= 3) throw new Error("All three Lab cards are already in use.");
+    next.tests.labs.push(newEntry());
+  }
+  if (kind === "imaging") {
+    if (!name) throw new Error("Enter the imaging test name before adding it.");
+    const entry = radiologyEntry();
+    entry.modality = "other";
+    entry.otherTest = name;
+    entry.type = name;
+    next.tests.radiology ||= [];
+    next.tests.radiology.push(entry);
+  }
+  if (kind === "consultation") {
+    if (!name) throw new Error("Enter the consultation specialty before adding it.");
+    next.tests.consultations ||= [];
+    next.tests.consultations.push(newEntry(name));
+  }
+  if (kind === "other") {
+    if (!name) throw new Error("Enter the test name before adding it.");
+    next.tests.consultations ||= [];
+    next.tests.consultations.push(newEntry(`Egyéb — ${name}`));
+  }
+
+  next.updatedAt = nowIso();
+  state.patients[index] = next;
+  stateDirty = true;
+
+  try {
+    const result = await persistNow();
+    return {
+      patient: structuredClone(state.patients[index]),
+      removed: Number(result?.removed || 0)
+    };
+  } catch (error) {
+    state.patients[index] = doctorDraft;
+    stateDirty = true;
+    if (selectedPatientId === caseId) loadPatientForm();
+    throw error;
+  }
+}
+
 window.BachSBOClinicalUi = Object.freeze({
   applyAcceptedExtraction,
-  getExtractionContext
+  getExtractionContext,
+  addInvestigation: addInvestigationFromBeta
 });
 
 function flash(message) {

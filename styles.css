@@ -1331,8 +1331,8 @@ body.cockpit-ui .cockpit-add-test-controls{
   align-items:center;
   justify-content:flex-end;
   gap:5px;
+  flex-wrap:wrap;
 }
-body.cockpit-ui .cockpit-add-test-controls select,
 body.cockpit-ui .cockpit-add-test-controls input{
   width:auto;
   min-width:116px;
@@ -1341,10 +1341,43 @@ body.cockpit-ui .cockpit-add-test-controls input{
   font-size:11px;
 }
 body.cockpit-ui .cockpit-add-test-controls #cockpitOtherTestName{width:150px}
+body.cockpit-ui .cockpit-test-kind-buttons{
+  display:inline-flex;
+  padding:2px;
+  border:1px solid #d0d5dd;
+  border-radius:8px;
+  background:#fff;
+}
+body.cockpit-ui .cockpit-test-kind-buttons button{
+  min-height:26px;
+  padding:3px 7px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#475467;
+  font-size:10px;
+  font-weight:750;
+  cursor:pointer;
+}
+body.cockpit-ui .cockpit-test-kind-buttons button.selected{
+  background:#eaf2ff;
+  color:#175cd3;
+  box-shadow:0 0 0 1px #b2ddff inset;
+}
+body.cockpit-ui .cockpit-test-kind-buttons button:disabled{opacity:.55;cursor:not-allowed}
 body.cockpit-ui .cockpit-add-test-controls .btn{
   height:30px;
   white-space:nowrap;
 }
+body.cockpit-ui .cockpit-add-test-status{
+  flex-basis:100%;
+  min-height:13px;
+  color:#667085;
+  font-size:9px;
+  line-height:1.3;
+  text-align:right;
+}
+body.cockpit-ui .cockpit-test-subtype{display:block;margin-top:2px;font-size:9px;line-height:1.2}
 body.cockpit-ui .cockpit-investigations-list{
   display:flex;
   flex-direction:column;

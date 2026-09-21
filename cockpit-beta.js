@@ -1101,25 +1101,30 @@
   function syncUnifiedTestLabels() {
     const title = document.getElementById("cockpitInvestigationsTitle");
     const add = document.getElementById("cockpitAddTest");
-    const type = document.getElementById("cockpitTestType");
     const other = document.getElementById("cockpitOtherTestName");
     if (title) title.textContent = label("Investigations", "Vizsgálatok");
     if (add) add.textContent = label("+ Add test", "+ Vizsgálat hozzáadása");
-    if (other) other.placeholder = label("Test name", "Vizsgálat neve");
-    if (type) {
-      const optionLabels = {
+    document.querySelectorAll("[data-add-test-kind]").forEach((button) => {
+      const labels = {
         lab: label("Lab", "Labor"),
         imaging: label("Imaging", "Képalkotó"),
         consultation: label("Consultation", "Konzílium"),
         other: label("Other", "Egyéb")
       };
-      [...type.options].forEach((option) => {
-        option.textContent = optionLabels[option.value] || option.textContent;
-      });
+      button.textContent = labels[button.dataset.addTestKind] || button.textContent;
+    });
+    if (other) {
+      const kind = selectedAddTestKind();
+      const placeholders = {
+        imaging: label("e.g. Chest X-ray, CT head", "pl. Mellkas RTG, Koponya CT"),
+        consultation: label("e.g. Cardiology", "pl. Kardiológia"),
+        other: label("Test name", "Vizsgálat neve")
+      };
+      other.placeholder = placeholders[kind] || label("Test name", "Vizsgálat neve");
     }
   }
 
-  function decorateTestCard(card) {
+  function decorateTestCard(card, context = {}) {
     if (!card) return;
     card.classList.add("cockpit-test-row");
 
@@ -1156,34 +1161,80 @@
         if (control) identity.appendChild(control);
       });
     }
+
+    if (context.kind === "dynamic") {
+      const type = String(context.entry?.type || "").trim();
+      const isOther = /^Egyéb\s+—\s+/i.test(type);
+      const cleanType = isOther ? type.replace(/^Egyéb\s+—\s+/i, "") : type;
+      const index = Number(String(context.key || "").split("-").at(-1)) + 1;
+      const name = card.querySelector(".test-name");
+      if (name) name.textContent = `${isOther ? label("Other", "Egyéb") : label("Consultation", "Konzílium")} ${index}`;
+      let subtype = card.querySelector(".cockpit-test-subtype");
+      if (!subtype) {
+        subtype = document.createElement("span");
+        subtype.className = "cockpit-test-subtype subtle";
+        name?.insertAdjacentElement("afterend", subtype);
+      }
+      subtype.textContent = cleanType;
+    }
   }
 
   function installTestCardHook() {
     window.BachSBOUiHooks ||= {};
-    window.BachSBOUiHooks.decorateTestCard = (card) => decorateTestCard(card);
+    window.BachSBOUiHooks.decorateTestCard = (card, context) => decorateTestCard(card, context);
   }
 
   function compactTestCards(panel) {
     panel.querySelectorAll(".test-card").forEach((card) => decorateTestCard(card));
   }
 
-  function addUnifiedTest() {
-    const type = document.getElementById("cockpitTestType")?.value || "lab";
-    if (type === "lab") document.getElementById("addLabBtn")?.click();
-    if (type === "imaging") document.getElementById("addRadiologyBtn")?.click();
-    if (type === "consultation") document.getElementById("addConsultBtn")?.click();
-    if (type === "other") {
-      document.getElementById("addConsultBtn")?.click();
-      const inputs = [...document.querySelectorAll('#consultCards [data-type^="consultations-"]')];
-      const input = inputs.at(-1);
-      if (input) {
-        input.value = document.getElementById("cockpitOtherTestName")?.value.trim() || label("Other", "Egyéb");
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+  function selectedAddTestKind() {
+    return document.querySelector("[data-add-test-kind].selected")?.dataset.addTestKind || "lab";
+  }
+
+  function selectAddTestKind(kind) {
+    document.querySelectorAll("[data-add-test-kind]").forEach((button) => {
+      const selected = button.dataset.addTestKind === kind;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    const input = document.getElementById("cockpitOtherTestName");
+    if (input) input.classList.toggle("hidden", kind === "lab");
+    syncUnifiedTestLabels();
+  }
+
+  async function addUnifiedTest() {
+    const kind = selectedAddTestKind();
+    const input = document.getElementById("cockpitOtherTestName");
+    const add = document.getElementById("cockpitAddTest");
+    const status = document.getElementById("cockpitAddTestStatus");
+    const caseId = selectedCaseId();
+    if (!caseId) {
+      if (status) status.textContent = label("Select a case first.", "Először válasszon esetet.");
+      return;
     }
-    const other = document.getElementById("cockpitOtherTestName");
-    if (other) other.value = "";
-    setTimeout(enhanceTestsUi, 0);
+    if (!window.BachSBOClinicalUi?.addInvestigation) {
+      if (status) status.textContent = label("Investigation save bridge is unavailable.", "A vizsgálatmentő kapcsolat nem érhető el.");
+      return;
+    }
+
+    try {
+      if (add) add.disabled = true;
+      document.querySelectorAll("[data-add-test-kind]").forEach((button) => button.disabled = true);
+      if (status) status.textContent = label("Adding and saving…", "Hozzáadás és mentés…");
+      await window.BachSBOClinicalUi.addInvestigation(caseId, kind, input?.value || "");
+      if (input) input.value = "";
+      enhanceTestsUi();
+      if (status) status.textContent = label("Test added and saved.", "Vizsgálat hozzáadva és mentve.");
+    } catch (error) {
+      enhanceTestsUi();
+      const nextStatus = document.getElementById("cockpitAddTestStatus");
+      if (nextStatus) nextStatus.textContent = error?.message || label("Could not add test.", "A vizsgálat hozzáadása sikertelen.");
+    } finally {
+      const nextAdd = document.getElementById("cockpitAddTest");
+      if (nextAdd) nextAdd.disabled = false;
+      document.querySelectorAll("[data-add-test-kind]").forEach((button) => button.disabled = false);
+    }
   }
 
   function enhanceTestsUi() {
@@ -1216,20 +1267,20 @@
       header.innerHTML = `
         <strong id="cockpitInvestigationsTitle"></strong>
         <div class="cockpit-add-test-controls">
-          <select id="cockpitTestType" aria-label="Test type">
-            <option value="lab">Lab</option>
-            <option value="imaging">Imaging</option>
-            <option value="consultation">Consultation</option>
-            <option value="other">Other</option>
-          </select>
+          <div class="cockpit-test-kind-buttons" role="group" aria-label="Test type">
+            <button type="button" class="selected" data-add-test-kind="lab" aria-pressed="true">Lab</button>
+            <button type="button" data-add-test-kind="imaging" aria-pressed="false">Imaging</button>
+            <button type="button" data-add-test-kind="consultation" aria-pressed="false">Consultation</button>
+            <button type="button" data-add-test-kind="other" aria-pressed="false">Other</button>
+          </div>
           <input id="cockpitOtherTestName" class="hidden" />
           <button class="btn small" id="cockpitAddTest" type="button"></button>
+          <span id="cockpitAddTestStatus" class="cockpit-add-test-status" aria-live="polite"></span>
         </div>`;
       const firstToolbar = panel.querySelector(".test-group-toolbar");
       firstToolbar?.insertAdjacentElement("beforebegin", header);
-      const type = header.querySelector("#cockpitTestType");
-      type.addEventListener("change", () => {
-        header.querySelector("#cockpitOtherTestName")?.classList.toggle("hidden", type.value !== "other");
+      header.querySelectorAll("[data-add-test-kind]").forEach((button) => {
+        button.addEventListener("click", () => selectAddTestKind(button.dataset.addTestKind));
       });
       header.querySelector("#cockpitAddTest")?.addEventListener("click", addUnifiedTest);
     }

@@ -16,9 +16,9 @@
     ["", "— select —", "— válasszon —"],
     ["omsz", "OMSz transported", "OMSz szállította"],
     ["esetkocsi", "Emergency unit transported", "Esetkocsi szállította"],
-    ["walk_in", "Arrived walking", "saját lábán érkezett"],
-    ["gp_referral", "With GP referral", "HO beutalóval"],
-    ["other", "Other", "egyéb"]
+    ["walk_in", "Arrived walking", "Saját lábán érkezett"],
+    ["gp_referral", "With GP referral", "Háziorvosi beutalóval"],
+    ["other", "Other", "Egyéb"]
   ];
 
   const SEX_VALUES = ["F", "M", "O"];
@@ -745,8 +745,6 @@
     installBackendPayloadBridge();
     enhanceSexUi();
 
-    setTimeout(() => window.applyLanguage?.("hu"), 250);
-    setTimeout(() => window.applyLanguage?.("hu"), 900);
     new MutationObserver(() => {
       clearTimeout(window.__iceRefresh);
       window.__iceRefresh = setTimeout(() => {

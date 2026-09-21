@@ -182,18 +182,26 @@ function casePayload(caseRow: any, tests: any[]) {
     clinical_course: caseRow.clinical_course,
     clinical_course_status: caseRow.clinical_course_skipped ? "none" : "provided",
     disposition: caseRow.disposition,
-    discharge_condition: caseRow.discharge_condition || "",
-    recommendations: caseRow.recommendations,
-    admission: {
-      hospital: caseRow.hospital,
-      ward: caseRow.ward,
-      accepting_physician: caseRow.accepting_physician,
-      note: caseRow.admission_note,
-    },
-    other_outcome: {
-      outcome: caseRow.other_outcome,
-      details: caseRow.other_details,
-    },
+    discharge_condition: caseRow.disposition === "discharged"
+      ? caseRow.discharge_condition || ""
+      : "",
+    recommendations: caseRow.disposition === "discharged"
+      ? caseRow.recommendations || []
+      : [],
+    admission: caseRow.disposition === "admitted"
+      ? {
+          hospital: caseRow.hospital,
+          ward: caseRow.ward,
+          accepting_physician: caseRow.accepting_physician,
+          note: caseRow.admission_note,
+        }
+      : null,
+    other_outcome: caseRow.disposition === "other"
+      ? {
+          outcome: caseRow.other_outcome,
+          details: caseRow.other_details,
+        }
+      : null,
   };
 }
 

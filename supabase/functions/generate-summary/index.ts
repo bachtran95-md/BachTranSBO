@@ -95,6 +95,7 @@ function workflowBlockers(caseRow: any, tests: any[]) {
     ["Complaint", caseRow.complaint, caseRow.complaint_skipped],
     ["Patient history", caseRow.history, caseRow.history_skipped],
     ["Physical examination", caseRow.physical_exam, caseRow.physical_exam_skipped],
+    ["Diagnoses", caseRow.diagnoses, caseRow.diagnoses_skipped],
     ["Therapy", caseRow.therapy, caseRow.therapy_skipped],
     ["Clinical course", caseRow.clinical_course, caseRow.clinical_course_skipped],
   ];
@@ -161,6 +162,7 @@ function casePayload(caseRow: any, tests: any[]) {
     physical_examination: caseRow.physical_exam,
     physical_examination_status: caseRow.physical_exam_skipped ? "none" : "provided",
     diagnoses: caseRow.diagnoses || "",
+    diagnoses_status: caseRow.diagnoses_skipped ? "none" : "provided",
     tests: tests.map((row) => ({
       category: row.category,
       type: row.subtype || null,

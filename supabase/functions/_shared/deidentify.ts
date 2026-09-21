@@ -278,11 +278,13 @@ export function clinicalTextItems(patient: any): Array<{ key: string; text: stri
     add(`tests.labs.${i}.text`, x.text);
     add(`tests.labs.${i}.savedText`, x.savedText);
   });
-  ["ekg", "gas"].forEach((kind) => {
-    const x = patient.tests?.[kind];
-    if (!x) return;
-    add(`tests.${kind}.text`, x.text);
-    add(`tests.${kind}.savedText`, x.savedText);
+  (patient.tests?.ekgs || []).forEach((x: any, i: number) => {
+    add(`tests.ekgs.${i}.text`, x.text);
+    add(`tests.ekgs.${i}.savedText`, x.savedText);
+  });
+  (patient.tests?.gases || []).forEach((x: any, i: number) => {
+    add(`tests.gases.${i}.text`, x.text);
+    add(`tests.gases.${i}.savedText`, x.savedText);
   });
   (patient.tests?.radiology || []).forEach((x: any, i: number) => {
     add(`tests.radiology.${i}.type`, x.type);

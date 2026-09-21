@@ -5,6 +5,7 @@ let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
 const patientSaveQueues = new Map();
+let patientSwitchInFlight = false;
 let uiLang = "hu";
 const I18N = {
   en: {
@@ -36,7 +37,7 @@ const I18N = {
     caseSummary:"5. Case summary",
     summaryInfo:"Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.",
     generateSummary:"✨ GENERATE SUMMARY", summaryEditable:"Summary — editable",
-    finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE",
+    finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE NOW",
     diagnosesNote:"Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.",
     learningDesc:"Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.",
     finalizedCorpusReview:"Finalized corpus review",
@@ -87,7 +88,7 @@ const I18N = {
     caseSummary:"5. Összefoglaló",
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
     generateSummary:"✨ ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
-    finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE",
+    finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"MENTÉS MOST",
     diagnosesNote:"Csak az orvos által rögzített diagnózisok. Az összefoglaló nem állíthat fel új diagnózist a vizsgálati eredményekből.",
     learningDesc:"Orvos által jóváhagyott tanulás a véglegesített összefoglalókból. A rendszer nem módosítja automatikusan a fő Skill-t.",
     finalizedCorpusReview:"Véglegesített korpusz ellenőrzése",
@@ -716,27 +717,38 @@ function renderPatients() {
 
     tr.onclick = async () => {
       const nextPatientId = patient.id;
-      if (nextPatientId === selectedPatientId) return;
+      if (
+        nextPatientId === selectedPatientId ||
+        patientSwitchInFlight
+      ) return;
 
       const previousPatientId = selectedPatientId;
-      if (previousPatientId) {
-        const currentDraft = commitCurrentDraft();
-        if (currentDraft) {
-          try {
-            // Wait for the old patient's latest snapshot to reach the backend
-            // before changing selectedPatientId.
+      patientSwitchInFlight = true;
+
+      try {
+        if (previousPatientId) {
+          const currentDraft = commitCurrentDraft();
+          if (currentDraft) {
+            // Do not leave the current patient until every older queued save
+            // plus this newest full-form snapshot has reached the backend.
             await persistNow({ reloadForm: false, silentAutosave: true });
-          } catch (error) {
-            // Keep the in-memory draft even if the network save fails.
-            // Switching patients must never discard the doctor's text.
-            handleBackendError(error);
           }
         }
-      }
 
-      selectedPatientId = nextPatientId;
-      renderPatients();
-      loadPatientForm();
+        selectedPatientId = nextPatientId;
+        renderPatients();
+      } catch (error) {
+        selectedPatientId = previousPatientId;
+        handleBackendError(error);
+        flash(
+          uiLang === "hu"
+            ? "Az automatikus mentés sikertelen. Az esetváltás leállt, hogy ne vesszen el adat."
+            : "Autosave failed. Patient switching was stopped to prevent data loss."
+        );
+        renderPatients();
+      } finally {
+        patientSwitchInFlight = false;
+      }
     };
 
     tbody.appendChild(tr);
@@ -1444,7 +1456,13 @@ function collectTestDraftsFromDom(patient) {
   document.querySelectorAll("#patientForm [data-text]").forEach((control) => {
     const key = control.dataset.text || "";
     const entry = patientTestEntryByKey(patient, key);
-    if (entry) entry.text = control.value || "";
+    if (!entry) return;
+
+    entry.text = control.value || "";
+    entry.savedText =
+      entry.mode === "notordered"
+        ? ""
+        : (String(entry.text || "").trim() ? entry.text : "");
   });
 
   document.querySelectorAll('#patientForm [data-type^="consultations-"]').forEach((control) => {

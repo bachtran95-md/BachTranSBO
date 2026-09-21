@@ -2,6 +2,53 @@
   "use strict";
 
   let client = null;
+  const PASSWORD_REAUTH_INTERVAL_MS = 60 * 60 * 1000;
+  const PASSWORD_REAUTH_STORAGE_PREFIX = "bach_sbo_password_reauth_at_v1:";
+
+  function passwordReauthKey(userId) {
+    return PASSWORD_REAUTH_STORAGE_PREFIX + String(userId || "unknown");
+  }
+
+  function markPasswordAuthenticated(userId, authenticatedAt = Date.now()) {
+    if (!userId) throw new Error("Missing authenticated user ID.");
+    localStorage.setItem(passwordReauthKey(userId), String(authenticatedAt));
+  }
+
+  function clearPasswordAuthentication(userId) {
+    if (!userId) return;
+    localStorage.removeItem(passwordReauthKey(userId));
+  }
+
+  function getPasswordReauthStatus(userId, now = Date.now()) {
+    if (!userId) {
+      return {
+        required: true,
+        authenticatedAt: null,
+        expiresAt: null,
+        remainingMs: 0,
+        intervalMs: PASSWORD_REAUTH_INTERVAL_MS
+      };
+    }
+
+    const raw = localStorage.getItem(passwordReauthKey(userId));
+    const authenticatedAt = Number(raw);
+    const validTimestamp =
+      Number.isFinite(authenticatedAt) &&
+      authenticatedAt > 0 &&
+      authenticatedAt <= now + 60_000;
+    const expiresAt = validTimestamp
+      ? authenticatedAt + PASSWORD_REAUTH_INTERVAL_MS
+      : null;
+    const remainingMs = expiresAt ? Math.max(0, expiresAt - now) : 0;
+
+    return {
+      required: !validTimestamp || remainingMs <= 0,
+      authenticatedAt: validTimestamp ? authenticatedAt : null,
+      expiresAt,
+      remainingMs,
+      intervalMs: PASSWORD_REAUTH_INTERVAL_MS
+    };
+  }
 
   function config() {
     return window.BACH_SBO_CONFIG || {};
@@ -56,7 +103,21 @@
     const { data, error } = await client.auth.getSession();
     assertOk(error, "Get auth session");
 
-    return { configured: true, session: data.session };
+    let session = data.session;
+    let reauthRequired = false;
+
+    if (session?.user?.id) {
+      const reauth = getPasswordReauthStatus(session.user.id);
+      if (reauth.required) {
+        clearPasswordAuthentication(session.user.id);
+        const { error: signOutError } = await client.auth.signOut({ scope: "local" });
+        assertOk(signOutError, "Expire password authentication");
+        session = null;
+        reauthRequired = true;
+      }
+    }
+
+    return { configured: true, session, reauthRequired };
   }
 
   async function getSession() {
@@ -84,6 +145,7 @@
 
     assertOk(error, "Admin sign in");
     if (!data.session) throw new Error("No authenticated session returned.");
+    markPasswordAuthenticated(data.session.user.id);
     return data.session;
   }
 
@@ -106,11 +168,20 @@
         password: newPassword
       });
     assertOk(updateError, "Change admin password");
+    if (data.user?.id) markPasswordAuthenticated(data.user.id);
 
     return data.user;
   }
 
+  async function requirePasswordReauth(userId) {
+    clearPasswordAuthentication(userId);
+    const { error } = await requireClient().auth.signOut({ scope: "local" });
+    assertOk(error, "Expire password authentication");
+  }
+
   async function signOut() {
+    const session = await getSession();
+    if (session?.user?.id) clearPasswordAuthentication(session.user.id);
     const { error } = await requireClient().auth.signOut();
     assertOk(error, "Sign out");
   }
@@ -637,8 +708,10 @@
     isConfigured,
     getSession,
     getUser,
+    getPasswordReauthStatus,
     signInWithPassword,
     changeAdminPassword,
+    requirePasswordReauth,
     signOut,
     startShift,
     getShiftCaseCounter,

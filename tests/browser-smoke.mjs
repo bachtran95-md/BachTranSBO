@@ -361,7 +361,10 @@ window.supabase = {
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();
 const errors = [];
-context.on("page", (page) => page.on("pageerror", (error) => errors.push(error.message)));
+context.on("page", (page) => page.on("pageerror", (error) => {
+  errors.push(error.message);
+  console.error("[browser pageerror]", error.message);
+}));
 
 await context.route(/supabase-js@2\.116\.0/, async (route) => {
   await route.fulfill({ status: 200, contentType: "application/javascript", body: supabaseMock });

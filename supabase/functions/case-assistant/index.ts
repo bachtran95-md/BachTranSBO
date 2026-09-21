@@ -252,11 +252,11 @@ function cleanTest(entry: any) {
 function cleanClinicalSnapshot(patient: any) {
   const snapshot = core.snapshot(patient);
   snapshot.tests = {
-    labs: (patient?.tests?.labs || []).slice(0, 3).map(cleanTest),
-    ekg: cleanTest(patient?.tests?.ekg),
-    gas: cleanTest(patient?.tests?.gas),
-    radiology: (patient?.tests?.radiology || []).slice(0, 30).map(cleanTest),
-    consultations: (patient?.tests?.consultations || []).slice(0, 30).map(cleanTest),
+    labs: (patient?.tests?.labs || []).slice(0, 999).map(cleanTest),
+    ekg: (patient?.tests?.ekgs || []).slice(0, 999).map(cleanTest),
+    gas: (patient?.tests?.gases || []).slice(0, 999).map(cleanTest),
+    radiology: (patient?.tests?.radiology || []).slice(0, 999).map(cleanTest),
+    consultations: (patient?.tests?.consultations || []).slice(0, 999).map(cleanTest),
   };
   return snapshot;
 }

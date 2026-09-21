@@ -542,7 +542,7 @@ if (JSON.stringify(sexChoiceState) !== JSON.stringify(expectedSexChoices)) {
 }
 
 for (const value of ["F", "O", "M", "F"]) {
-  await beta.locator(`#iceSexChoices input[value="${value}"]`).check();
+  await beta.locator(`#iceSexChoices label:has(input[value="${value}"])`).click();
   await beta.waitForTimeout(180);
   if ((await beta.locator("#iceSex").inputValue()) !== value) {
     throw new Error(`Klinikum sex hidden value did not follow tick ${value}`);

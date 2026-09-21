@@ -254,7 +254,17 @@
   }
 
   function activateTab(tab) {
-    activeTab = tab || "clinical";
+    const nextTab = tab || "clinical";
+
+    if (nextTab !== activeTab) {
+      // Capture every visible/hidden form control into the in-memory patient
+      // before changing panel visibility, then persist that snapshot.
+      window.BachSBOClinicalUi?.commitCurrentDraft?.();
+      clearTimeout(caseAutosaveTimer);
+      void runCaseAutosave();
+    }
+
+    activeTab = nextTab;
     document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
       button.classList.toggle("active", button.dataset.cockpitTab === activeTab);
     });
@@ -1467,8 +1477,10 @@
       if (event.target?.id === "fDischargeCondition") syncDischargeConditionVisual();
 
       if (
-        event.target?.matches?.("#patientForm textarea") &&
-        !event.target.disabled
+        event.target?.matches?.("#patientForm textarea, #patientForm input") &&
+        !event.target.disabled &&
+        !event.target.readOnly &&
+        event.target.type !== "button"
       ) {
         scheduleCaseAutosave(700);
       }
@@ -1496,6 +1508,7 @@
         event.target?.matches?.("#patientForm select") &&
         !event.target.disabled
       ) {
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
         scheduleCaseAutosave(100);
       }
 
@@ -1504,9 +1517,12 @@
 
     document.addEventListener("focusout", (event) => {
       if (
-        event.target?.matches?.("#patientForm textarea") &&
-        !event.target.disabled
+        event.target?.matches?.("#patientForm textarea, #patientForm input") &&
+        !event.target.disabled &&
+        !event.target.readOnly &&
+        event.target.type !== "button"
       ) {
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
         clearTimeout(caseAutosaveTimer);
         void runCaseAutosave();
       }

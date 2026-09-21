@@ -187,14 +187,18 @@ async function persistNow({
   const snapshot = structuredClone(livePatient);
   const snapshotUpdatedAt = snapshot.updatedAt || "";
 
+  if (!silentAutosave && !allowIncompleteWorkflow) {
+    const validationError = persistenceValidationError(snapshot);
+    if (validationError) throw validationError;
+  }
+
   const previous = patientSaveQueues.get(caseId) || Promise.resolve();
   const queued = previous
     .catch(() => {})
     .then(async () => {
       const result = await window.BachSBOBackend.savePatient(
         shiftId,
-        snapshot,
-        { silentAutosave, allowIncompleteWorkflow }
+        snapshot
       );
 
       const current = patientById(caseId);
@@ -469,8 +473,40 @@ function narrativeWaitingLabels(patient) {
     .map(([, config]) => t(config.labelKey));
 }
 
+function dischargeConditionWaitingLabels(patient) {
+  if (
+    patient?.disposition === "discharged" &&
+    !String(patient.dischargeCondition || "").trim()
+  ) {
+    return [
+      uiLang === "hu"
+        ? "Milyen állapotban, panasz?"
+        : "Condition / symptoms at discharge"
+    ];
+  }
+  return [];
+}
+
 function workflowBlockers(patient) {
-  return [...narrativeWaitingLabels(patient), ...waitingLabels(patient)];
+  return [
+    ...narrativeWaitingLabels(patient),
+    ...waitingLabels(patient),
+    ...dischargeConditionWaitingLabels(patient)
+  ];
+}
+
+function persistenceValidationError(patient) {
+  if (
+    patient?.disposition === "discharged" &&
+    !String(patient.dischargeCondition || "").trim()
+  ) {
+    return new Error(
+      uiLang === "hu"
+        ? "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?"
+        : "Discharge condition / symptoms is required."
+    );
+  }
+  return null;
 }
 
 function refreshNarrativeField(patient, key) {

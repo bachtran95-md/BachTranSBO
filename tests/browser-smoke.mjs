@@ -459,7 +459,7 @@ beta.on("dialog", async (dialog) => {
   }
   await dialog.accept();
 });
-await beta.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
+await beta.goto(baseUrl + "/", { waitUntil: "domcontentloaded" });
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.locator("#cockpitBetaBadge").waitFor();
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
@@ -889,6 +889,40 @@ if (JSON.stringify(unifiedTestOptions) !== JSON.stringify(expectedUnifiedOrder))
   throw new Error("Unexpected unified investigation order: " + JSON.stringify(unifiedTestOptions));
 }
 
+// Every unified investigation type must add exactly one entry from the promoted Stable menu.
+const labCountBeforeAdd = await beta.locator('#labCard .test-card').count();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="lab"]').click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#labCard .test-card").length === expected,
+  labCountBeforeAdd + 1
+);
+await beta.locator('#labCard .test-card').last().locator("[data-delete-test]").click();
+
+const consultationCountBeforeAdd = await beta.locator('#consultCards .test-card').count();
+await beta.locator("#cockpitAddTest").click();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="consultation"]').click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#consultCards .test-card").length === expected,
+  consultationCountBeforeAdd + 1
+);
+await beta.locator('#consultCards .test-card').last().locator("[data-delete-test]").click();
+
+const otherCountBeforeAdd = await beta.locator('#consultCards .test-card').count();
+await beta.locator("#cockpitAddTest").click();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="other"]').click();
+await beta.locator("#cockpitOtherTestRow:not(.hidden)").waitFor();
+await beta.locator("#cockpitOtherTestName").fill("Smoke Egyéb");
+await beta.locator("#cockpitOtherTestConfirm").click();
+await beta.waitForFunction((expected) =>
+  document.querySelectorAll("#consultCards .test-card").length === expected,
+  otherCountBeforeAdd + 1
+);
+const addedOther = beta.locator('#consultCards .test-card').last();
+if ((await addedOther.locator("[data-type]").inputValue()) !== "Smoke Egyéb") {
+  throw new Error("Free-form Egyéb investigation name was not preserved");
+}
+await addedOther.locator("[data-delete-test]").click();
+
 // EKG and AVG are one-menu-click multi-entry groups.
 const ekgCountBeforeAdd = await beta.locator('#ekgCard .test-card').count();
 await beta.locator('#cockpitAddTestMenu [data-add-test-type="ekg"]').click();
@@ -1021,7 +1055,7 @@ if (await firstAssistantItem.locator('[data-decision="na"]').count()) {
 for (const spec of [
   { decision: "done", buttonRgb: "rgb(6, 118, 71)", boxRgb: "rgb(236, 253, 243)" },
   { decision: "yes", buttonRgb: "rgb(181, 71, 8)", boxRgb: "rgb(255, 247, 237)" },
-  { decision: "no", buttonRgb: "rgb(71, 84, 103)", boxRgb: "rgb(242, 244, 247)" }
+  { decision: "no", buttonRgb: "rgb(71, 84, 103)", boxRgb: "rgb(208, 213, 221)" }
 ]) {
   await firstAssistantItem.locator(`.cockpit-decision.${spec.decision}`).click();
   await beta.waitForFunction(({ decision }) =>
@@ -1179,9 +1213,68 @@ if (!corpusAfterReview.includes("EXCLUDED")) {
   throw new Error("Corpus review did not update to EXCLUDED");
 }
 
+// Final promoted-Stable gate: prepare a fully resolved case, then generate and finalize.
+await beta.locator("#patientsNav").click();
+await beta.evaluate(() => {
+  const key = "__bach_sbo_e2e_state";
+  const state = JSON.parse(localStorage.getItem(key) || "{}");
+  const p = state?.patients?.[0];
+  if (!p) throw new Error("Missing smoke patient before summary/finalize");
+  for (const field of ["complaint", "history", "physical", "therapy", "course", "diagnoses"]) {
+    p[field] = "";
+    p[field + "Skipped"] = true;
+  }
+  for (const group of ["labs", "ekgs", "gases", "radiology", "consultations"]) {
+    for (const entry of p.tests?.[group] || []) {
+      entry.mode = "notordered";
+      entry.text = "";
+      entry.savedText = "";
+    }
+  }
+  p.disposition = "discharged";
+  p.dischargeCondition = "Panaszmentes, jó általános állapotú.";
+  p.summary = "";
+  p.summaryGeneratedText = "";
+  p.summaryGeneratedAt = null;
+  p.summaryFinalizedText = "";
+  p.summaryFinalizedAt = null;
+  localStorage.setItem(key, JSON.stringify(state));
+});
+await beta.reload({ waitUntil: "domcontentloaded" });
+await beta.locator("#patientsView:not(.hidden)").waitFor();
+await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await beta.locator('[data-cockpit-tab="summary"]').click();
+await beta.waitForFunction(() => {
+  const generate = document.querySelector("#generateSummaryBtn");
+  const finalize = document.querySelector("#finalizeSummaryBtn");
+  return Boolean(generate && finalize && !generate.disabled && !finalize.disabled);
+});
+await beta.locator("#generateSummaryBtn").click();
+await beta.waitForFunction(() => document.querySelector("#fSummary")?.value === "Mock summary");
+if ((await beta.locator("#fSummary").inputValue()) !== "Mock summary") {
+  throw new Error("Summary generation did not populate the summary text");
+}
+await beta.locator("#finalizeSummaryBtn").click();
+await beta.waitForFunction(() => {
+  const raw = localStorage.getItem("__bach_sbo_e2e_state");
+  const p = raw ? JSON.parse(raw)?.patients?.[0] : null;
+  return Boolean(p?.summaryFinalizedAt && p?.summaryFinalizedText === "Mock summary");
+});
+const finalizedState = await beta.evaluate(() => {
+  const p = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}")?.patients?.[0];
+  return {
+    finalizedAt: p?.summaryFinalizedAt || null,
+    finalizedText: p?.summaryFinalizedText || "",
+    status: document.querySelector("#summaryStatus")?.textContent || ""
+  };
+});
+if (!finalizedState.finalizedAt || finalizedState.finalizedText !== "Mock summary") {
+  throw new Error("Finalize did not persist the generated summary: " + JSON.stringify(finalizedState));
+}
+
 if (errors.length) {
   throw new Error("Browser page errors: " + errors.join(" | "));
 }
 
 await browser.close();
-console.log("Browser smoke passed: login -> existing case -> add -> delete -> reload -> beta.");
+console.log("Browser smoke passed: promoted Stable UI -> patient -> demographics -> investigations -> save/reload -> disposition -> summary/finalize.");

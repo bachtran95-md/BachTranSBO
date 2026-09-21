@@ -182,6 +182,7 @@ function casePayload(caseRow: any, tests: any[]) {
     clinical_course: caseRow.clinical_course,
     clinical_course_status: caseRow.clinical_course_skipped ? "none" : "provided",
     disposition: caseRow.disposition,
+    discharge_condition: caseRow.discharge_condition || "",
     recommendations: caseRow.recommendations,
     admission: {
       hospital: caseRow.hospital,

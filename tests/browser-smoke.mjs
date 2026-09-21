@@ -726,6 +726,32 @@ await beta.waitForFunction((expected) =>
   radiologyCountBeforeAdd + 1
 );
 const addedRadiology = beta.locator('#radiologyCards .test-card').last();
+
+// A blank Radiology entry must stay structurally blank. The display fallback
+// "Radiology" must never be persisted as a fake custom modality after autosave.
+if ((await addedRadiology.locator("[data-modality]").inputValue()) !== "") {
+  throw new Error("New Radiology row unexpectedly selected a modality");
+}
+if ((await addedRadiology.locator("[data-other]").inputValue()) !== "") {
+  throw new Error("New Radiology row unexpectedly contains a custom test name");
+}
+if (await addedRadiology.locator("[data-other]").isVisible()) {
+  throw new Error("Blank Radiology row incorrectly shows the custom-test input");
+}
+
+const radiologyControlWidths = await addedRadiology.evaluate((card) => {
+  const body = card.querySelector("[data-body]");
+  const modality = card.querySelector("[data-modality]");
+  if (!body || !modality) return null;
+  return {
+    body: body.getBoundingClientRect().width,
+    modality: modality.getBoundingClientRect().width
+  };
+});
+if (!radiologyControlWidths || radiologyControlWidths.body < 70 || radiologyControlWidths.modality < 80) {
+  throw new Error("Radiology selectors are still collapsed in compact layout: " + JSON.stringify(radiologyControlWidths));
+}
+
 const deleteAtEnd = await addedRadiology.evaluate((card) => {
   const result = card.querySelector("textarea");
   const remove = card.querySelector("[data-delete-test]");

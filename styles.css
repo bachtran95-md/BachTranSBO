@@ -2568,15 +2568,44 @@ body.cockpit-ui .summary-actions{
 .raw-transfer-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .raw-transfer-send{min-height:44px}
 .raw-transfer-status{margin-top:11px;min-height:20px}
-.raw-data-inbox-section{
-  border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;
-  padding:14px;margin-top:0
+.raw-data-badge{
+  border:1px solid #fdba74;border-radius:999px;padding:7px 10px;
+  background:#fff7ed;color:#9a3412;font-size:11px;font-weight:900;
+  display:inline-flex;align-items:center;gap:6px;letter-spacing:.03em
 }
-.raw-data-inbox-section .section-title{margin-bottom:9px}
+.raw-data-badge:hover{background:#ffedd5;border-color:#fb923c}
+.raw-data-badge:focus-visible{outline:3px solid #fed7aa;outline-offset:2px}
+.raw-data-drawer-backdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.42);opacity:0;
+  pointer-events:none;transition:opacity .18s ease;z-index:70
+}
+.raw-data-drawer-backdrop.open{opacity:1;pointer-events:auto}
+.raw-data-drawer{
+  position:fixed;top:0;right:0;height:100dvh;width:min(560px,92vw);
+  background:#fff;border-left:1px solid var(--line);box-shadow:-18px 0 44px rgba(15,23,42,.18);
+  transform:translateX(104%);transition:transform .2s ease;z-index:80;
+  display:flex;flex-direction:column
+}
+.raw-data-drawer.open{transform:translateX(0)}
+.raw-data-drawer-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  padding:18px;border-bottom:1px solid var(--line)
+}
+.raw-data-drawer-head strong{display:block;font-size:18px;margin:2px 0 4px}
+.raw-data-drawer-kicker{
+  font-size:10px;font-weight:900;letter-spacing:.11em;color:var(--accent)
+}
+.raw-data-drawer-close{font-size:20px;line-height:1;padding:6px 9px}
+.raw-data-drawer-body{padding:18px;overflow:auto;flex:1}
+.raw-data-drawer-actions{
+  border-top:1px solid var(--line);padding:14px 18px;display:flex;gap:8px;
+  flex-wrap:wrap;background:#fff
+}
 .normal-raw-data-text{
-  min-height:128px;max-height:280px;background:#fff;color:#334155;line-height:1.45
+  min-height:52vh;max-height:none;background:#fff;color:#334155;line-height:1.5;
+  font-size:14px
 }
-.raw-data-inbox-actions{align-items:center}
+body.raw-data-drawer-open{overflow:hidden}
 
 @media (max-width:760px){
   .mode-picker-grid{grid-template-columns:1fr}
@@ -2596,4 +2625,10 @@ body.cockpit-ui .summary-actions{
   .raw-transfer-send{min-height:52px;font-size:15px}
   .raw-transfer-mode .session-reauth-card{order:3}
   .raw-transfer-mode #topActions{width:100%}
+  .raw-data-drawer{width:100vw}
+  .raw-data-drawer-head{padding:14px}
+  .raw-data-drawer-body{padding:14px}
+  .raw-data-drawer-actions{padding:12px 14px;display:grid;grid-template-columns:1fr}
+  .raw-data-drawer-actions .btn{min-height:46px}
+  .normal-raw-data-text{min-height:58vh;font-size:16px}
 }

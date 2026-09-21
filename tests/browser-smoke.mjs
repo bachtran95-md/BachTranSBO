@@ -594,6 +594,34 @@ for (const value of ["F", "O", "M", "F"]) {
 const expectedYob = String(new Date().getFullYear() - 44);
 await beta.locator("#iceYob").fill(expectedYob);
 await beta.locator("#iceYob").dispatchEvent("change");
+
+// Chrome regression: while the native arrival select owns focus, observer /
+// label refreshes must not replace its option nodes.
+const arrivalOptionState = await beta.locator("#iceArrival").evaluate((select) => {
+  window.__BACH_E2E_ARRIVAL_OMSZ_OPTION = select.querySelector('option[value="omsz"]');
+  return [...select.options].map((option) => ({ value: option.value, text: option.textContent }));
+});
+const expectedArrivalOptions = [
+  { value: "", text: "— válasszon —" },
+  { value: "omsz", text: "OMSz szállította" },
+  { value: "esetkocsi", text: "Esetkocsi szállította" },
+  { value: "walk_in", text: "Saját lábán érkezett" },
+  { value: "gp_referral", text: "Háziorvosi beutalóval" },
+  { value: "other", text: "Egyéb" }
+];
+if (JSON.stringify(arrivalOptionState) !== JSON.stringify(expectedArrivalOptions)) {
+  throw new Error("Unexpected Klinikum arrival option order: " + JSON.stringify(arrivalOptionState));
+}
+await beta.locator("#iceArrival").focus();
+await beta.locator("#recordHeader").evaluate((header) => header.classList.toggle("arrival-focus-regression"));
+await beta.waitForTimeout(250);
+const arrivalOptionNodeStable = await beta.locator("#iceArrival").evaluate((select) =>
+  window.__BACH_E2E_ARRIVAL_OMSZ_OPTION === select.querySelector('option[value="omsz"]')
+);
+if (!arrivalOptionNodeStable) {
+  throw new Error("Focused Klinikum arrival select rebuilt option nodes during Chrome interaction");
+}
+
 await beta.locator("#iceArrival").selectOption("omsz");
 await beta.waitForFunction(() => document.querySelector("#iceAge")?.value === "44");
 if (await beta.locator("#iceArrival").isDisabled()) {

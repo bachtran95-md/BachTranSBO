@@ -630,6 +630,7 @@ async function finalizePatient(
     physical_exam: patient.physical || "",
     physical_exam_skipped: Boolean(patient.physicalSkipped),
     diagnoses: patient.diagnoses || "",
+    diagnoses_skipped: Boolean(patient.diagnosesSkipped),
     others: patient.others || "",
     therapy: patient.therapy || "",
     therapy_skipped: Boolean(patient.therapySkipped),

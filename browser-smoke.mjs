@@ -67,6 +67,9 @@ const backendMock = String.raw`
     return JSON.parse(raw);
   };
   const write = (state) => localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  const RAW_KEY = "__bach_sbo_e2e_raw_data";
+  const readRaw = () => JSON.parse(localStorage.getItem(RAW_KEY) || "{}");
+  const writeRaw = (value) => localStorage.setItem(RAW_KEY, JSON.stringify(value));
   const row = (p) => ({
     id: p.id,
     sex: p.sex || null,
@@ -149,6 +152,23 @@ const backendMock = String.raw`
     async signOut() { localStorage.removeItem(SESSION_KEY); },
     async changeAdminPassword() { return true; },
     async loadState() { return clone(read()); },
+    async getShiftCaseCounter() {
+      const state = read();
+      const ids = state.patients.map((p) => Number.parseInt(p.localId || "0", 10)).filter(Number.isFinite);
+      const nextCaseNumber = Math.max(0, ...ids) + 1;
+      return { shiftId, nextCaseNumber, localId: String(nextCaseNumber).padStart(2, "0") };
+    },
+    async allocateCaseLocalId() {
+      const state = read();
+      const ids = state.patients.map((p) => Number.parseInt(p.localId || "0", 10)).filter(Number.isFinite);
+      const caseNumber = Math.max(0, ...ids) + 1;
+      return {
+        shiftId,
+        caseNumber,
+        localId: String(caseNumber).padStart(2, "0"),
+        nextCaseNumber: caseNumber + 1
+      };
+    },
     async startShift() {
       const state = read();
       state.shift ||= { id: shiftId, startedAt: new Date().toISOString(), status: "active" };
@@ -280,6 +300,51 @@ const backendMock = String.raw`
         warnings: []
       };
     },
+    async loadRawTransferWorkspace() {
+      const state = read();
+      return {
+        shift: state.shift ? clone(state.shift) : null,
+        cases: state.shift
+          ? state.patients
+              .filter((p) => !p.summaryFinalizedAt)
+              .map((p) => ({
+                id: p.id,
+                localId: p.localId,
+                sex: p.sex,
+                yearOfBirth: p.yob,
+                mainComplaint: p.mainComplaint,
+                status: "active",
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt
+              }))
+          : []
+      };
+    },
+    async getCaseRawData(caseId) {
+      const value = readRaw()[caseId] || null;
+      return value ? clone(value) : null;
+    },
+    async saveCaseRawData(caseId, content) {
+      const raw = readRaw();
+      const previous = raw[caseId] || {};
+      const now = new Date().toISOString();
+      raw[caseId] = {
+        caseId,
+        content: String(content || ""),
+        source: "heidi",
+        createdAt: previous.createdAt || now,
+        updatedAt: now
+      };
+      writeRaw(raw);
+      return clone(raw[caseId]);
+    },
+    async deleteCaseRawData(caseId) {
+      const raw = readRaw();
+      delete raw[caseId];
+      writeRaw(raw);
+      return { deleted: true, caseId };
+    },
+    subscribeCaseRawData() { return () => {}; },
     async getLearningOverview() {
       return {
         finalizedCount: 1,
@@ -373,7 +438,32 @@ await page.goto(baseUrl + "/", { waitUntil: "domcontentloaded" });
 await page.locator("#authPassword").waitFor();
 await page.locator("#authPassword").fill("smoke-test-password");
 await page.locator("#passwordSignIn").click();
+
+// New login mode chooser: validate the phone-only Raw Data Transfer path first.
+await page.locator("#chooseRawMode").waitFor();
+await page.locator("#chooseRawMode").click();
+await page.locator("#rawTransferView:not(.hidden)").waitFor();
+await page.locator('[data-raw-case-id="22222222-2222-4222-8222-222222222222"]').click();
+await page.locator("#rawTransferText").fill("Heidi raw transcript: mellkasi fájdalom.");
+await page.locator("#rawTransferSaveBtn").click();
+await page.waitForFunction(() =>
+  (document.querySelector("#rawTransferStatus")?.textContent || "").includes("elküldve")
+);
+
+// Switch this device to the full clinical workspace and confirm the raw inbox bridge.
+await page.locator("#switchModeBtn").click();
+await page.locator("#chooseNormalMode").click();
 await page.locator("#patientsView:not(.hidden)").waitFor();
+await page.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await page.waitForFunction(() =>
+  (document.querySelector("#normalRawDataText")?.value || "").includes("Heidi raw transcript")
+);
+await page.locator("#normalRawUseAiBtn").click();
+await page.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
+if (!(await page.locator("#cockpitPasteText").inputValue()).includes("Heidi raw transcript")) {
+  throw new Error("Raw data was not loaded into AI data entry");
+}
+await page.locator("#cockpitDataEntryClose").click();
 
 const newSexOptions = await page.locator("#newSex").evaluate((select) =>
   [...select.options].map((option) => ({ value: option.value, text: option.textContent }))
@@ -456,6 +546,9 @@ beta.on("dialog", async (dialog) => {
   await dialog.accept();
 });
 await beta.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
+if (await beta.locator("#chooseNormalMode").count()) {
+  await beta.locator("#chooseNormalMode").click();
+}
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.locator("#cockpitBetaBadge").waitFor();
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {

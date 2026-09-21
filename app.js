@@ -920,6 +920,7 @@ async function addPatient() {
     diagnoses: "",
     diagnosesSkipped: false,
     disposition: "",
+    dischargeCondition: "",
     recommendations: ["", "", "", "", ""],
     hospital: "",
     ward: "",
@@ -988,6 +989,7 @@ function loadPatientForm() {
     fCourse: patient.course,
     fDiagnoses: patient.diagnoses || "",
     fDisposition: patient.disposition,
+    fDischargeCondition: patient.dischargeCondition || "",
     fHospital: patient.hospital,
     fWard: patient.ward,
     fPhysician: patient.physician,
@@ -1540,6 +1542,7 @@ function collectForm() {
   patient.diagnoses = document.getElementById("fDiagnoses").value;
   if (patient.diagnoses.trim()) patient.diagnosesSkipped = false;
   patient.disposition = document.getElementById("fDisposition").value;
+  patient.dischargeCondition = document.getElementById("fDischargeCondition")?.value || "";
   patient.hospital = document.getElementById("fHospital").value;
   patient.ward = document.getElementById("fWard").value;
   patient.physician = document.getElementById("fPhysician").value;

@@ -1150,6 +1150,9 @@
       button.textContent = "×";
       button.title = label("Delete test", "Vizsgálat törlése");
       button.setAttribute("aria-label", button.title);
+      button.classList.add("cockpit-test-delete-end");
+      // Keep status dots isolated. Delete belongs to the far end of the row.
+      if (button.parentElement !== card) card.appendChild(button);
     });
 
     const dots = card.querySelector(".mode-dots");
@@ -1211,22 +1214,29 @@
   }
 
   function addUnifiedTest() {
-    const type = document.getElementById("cockpitTestType")?.value || "lab";
-    if (type === "lab") document.getElementById("addLabBtn")?.click();
-    if (type === "imaging") document.getElementById("addRadiologyBtn")?.click();
-    if (type === "consultation") document.getElementById("addConsultBtn")?.click();
-    if (type === "other") {
-      document.getElementById("addConsultBtn")?.click();
-      const inputs = [...document.querySelectorAll('#consultCards [data-type^="consultations-"]')];
-      const input = inputs.at(-1);
-      if (input) {
-        input.value = document.getElementById("cockpitOtherTestName")?.value.trim() || label("Other", "Egyéb");
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      }
-    }
+    const typeControl = document.getElementById("cockpitTestType");
+    const addButton = document.getElementById("cockpitAddTest");
     const other = document.getElementById("cockpitOtherTestName");
-    if (other) other.value = "";
-    setTimeout(enhanceTestsUi, 0);
+    const type = typeControl?.value || "lab";
+    const add = window.BachSBOClinicalUi?.addInvestigation;
+    if (typeof add !== "function" || addButton?.disabled) return;
+
+    // Disable only for the synchronous mutation itself. This prevents
+    // accidental double-adds without making the control feel locked.
+    if (addButton) addButton.disabled = true;
+    try {
+      add(type, { name: other?.value.trim() || "" });
+      if (other) other.value = "";
+      if (typeControl) typeControl.focus();
+    } finally {
+      if (addButton) addButton.disabled = false;
+    }
+
+    setTimeout(() => {
+      enhanceTestsUi();
+      window.BachSBOClinicalUi?.commitCurrentDraft?.();
+      scheduleCaseAutosave(350);
+    }, 0);
   }
 
   function enhanceTestsUi() {
@@ -1603,8 +1613,7 @@
         "#patientForm #addRecBtn, " +
         "#patientForm #addLabBtn, " +
         "#patientForm #addRadiologyBtn, " +
-        "#patientForm #addConsultBtn, " +
-        "#patientForm #cockpitAddTest"
+        "#patientForm #addConsultBtn"
       );
       if (autosaveAction) {
         // Let the button's own handler mutate the case first, then capture and save.

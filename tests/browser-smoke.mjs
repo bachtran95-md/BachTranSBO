@@ -375,6 +375,19 @@ await page.locator("#authPassword").fill("smoke-test-password");
 await page.locator("#passwordSignIn").click();
 await page.locator("#patientsView:not(.hidden)").waitFor();
 
+const newSexOptions = await page.locator("#newSex").evaluate((select) =>
+  [...select.options].map((option) => ({ value: option.value, text: option.textContent }))
+);
+const expectedNewSexOptions = [
+  { value: "", text: "—" },
+  { value: "M", text: "Férfi" },
+  { value: "F", text: "Nő" },
+  { value: "O", text: "Egyéb" }
+];
+if (JSON.stringify(newSexOptions) !== JSON.stringify(expectedNewSexOptions)) {
+  throw new Error("Unexpected new-case sex option order: " + JSON.stringify(newSexOptions));
+}
+
 const initialRows = page.locator("#patientTbody tr[data-id]");
 if (await initialRows.count() !== 1) {
   throw new Error("Expected one existing case after sign-in");
@@ -507,7 +520,44 @@ await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "vi
 if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
   throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
+
+// Regression from screen recording: sex options must be Férfi -> Nő -> Egyéb,
+// and changing the native select must not rebuild its option nodes mid-interaction.
+const sexOptionState = await beta.locator("#iceSex").evaluate((select) => {
+  window.__BACH_E2E_SEX_M_OPTION = select.querySelector('option[value="M"]');
+  return [...select.options].map((option) => ({
+    value: option.value,
+    text: option.textContent
+  }));
+});
+const expectedSexOptions = [
+  { value: "", text: "—" },
+  { value: "M", text: "Férfi" },
+  { value: "F", text: "Nő" },
+  { value: "O", text: "Egyéb" }
+];
+if (JSON.stringify(sexOptionState) !== JSON.stringify(expectedSexOptions)) {
+  throw new Error("Unexpected Klinikum sex option order: " + JSON.stringify(sexOptionState));
+}
+
+await beta.locator("#iceSex").selectOption("O");
+await beta.waitForTimeout(250);
+if ((await beta.locator("#iceSex").inputValue()) !== "O") {
+  throw new Error("Klinikum sex selection reverted after choosing Egyéb");
+}
+const sexOptionNodeStable = await beta.locator("#iceSex").evaluate((select) =>
+  window.__BACH_E2E_SEX_M_OPTION === select.querySelector('option[value="M"]')
+);
+if (!sexOptionNodeStable) {
+  throw new Error("Klinikum sex select rebuilt option nodes during interaction");
+}
+
 await beta.locator("#iceSex").selectOption("F");
+await beta.waitForTimeout(250);
+if ((await beta.locator("#iceSex").inputValue()) !== "F") {
+  throw new Error("Klinikum sex selection reverted after choosing Nő");
+}
+
 const expectedYob = String(new Date().getFullYear() - 44);
 await beta.locator("#iceYob").fill(expectedYob);
 await beta.locator("#iceYob").dispatchEvent("change");

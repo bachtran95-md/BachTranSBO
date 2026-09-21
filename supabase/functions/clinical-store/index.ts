@@ -788,6 +788,35 @@ async function reopenCase(
   };
 }
 
+async function allocateCaseLocalId(
+  db: any,
+  ownerId: string,
+  shiftId: string,
+) {
+  if (!shiftId || !/^[0-9a-f-]{36}$/i.test(shiftId)) {
+    throw new Error("Case ID allocation payload is incomplete.");
+  }
+
+  const { data, error } = await db.rpc("allocate_shift_case_number", {
+    p_shift_id: shiftId,
+    p_owner_id: ownerId,
+  });
+
+  if (error) throw error;
+
+  const caseNumber = Number(data);
+  if (!Number.isInteger(caseNumber) || caseNumber < 1) {
+    throw new Error("Case ID allocation returned an invalid number.");
+  }
+
+  return {
+    shiftId,
+    caseNumber,
+    localId: String(caseNumber).padStart(2, "0"),
+    nextCaseNumber: caseNumber + 1,
+  };
+}
+
 async function deleteCase(db: any, ownerId: string, caseId: string) {
   if (!caseId || !/^[0-9a-f-]{36}$/i.test(caseId)) {
     throw new Error("Case delete payload is incomplete.");
@@ -912,6 +941,16 @@ Deno.serve(async (req) => {
 
     if (body?.action === "save_state") {
       return json(await saveState(db, user.id, body.state));
+    }
+
+    if (body?.action === "allocate_case_id") {
+      return json(
+        await allocateCaseLocalId(
+          db,
+          user.id,
+          String(body.shiftId || ""),
+        ),
+      );
     }
 
     if (body?.action === "save_patient") {

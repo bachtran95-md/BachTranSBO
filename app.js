@@ -942,12 +942,55 @@ function stopRawTransferRefreshTimer() {
   }
 }
 
+function closeNormalRawDrawer() {
+  const drawer = document.getElementById("normalRawDrawer");
+  const backdrop = document.getElementById("normalRawDrawerBackdrop");
+  drawer?.classList.remove("open");
+  drawer?.setAttribute("aria-hidden", "true");
+  backdrop?.classList.remove("open");
+  backdrop?.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("raw-data-drawer-open");
+}
+
+function openNormalRawDrawer() {
+  const badge = document.getElementById("normalRawBadge");
+  if (!selectedPatientId || badge?.classList.contains("hidden")) return;
+
+  const drawer = document.getElementById("normalRawDrawer");
+  const backdrop = document.getElementById("normalRawDrawerBackdrop");
+  drawer?.classList.add("open");
+  drawer?.setAttribute("aria-hidden", "false");
+  backdrop?.classList.add("open");
+  backdrop?.setAttribute("aria-hidden", "false");
+  document.body.classList.add("raw-data-drawer-open");
+  void refreshNormalRawData(selectedPatientId, { silent: true });
+  document.getElementById("normalRawDrawerClose")?.focus({ preventScroll: true });
+}
+
+function setNormalRawBadge(hasContent) {
+  const badge = document.getElementById("normalRawBadge");
+  const labelNode = document.getElementById("normalRawBadgeLabel");
+  if (!badge) return;
+
+  if (labelNode) {
+    labelNode.textContent = uiLang === "hu" ? "RAW DATA" : "RAW DATA";
+  }
+  badge.title = uiLang === "hu"
+    ? "Telefonról érkezett raw data megnyitása"
+    : "Open raw data received from phone";
+  badge.classList.toggle("hidden", !hasContent);
+
+  if (!hasContent) closeNormalRawDrawer();
+}
+
 function disconnectNormalRawData() {
   if (typeof normalRawSubscriptionStop === "function") {
     normalRawSubscriptionStop();
   }
   normalRawSubscriptionStop = null;
   normalRawCaseId = null;
+  setNormalRawBadge(false);
+  closeNormalRawDrawer();
 }
 
 function rawDataUpdatedLabel(iso) {
@@ -972,9 +1015,11 @@ async function refreshNormalRawData(caseId = selectedPatientId, { silent = false
     if (caseId !== selectedPatientId || appMode !== "normal") return record;
 
     const content = record?.content || "";
+    const hasContent = Boolean(content.trim());
     textarea.value = content;
-    useAi.disabled = !content.trim();
-    remove.disabled = !content.trim();
+    useAi.disabled = !hasContent;
+    remove.disabled = !hasContent;
+    setNormalRawBadge(hasContent);
     meta.textContent = record?.updatedAt
       ? (uiLang === "hu"
         ? `Telefonról érkezett • ${rawDataUpdatedLabel(record.updatedAt)}`
@@ -1027,6 +1072,7 @@ async function useNormalRawDataInAi() {
   }
 
   paste.value = text;
+  closeNormalRawDrawer();
   open.click();
 }
 
@@ -1042,6 +1088,7 @@ async function deleteNormalRawData() {
   try {
     await window.BachSBOBackend.deleteCaseRawData(selectedPatientId);
     await refreshNormalRawData(selectedPatientId);
+    closeNormalRawDrawer();
     flash(uiLang === "hu" ? "Raw data törölve." : "Raw data deleted.");
   } catch (error) {
     handleBackendError(error);
@@ -1478,7 +1525,8 @@ function renderPatients() {
   } else {
     document.getElementById("patientForm").classList.add("hidden");
     document.getElementById("noPatientSelected").classList.remove("hidden");
-    document.getElementById("normalRawDataInbox")?.classList.add("hidden");
+    setNormalRawBadge(false);
+    closeNormalRawDrawer();
     document.getElementById("recordTitle").textContent = uiLang === "hu" ? "Eset részletei" : "Case detail";
     document.getElementById("recordSubtitle").textContent = t("selectCasePrompt");
     document.getElementById("patientStatusBadge").innerHTML = "";
@@ -1675,7 +1723,6 @@ function loadPatientForm() {
 
   document.getElementById("patientForm").classList.remove("hidden");
   document.getElementById("noPatientSelected").classList.add("hidden");
-  document.getElementById("normalRawDataInbox")?.classList.remove("hidden");
 
   document.getElementById("recordTitle").textContent =
     `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId}`;
@@ -3514,9 +3561,17 @@ document.getElementById("rawTransferText").addEventListener("input", () => {
   document.getElementById("rawTransferSaveBtn").disabled =
     !rawTransferSelectedCaseId || !text.trim();
 });
+document.getElementById("normalRawBadge").onclick = openNormalRawDrawer;
+document.getElementById("normalRawDrawerClose").onclick = closeNormalRawDrawer;
+document.getElementById("normalRawDrawerBackdrop").onclick = closeNormalRawDrawer;
 document.getElementById("normalRawRefreshBtn").onclick = () => refreshNormalRawData();
 document.getElementById("normalRawUseAiBtn").onclick = useNormalRawDataInAi;
 document.getElementById("normalRawDeleteBtn").onclick = deleteNormalRawData;
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("raw-data-drawer-open")) {
+    closeNormalRawDrawer();
+  }
+});
 
 document.getElementById("fSummary").addEventListener("input", () => {
   const patient = patientById(selectedPatientId);

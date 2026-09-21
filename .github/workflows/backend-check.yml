@@ -101,6 +101,22 @@ jobs:
             echo "Legacy Consultation button must delegate to addInvestigation."
             exit 1
           fi
+          if grep -E -q 'collectTestDraftsFromDom|patientTestEntryByKey' app.js; then
+            echo "Investigation drafts must live in patient.tests, not be reconstructed from DOM."
+            exit 1
+          fi
+          if ! grep -q 'testEntryStatus: entryStatus' app.js; then
+            echo "app.js must expose canonical investigation status."
+            exit 1
+          fi
+          if ! grep -q 'getPatientSnapshot' app.js; then
+            echo "app.js must expose canonical patient snapshots for cockpit reads."
+            exit 1
+          fi
+          if grep -q 'querySelectorAll('"'"'\[data-cockpit-panel="tests"\] \.test-card'"'"')' cockpit-beta.js; then
+            echo "Cockpit must not derive investigation completion from rendered test-card classes."
+            exit 1
+          fi
           if ! grep -q 'action: "delete_case"' backend.js; then
             echo "backend.js is missing the secure delete_case bridge."
             exit 1

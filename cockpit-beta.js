@@ -593,7 +593,7 @@
     } catch (error) {
       if (!requestCaseId || selectedCaseId() === requestCaseId) {
         if (status) status.textContent = error?.message || label("Analysis failed.", "Elemzés sikertelen.");
-        if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || "Analysis failed.")}</div>`;
+        if (results) results.innerHTML = `<div class="cockpit-ai-error">${esc(error?.message || label("Analysis failed.", "Elemzés sikertelen."))}</div>`;
       }
     } finally {
       assistantBusy = false;
@@ -608,9 +608,9 @@
   }
 
   function priorityMeta(priority) {
-    if (priority === "now") return { icon: "●", label: "NOW" };
-    if (priority === "next") return { icon: "●", label: "NEXT" };
-    return { icon: "○", label: "CONSIDER" };
+    if (priority === "now") return { icon: "●", label: label("NOW", "MOST") };
+    if (priority === "next") return { icon: "●", label: label("NEXT", "KÖVETKEZŐ") };
+    return { icon: "○", label: label("CONSIDER", "MÉRLEGELENDŐ") };
   }
 
   async function saveAssistantDecision(button) {
@@ -914,8 +914,8 @@
     const itemHtml = items.map((item, index) => `
       <div class="cockpit-extract-item" data-index="${index}" data-decision="">
         <div class="cockpit-extract-head">
-          <strong>${esc(item.label || item.target || "Fact")}</strong>
-          <span>${esc(item.status || "documented")}</span>
+          <strong>${esc(item.label || item.target || label("Fact", "Tény"))}</strong>
+          <span>${esc(item.status || label("documented", "dokumentált"))}</span>
         </div>
         <div class="cockpit-extract-text">${esc(item.text || "")}</div>
         <details>
@@ -1197,7 +1197,7 @@
       header.innerHTML = `
         <strong id="cockpitInvestigationsTitle"></strong>
         <div class="cockpit-add-test-controls">
-          <select id="cockpitTestType" aria-label="Test type">
+          <select id="cockpitTestType" aria-label="${label("Test type", "Vizsgálat típusa")}">
             <option value="lab">Lab</option>
             <option value="imaging">Imaging</option>
             <option value="consultation">Consultation</option>

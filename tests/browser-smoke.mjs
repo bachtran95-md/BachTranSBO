@@ -1134,8 +1134,14 @@ if (!persistedComplaint.includes("mellkasi fájdalom")) {
   throw new Error("Accepted extracted complaint was not persisted");
 }
 
+// Close the modal before editing the underlying clinical form, then reopen it
+// for the conflict/failure extraction scenario.
+await beta.locator("#cockpitDataEntryClose").click();
+await beta.locator("#cockpitDataEntryOverlay.hidden").waitFor();
 await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
+await beta.locator("#cockpitDataEntryBtn").click();
+await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();

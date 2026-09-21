@@ -9,12 +9,10 @@
   let assistantLoadToken = 0;
   let assistantCoreLoadPromise = null;
   let assistantCoreRef = null;
-  let patientBoardLoad = null;
   let extractionPreviewState = null;
   let caseAutosaveTimer = null;
   let caseAutosaveInFlight = false;
   let caseAutosaveQueued = false;
-  const patientProgressByCase = new Map();
   const assistantStateByCase = new Map();
 
   const label = (en, hu) => {
@@ -79,92 +77,15 @@
 
   async function selectedPatient() {
     const id = selectedCaseId();
-    if (!id || !window.BachSBOBackend?.loadState) return null;
-    const snapshot = await window.BachSBOBackend.loadState();
-    return (snapshot.patients || []).find((patient) => patient.id === id) || null;
+    return id
+      ? window.BachSBOClinicalUi?.getPatientSnapshot?.(id) || null
+      : null;
   }
 
-  function testEntryStatus(entry) {
-    const canonical = window.BachSBOClinicalUi?.testEntryStatus?.(entry);
-    if (canonical === "result") return "complete";
-    return canonical === "notordered" ? "notordered" : "waiting";
-  }
-
-  function radiologyLabel(entry, index) {
-    const body = String(entry?.bodyPart || "").trim();
-    const modality = String(entry?.modality || "").trim();
-    const other = String(entry?.otherTest || "").trim();
-    const detail = modality === "other"
-      ? [body, other].filter(Boolean).join(" — ")
-      : [body, modality].filter(Boolean).join(" ");
-    return detail
-      ? `${label("Radiology", "Radiológia")} · ${detail}`
-      : `${label("Radiology", "Radiológia")} ${index + 1}`;
-  }
-
-  function patientTestItems(patient) {
-    const tests = patient?.tests || {};
-    return [
-      ...(tests.labs || []).map((entry, index) => ({ entry, name: `Lab ${index + 1}` })),
-      ...(tests.ekgs || []).map((entry, index) => ({ entry, name: `EKG ${index + 1}` })),
-      ...(tests.gases || []).map((entry, index) => ({
-        entry,
-        name: `${/\bVVG\b/i.test(String(entry?.text || "")) ? "VVG" : "AVG"} ${index + 1}`
-      })),
-      ...(tests.radiology || []).map((entry, index) => ({ entry, name: radiologyLabel(entry, index) })),
-      ...(tests.consultations || []).map((entry, index) => {
-        const specialty = String(entry?.type || "").trim();
-        return {
-          entry,
-          name: specialty
-            ? `${label("Consultation", "Konzílium")} · ${specialty}`
-            : `${label("Consultation", "Konzílium")} ${index + 1}`
-        };
-      })
-    ].map((item) => ({ ...item, status: testEntryStatus(item.entry) }));
-  }
-
-  function patientProgress(patient) {
-    const clinicalDefinitions = [
-      ["complaint", "complaintSkipped", label("Complaint", "Panasz")],
-      ["history", "historySkipped", label("History", "Anamnézis")],
-      ["physical", "physicalSkipped", label("Physical examination", "Fizikális vizsgálat")],
-      ["therapy", "therapySkipped", label("Therapy", "Terápia")],
-      ["course", "courseSkipped", label("Clinical course", "Klinikai lefolyás")]
-    ];
-    const clinical = clinicalDefinitions.map(([valueKey, skippedKey, name]) => ({
-      name,
-      complete: Boolean(patient?.[skippedKey] || String(patient?.[valueKey] || "").trim())
-    }));
-    const tests = patientTestItems(patient);
-    return {
-      clinical,
-      tests,
-      completeClinical: clinical.filter((item) => item.complete),
-      incompleteClinical: clinical.filter((item) => !item.complete),
-      completeTests: tests.filter((item) => item.status !== "waiting"),
-      waitingTests: tests.filter((item) => item.status === "waiting")
-    };
-  }
-
-  function progressFromVisibleForm() {
-    const form = document.getElementById("patientForm");
-    if (!form || form.classList.contains("hidden")) return null;
-
-    const clinical = [...form.querySelectorAll("[data-narrative-field]")].map((field) => ({
-      name: field.querySelector("label")?.textContent?.trim() || label("Clinical field", "Klinikai mező"),
-      complete: field.classList.contains("result") || field.classList.contains("none")
-    }));
-    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-    const tests = patient ? patientTestItems(patient) : [];
-    return {
-      clinical,
-      tests,
-      completeClinical: clinical.filter((item) => item.complete),
-      incompleteClinical: clinical.filter((item) => !item.complete),
-      completeTests: tests.filter((item) => item.status !== "waiting"),
-      waitingTests: tests.filter((item) => item.status === "waiting")
-    };
+  function currentPatientProgress(caseId = selectedCaseId()) {
+    return caseId
+      ? window.BachSBOClinicalUi?.getPatientProgress?.(caseId) || null
+      : null;
   }
 
   function narrativeResolved(key) {
@@ -203,9 +124,9 @@
     const metadata = clinicalMetadata();
     const arrival = window.BachSBOClinicalUi?.normalizeArrivalMode?.(metadata.arrival_mode) || "";
     const disposition = document.getElementById("fDisposition")?.value || "";
-    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-    const testsPending = patient
-      ? patientTestItems(patient).some((item) => item.status === "waiting")
+    const progress = currentPatientProgress();
+    const testsPending = progress
+      ? progress.waitingTests.length > 0
       : true;
 
     const clinical =
@@ -515,7 +436,7 @@
       entries.push({ kind, text: normalized });
     };
 
-    const progress = progressFromVisibleForm() || patientProgressByCase.get(caseId) || null;
+    const progress = currentPatientProgress(caseId);
     (progress?.incompleteClinical || []).forEach((item) =>
       add("required", item.name)
     );
@@ -1150,8 +1071,7 @@
   function installPatientListStatusHook() {
     window.BachSBOUiHooks ||= {};
     window.BachSBOUiHooks.patientListStatusHtml = (patient, context = {}) => {
-      const progress = patientProgress(patient);
-      if (patient?.id) patientProgressByCase.set(patient.id, progress);
+      const progress = currentPatientProgress(patient?.id);
       return waitingTestMarkup(progress, Boolean(context.completed));
     };
   }
@@ -1177,33 +1097,17 @@
     const cells = decoratePatientIdentity(row, patient);
     if (!cells) return;
 
-    const progress = patient ? patientProgress(patient) : null;
-    if (patient?.id) patientProgressByCase.set(patient.id, progress);
+    const progress = currentPatientProgress(patient?.id);
     cells[4].innerHTML = waitingTestMarkup(progress, row.classList.contains("completed"));
   }
 
-  async function enhancePatientRows() {
+  function enhancePatientRows() {
     const rows = [...document.querySelectorAll("#patientTbody tr[data-id]")];
-    rows.forEach((row) => decoratePatientIdentity(row));
-    const pendingRows = rows.filter((row) => !row.querySelector(".cockpit-test-chip-list"));
-    if (!pendingRows.length || patientBoardLoad || !window.BachSBOBackend?.loadState) return;
-
-    patientBoardLoad = window.BachSBOBackend.loadState();
-    try {
-      const snapshot = await patientBoardLoad;
-      const patients = new Map((snapshot?.patients || []).map((patient) => [patient.id, patient]));
-      pendingRows.forEach((row) => {
-        if (row.isConnected) decoratePatientRow(row, patients.get(row.dataset.id));
-      });
-      syncRailState();
-    } catch (error) {
-      pendingRows.forEach((row) => {
-        if (!row.isConnected) return;
-        decoratePatientIdentity(row);
-      });
-    } finally {
-      patientBoardLoad = null;
-    }
+    rows.forEach((row) => {
+      const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.(row.dataset.id) || null;
+      if (patient) decoratePatientRow(row, patient);
+      else decoratePatientIdentity(row);
+    });
   }
 
   function syncUnifiedTestLabels() {

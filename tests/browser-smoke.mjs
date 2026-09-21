@@ -459,15 +459,38 @@ await page.locator("#switchModeBtn").click();
 await page.locator("#chooseNormalMode").click();
 await page.locator("#patientsView:not(.hidden)").waitFor();
 await page.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await page.locator("#normalRawBadge:not(.hidden)").waitFor();
+if (await page.locator("#normalRawDataInbox").count()) {
+  throw new Error("Permanent Raw Data Inbox still occupies case content space");
+}
+await page.locator("#normalRawBadge").click();
+await page.waitForFunction(() =>
+  document.querySelector("#normalRawDrawer")?.classList.contains("open")
+);
 await page.waitForFunction(() =>
   (document.querySelector("#normalRawDataText")?.value || "").includes("Heidi raw transcript")
 );
 await page.locator("#normalRawUseAiBtn").click();
+await page.waitForFunction(() =>
+  !document.querySelector("#normalRawDrawer")?.classList.contains("open")
+);
 await page.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
 if (!(await page.locator("#cockpitPasteText").inputValue()).includes("Heidi raw transcript")) {
   throw new Error("Raw data was not loaded into AI data entry");
 }
 await page.locator("#cockpitDataEntryClose").click();
+
+// The compact badge should remain available until the raw source is explicitly deleted.
+await page.locator("#normalRawBadge:not(.hidden)").waitFor();
+await page.locator("#normalRawBadge").click();
+await page.waitForFunction(() =>
+  document.querySelector("#normalRawDrawer")?.classList.contains("open")
+);
+await page.locator("#normalRawDeleteBtn").click();
+await page.waitForFunction(() =>
+  document.querySelector("#normalRawBadge")?.classList.contains("hidden") &&
+  !document.querySelector("#normalRawDrawer")?.classList.contains("open")
+);
 
 const newSexOptions = await page.locator("#newSex").evaluate((select) =>
   [...select.options].map((option) => ({ value: option.value, text: option.textContent }))

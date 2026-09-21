@@ -628,6 +628,7 @@
     if (extract) extract.disabled = !hasCase || caseClosed || assistantBusy;
     renderDocumentationReview();
 
+    syncArrivalVisual();
     syncTabWarnings();
     if (!hasCase) return;
   }
@@ -1490,6 +1491,16 @@
     "Nefrológia"
   ];
 
+  function syncArrivalVisual() {
+    const select = document.getElementById("iceArrival");
+    const field = select?.closest(".field");
+    if (!select || !field) return;
+
+    const missing = !String(select.value || "").trim();
+    field.classList.toggle("cockpit-arrival-missing", missing);
+    select.setAttribute("aria-invalid", missing ? "true" : "false");
+  }
+
   function enhanceClinicalHeader() {
     const host = document.getElementById("inlineCaseEditor");
     if (!host) return;
@@ -1497,6 +1508,7 @@
     document.getElementById("iceArrival")?.closest(".field")?.classList.add("cockpit-arrival-field");
     document.getElementById("iceArrivalOtherWrap")?.classList.add("cockpit-arrival-other");
     host.querySelector(":scope > .toolbar")?.classList.add("cockpit-demographics-toolbar");
+    syncArrivalVisual();
   }
 
   function ensureWardPicker() {
@@ -1745,6 +1757,9 @@
     document.addEventListener("change", (event) => {
       if (event.target?.id === "fDisposition" || event.target?.id === "fDischargeCondition") {
         syncDischargeConditionVisual();
+      }
+      if (event.target?.id === "iceArrival") {
+        syncArrivalVisual();
       }
 
       if (

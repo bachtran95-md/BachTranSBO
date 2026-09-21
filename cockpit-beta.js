@@ -8,6 +8,7 @@
   let assistantBusy = false;
   let assistantLoadToken = 0;
   let assistantCoreLoadPromise = null;
+  let assistantCoreRef = null;
   let patientBoardLoad = null;
   let extractionPreviewState = null;
   let caseAutosaveTimer = null;
@@ -32,8 +33,12 @@
       .replaceAll("'", "&#039;");
 
   async function ensureAssistantCore() {
+    if (assistantCoreRef?.validateProposal && assistantCoreRef?.applyItems) {
+      return assistantCoreRef;
+    }
     if (window.BachAssistantCore?.validateProposal && window.BachAssistantCore?.applyItems) {
-      return window.BachAssistantCore;
+      assistantCoreRef = window.BachAssistantCore;
+      return assistantCoreRef;
     }
 
     if (!assistantCoreLoadPromise) {
@@ -45,7 +50,8 @@
 
         script.onload = () => {
           if (window.BachAssistantCore?.validateProposal && window.BachAssistantCore?.applyItems) {
-            resolve(window.BachAssistantCore);
+            assistantCoreRef = window.BachAssistantCore;
+            resolve(assistantCoreRef);
             return;
           }
           reject(new Error(label(
@@ -887,10 +893,10 @@
       // A mixed/stale browser cache can load cockpit-beta.js without the matching
       // assistant-core.js. Recover the local validation module before spending an
       // extraction request, while still failing closed if the module cannot load.
-      await ensureAssistantCore();
+      const assistantCore = await ensureAssistantCore();
       if (status) status.textContent = label("Extracting documented facts…", "Dokumentált tények kinyerése…");
       const response = await window.BachSBOBackend.caseAssistantExtract(id, text);
-      renderExtractionPreview(response, text, id);
+      renderExtractionPreview(response, text, id, assistantCore);
       if (status) status.textContent = label(
         "Review each item before applying it to the chart.",
         "Minden elemet ellenőrizzen, mielőtt a dokumentációba kerül."
@@ -904,8 +910,8 @@
     }
   }
 
-  function extractionItemModeControl(item) {
-    if (!window.BachAssistantCore?.fields?.includes(item.target)) return "";
+  function extractionItemModeControl(item, assistantCore = assistantCoreRef || window.BachAssistantCore) {
+    if (!assistantCore?.fields?.includes(item.target)) return "";
     return `
       <label class="cockpit-apply-mode-wrap">
         <span>${esc(label("When applied", "Alkalmazáskor"))}</span>
@@ -998,18 +1004,19 @@
     }
   }
 
-  function renderExtractionPreview(response, sourceText, caseId) {
+  function renderExtractionPreview(response, sourceText, caseId, assistantCore = assistantCoreRef || window.BachAssistantCore) {
     const preview = document.getElementById("cockpitExtractPreview");
     if (!preview) return;
 
-    if (!window.BachAssistantCore?.validateProposal) {
+    if (!assistantCore?.validateProposal) {
       throw new Error(label(
         "Assistant validation core is unavailable.",
         "Az asszisztens validációs modul nem érhető el."
       ));
     }
 
-    const validated = window.BachAssistantCore.validateProposal(response, sourceText);
+    assistantCoreRef = assistantCore;
+    const validated = assistantCore.validateProposal(response, sourceText);
     const items = validated.items;
     const warnings = validated.warnings;
     extractionPreviewState = { caseId, items, warnings };
@@ -1025,7 +1032,7 @@
           <summary>${esc(label("Evidence", "Bizonyíték"))}</summary>
           <div class="cockpit-evidence">${esc(item.evidence || "")}</div>
         </details>
-        ${extractionItemModeControl(item)}
+        ${extractionItemModeControl(item, assistantCore)}
         <div class="cockpit-decision-row">
           <button type="button" class="cockpit-decision yes" data-extract-decision="accept">${esc(label("ACCEPT", "ELFOGAD"))}</button>
           <button type="button" class="cockpit-decision no" data-extract-decision="ignore">${esc(label("IGNORE", "KIHAGY"))}</button>

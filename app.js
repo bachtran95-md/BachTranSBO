@@ -4,7 +4,16 @@ let backendReady = false;
 let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
-let uiLang = navigator.language?.toLowerCase().startsWith("hu") ? "hu" : "en";
+const patientSaveQueues = new Map();
+
+const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
+Hirtelen vagy súlyos állapotromlás esetén haladéktalanul jelentkezzen a területileg illetékes Sürgősségi Betegellátó Osztályon / SBO-n!
+Ambuláns lappal minél előbb jelentkezzen háziorvosánál, kezelőorvosánál.
+
+FIGYELMEZTETÉS!
+A sürgősségi osztályon, sürgősségi körülmények között keletkezett leletek korlátozott értékűek, nem tekinthetők teljes körűnek, mivel az elvégzett vizsgálatok a sürgősségi jellegű panaszai és tünetei alapján kerülnek meghatározásra és erre fókuszálnak. A cél az életveszélyes, illetve az azonnal kezelendő kórállapotok felfedezése, beazonosítása. A sürgősségi osztályon végzett vizsgálatok nem helyettesítenek egy alapos, átfogó szakorvosi vizsgálatot vagy a háziorvosi gondozást. Kérjük, hogy osztályunkról történő távozást követően a lehető legrövidebb időn belül jelentkezzen háziorvosánál a szükséges további teendők egyeztetése céljából. Amennyiben jelen panaszai/fájdalmai újra fellépnek vagy felerősödnek, késlekedés nélkül forduljon orvoshoz, mivel ennek elmulasztása kedvezőtlenül befolyásolhatja egészségi állapotát.`;
+
+let uiLang = "hu";
 const I18N = {
   en: {
     casesNav:"Cases", aiLearningNav:"AI Learning", adminNav:"Admin",
@@ -26,7 +35,7 @@ const I18N = {
     consultations:"Consultations", addConsultation:"+ ADD CONSULTATION", others:"Others",
     sectionCourse:"3. Treatment and course", therapy:"Therapy",
     clinicalCourse:"Clinical course / case status change",
-    diagnoses:"Diagnoses", disposition:"Disposition",
+    diagnoses:"Diagnoses", diagnosesPrompt:"What might be behind the patient's complaints?", disposition:"Disposition",
     finalDecision:"4. Final decision / disposition",
     finalDecisionInfo:"Disposition records the clinical decision. The case closes only after the Summary is finalized.",
     homePlan:"Recommendation and plan at home", addRecommendation:"+ Add recommendation",
@@ -35,9 +44,12 @@ const I18N = {
     caseSummary:"5. Case summary",
     summaryInfo:"Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.",
     generateSummary:"✨ GENERATE SUMMARY", summaryEditable:"Summary — editable",
-    finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE",
+    finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE", autosaveHint:"Autosave active",
     diagnosesNote:"Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.",
     learningDesc:"Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.",
+    finalizedCorpusReview:"Finalized corpus review",
+    corpusReviewDesc:"Approve or exclude finalized revisions from future AI learning. This never edits the clinical record or finalized text.",
+    loading:"Loading…",
     refresh:"REFRESH", finalizedCorpus:"Finalized corpus", activeSkill:"Active Skill", activeStyle:"Active style",
     writingStyle:"Writing style", styleDesc:"Generated → Finalized pairs. Candidate requires explicit activation.",
     generateCandidate:"GENERATE CANDIDATE", skillSuggestions:"Skill improvement suggestions",
@@ -46,11 +58,17 @@ const I18N = {
     account:"Account", accountDesc:"Only the configured owner account can use this app.",
     changePassword:"Change password", passwordRule:"Minimum 6 characters. No special complexity rule is required by this app.",
     currentPassword:"Current password", newPassword:"New password", confirmPassword:"Confirm new password",
-    changePasswordButton:"CHANGE PASSWORD", signOut:"SIGN OUT"
+    changePasswordButton:"CHANGE PASSWORD", signOut:"SIGN OUT",
+    phMainComplaint:"Chest pain", phManualPaste:"Manual input or paste from clipboard…",
+    phDiagnoses:"One diagnosis per line or separated by semicolons. Hungarian or Latin terms.",
+    phDischargeCondition:"e.g. symptom-free, good general condition; no recurrent chest pain…",
+    phOtherOutcome:"Death, transfer, left against medical advice…",
+    phSummary:"Generated summary will appear here. You can edit it before Finalize.",
+    phArrivalOther:"Describe arrival…"
   },
   hu: {
     casesNav:"Esetek", aiLearningNav:"AI tanulás", adminNav:"Admin",
-    futureModules:"Későbbi modulok", analytics:"Analitika", archive:"Archívum",
+    futureModules:"Tervezett modulok", analytics:"Analitika", archive:"Archívum",
     integrations:"Integrációk", planned:"TERVEZETT",
     noActiveShift:"Nincs aktív műszak", oneShiftOnly:"Egyszerre csak egy aktív műszak lehet.",
     startShift:"MŰSZAK INDÍTÁSA", importCase:"Új eset felvétele",
@@ -58,7 +76,7 @@ const I18N = {
     mainComplaint:"Fő panasz", addCase:"ESET HOZZÁADÁSA", caseRecord:"Esetlista",
     caseStatusHint:"A státusz az eset még rendezetlen tételeit mutatja.",
     selectCasePrompt:"Válasszon egy esetet a listából.", noCaseSelected:"Nincs kiválasztott eset.",
-    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikai adatok", complaint:"Jelen panaszok",
+    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikum", complaint:"Jelen panaszok",
     patientHistory:"Anamnézis", markNone:"NINCS", required:"KÖTELEZŐ", complete:"KÉSZ", none:"NINCS",
     sectionTests:"2. Fizikális státusz és vizsgálatok",
     testLegend:"Narancs = rendezetlen. Eredmény megadásakor zöldre vált; ha nem történt vizsgálat, jelölje „Nem történt” állapotra.",
@@ -68,18 +86,21 @@ const I18N = {
     consultations:"Konzíliumok", addConsultation:"+ KONZÍLIUM HOZZÁADÁSA", others:"Egyéb",
     sectionCourse:"3. Terápia és kórlefolyás", therapy:"Terápia",
     clinicalCourse:"Kórlefolyás / állapotváltozás",
-    diagnoses:"Diagnózisok", disposition:"Diszpozíció",
-    finalDecision:"4. Végső döntés / diszpozíció",
+    diagnoses:"Diagnózisok", diagnosesPrompt:"Panaszok hátterében mi állhat?", disposition:"Diszpozíció",
+    finalDecision:"4. Döntés",
     finalDecisionInfo:"A diszpozíció a végső ellátási döntést rögzíti. Az eset csak az összefoglaló véglegesítésekor zárul le.",
     homePlan:"Otthoni javaslat és további terv", addRecommendation:"+ Javaslat hozzáadása",
     hospital:"Kórház", ward:"Osztály / részleg", acceptingPhysician:"Átvevő orvos",
     additionalNote:"Kiegészítő megjegyzés", outcome:"Kimenetel", details:"Részletek",
-    caseSummary:"5. Epikrízis",
+    caseSummary:"5. Összefoglaló",
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
     generateSummary:"✨ ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
-    finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE",
+    finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE", autosaveHint:"Automatikus mentés aktív",
     diagnosesNote:"Csak az orvos által rögzített diagnózisok. Az összefoglaló nem állíthat fel új diagnózist a vizsgálati eredményekből.",
     learningDesc:"Orvos által jóváhagyott tanulás a véglegesített összefoglalókból. A rendszer nem módosítja automatikusan a fő Skill-t.",
+    finalizedCorpusReview:"Véglegesített korpusz ellenőrzése",
+    corpusReviewDesc:"A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból. Ez nem módosítja a klinikai dokumentációt vagy a véglegesített szöveget.",
+    loading:"Betöltés…",
     refresh:"FRISSÍTÉS", finalizedCorpus:"Véglegesített korpusz", activeSkill:"Aktív Skill", activeStyle:"Aktív stílus",
     writingStyle:"Írási stílus", styleDesc:"Generált → véglegesített párok. A jelölt csak külön jóváhagyással aktiválható.",
     generateCandidate:"JELÖLT GENERÁLÁSA", skillSuggestions:"Skill-fejlesztési javaslatok",
@@ -88,7 +109,13 @@ const I18N = {
     account:"Fiók", accountDesc:"Az alkalmazást csak a beállított tulajdonosi fiók használhatja.",
     changePassword:"Jelszó módosítása", passwordRule:"Legalább 6 karakter. Az alkalmazás nem ír elő további összetettségi szabályt.",
     currentPassword:"Jelenlegi jelszó", newPassword:"Új jelszó", confirmPassword:"Új jelszó megerősítése",
-    changePasswordButton:"JELSZÓ MÓDOSÍTÁSA", signOut:"KIJELENTKEZÉS"
+    changePasswordButton:"JELSZÓ MÓDOSÍTÁSA", signOut:"KIJELENTKEZÉS",
+    phMainComplaint:"Mellkasi fájdalom", phManualPaste:"Kézi bevitel vagy szöveg beillesztése…",
+    phDiagnoses:"Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia.",
+    phDischargeCondition:"Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…",
+    phOtherOutcome:"Halál, áthelyezés, saját felelősségre távozás…",
+    phSummary:"A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető.",
+    phArrivalOther:"Az érkezés módjának részletei…"
   }
 };
 
@@ -97,7 +124,7 @@ function t(key) {
 }
 
 function applyLanguage(lang) {
-  uiLang = I18N[lang] ? lang : "en";
+  uiLang = I18N[lang] ? lang : "hu";
   document.documentElement.lang = uiLang === "hu" ? "hu" : "en";
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const value = I18N[uiLang][el.dataset.i18n];
@@ -114,6 +141,21 @@ function applyLanguage(lang) {
   }
   document.getElementById("langEnBtn")?.classList.toggle("active", uiLang === "en");
   document.getElementById("langHuBtn")?.classList.toggle("active", uiLang === "hu");
+
+  const placeholders = {
+    newComplaint: "phMainComplaint",
+    fComplaint: "phManualPaste",
+    fHistory: "phManualPaste",
+    fDiagnoses: "phDiagnoses",
+    fDischargeCondition: "phDischargeCondition",
+    fOtherOutcome: "phOtherOutcome",
+    fSummary: "phSummary",
+    iceArrivalOther: "phArrivalOther"
+  };
+  Object.entries(placeholders).forEach(([id, key]) => {
+    const node = document.getElementById(id);
+    if (node) node.placeholder = t(key);
+  });
 }
 
 function defaultState() {
@@ -126,42 +168,78 @@ function persist() {
   stateDirty = true;
 }
 
-async function persistNow() {
+async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
   if (!backendReady || !state.shift) return { removed: 0, report: null };
 
-  const patient = patientById(selectedPatientId);
-  if (!patient) {
+  const livePatient = patientById(selectedPatientId);
+  if (!livePatient) {
     stateDirty = false;
     return { removed: 0, report: null };
   }
 
-  const result = await window.BachSBOBackend.savePatient(
-    state.shift.id,
-    patient
-  );
-  stateDirty = false;
+  const caseId = livePatient.id;
+  const shiftId = state.shift.id;
+  const snapshot = structuredClone(livePatient);
+  const snapshotUpdatedAt = snapshot.updatedAt || "";
 
-  if (result?.patient?.id === patient.id) {
-    Object.assign(patient, result.patient);
+  const previous = patientSaveQueues.get(caseId) || Promise.resolve();
+  const queued = previous
+    .catch(() => {})
+    .then(async () => {
+      const result = await window.BachSBOBackend.savePatient(
+        shiftId,
+        snapshot,
+        { silentAutosave }
+      );
 
-    // The browser form is updated to the same de-identified representation
-    // that was permanently stored. Raw identifiers are not kept as the
-    // operational in-memory version after an explicit save.
-    if (currentView === "patients" && selectedPatientId === patient.id) {
-      loadPatientForm();
+      const current = patientById(caseId);
+      const currentIsSameDraft =
+        current &&
+        String(current.updatedAt || "") === String(snapshotUpdatedAt);
+
+      // Never let an older save response overwrite a newer in-browser draft.
+      if (result?.patient?.id === caseId && currentIsSameDraft) {
+        Object.assign(current, result.patient);
+        stateDirty = false;
+
+        if (
+          reloadForm &&
+          currentView === "patients" &&
+          selectedPatientId === caseId
+        ) {
+          loadPatientForm();
+        }
+      } else if (currentIsSameDraft) {
+        stateDirty = false;
+      }
+
+      if (result?.removed > 0 && !silentAutosave) {
+        flash(
+          uiLang === "hu"
+            ? `Az adatvédelmi szűrő ${result.removed} azonosítót eltávolított.`
+            : `Privacy filter removed ${result.removed} identifier(s).`
+        );
+      }
+
+      return result;
+    });
+
+  patientSaveQueues.set(caseId, queued);
+  try {
+    return await queued;
+  } finally {
+    if (patientSaveQueues.get(caseId) === queued) {
+      patientSaveQueues.delete(caseId);
     }
   }
-
-  if (result?.removed > 0) {
-    flash(`Privacy filter removed ${result.removed} identifier(s).`);
-  }
-
-  return result;
 }
 
 function handleBackendError(error) {
   console.error(error);
-  flash("Backend error: " + (error?.message || "Unknown error"));
+  flash(
+    (uiLang === "hu" ? "Backend hiba: " : "Backend error: ") +
+    (error?.message || (uiLang === "hu" ? "Ismeretlen hiba" : "Unknown error"))
+  );
 }
 
 function nowIso() {
@@ -185,6 +263,25 @@ function normalizeYob(value) {
 function ageFromYob(yob) {
   const year = parseInt(normalizeYob(yob), 10);
   return year ? new Date().getFullYear() - year : "";
+}
+
+function patientSexLabel(sex) {
+  const value = String(sex || "").trim().toUpperCase();
+  if (value === "F") return uiLang === "hu" ? "Nő" : "Female";
+  if (value === "M") return uiLang === "hu" ? "Férfi" : "Male";
+  if (value === "O") return uiLang === "hu" ? "Egyéb" : "Other";
+  return value || "—";
+}
+
+function paintRecordHeaderSex(sex) {
+  const header = document.getElementById("recordHeader");
+  if (!header) return;
+
+  header.classList.remove("sex-female", "sex-male", "sex-other");
+  const value = String(sex || "").trim().toUpperCase();
+  if (value === "F") header.classList.add("sex-female");
+  else if (value === "M") header.classList.add("sex-male");
+  else if (value === "O") header.classList.add("sex-other");
 }
 
 function activeShiftPatients() {
@@ -296,6 +393,12 @@ const NARRATIVE_FIELDS = {
     valueProp: "course",
     skipProp: "courseSkipped",
     labelKey: "clinicalCourse"
+  },
+  diagnoses: {
+    inputId: "fDiagnoses",
+    valueProp: "diagnoses",
+    skipProp: "diagnosesSkipped",
+    labelKey: "diagnoses"
   }
 };
 
@@ -552,24 +655,24 @@ async function changeAdminPassword() {
   message.textContent = "";
 
   if (!currentPassword) {
-    message.textContent = "Enter your current password.";
+    message.textContent = uiLang === "hu" ? "Adja meg a jelenlegi jelszavát." : "Enter your current password.";
     return;
   }
   if (newPassword.length < 6) {
-    message.textContent = "New password must contain at least 6 characters.";
+    message.textContent = uiLang === "hu" ? "Az új jelszónak legalább 6 karakterből kell állnia." : "New password must contain at least 6 characters.";
     return;
   }
   if (newPassword !== confirmPassword) {
-    message.textContent = "New passwords do not match.";
+    message.textContent = uiLang === "hu" ? "Az új jelszavak nem egyeznek." : "New passwords do not match.";
     return;
   }
   if (newPassword === currentPassword) {
-    message.textContent = "New password must be different from the current password.";
+    message.textContent = uiLang === "hu" ? "Az új jelszónak különböznie kell a jelenlegi jelszótól." : "New password must be different from the current password.";
     return;
   }
 
   button.disabled = true;
-  button.textContent = "CHANGING…";
+  button.textContent = uiLang === "hu" ? "MÓDOSÍTÁS…" : "CHANGING…";
 
   try {
     await window.BachSBOBackend.changeAdminPassword(
@@ -579,12 +682,12 @@ async function changeAdminPassword() {
     document.getElementById("currentAdminPassword").value = "";
     document.getElementById("newAdminPassword").value = "";
     document.getElementById("confirmAdminPassword").value = "";
-    message.textContent = "Password changed successfully.";
+    message.textContent = uiLang === "hu" ? "A jelszó sikeresen módosítva." : "Password changed successfully.";
   } catch (error) {
-    message.textContent = error?.message || "Could not change password.";
+    message.textContent = error?.message || (uiLang === "hu" ? "A jelszó módosítása sikertelen." : "Could not change password.");
   } finally {
     button.disabled = false;
-    button.textContent = "CHANGE PASSWORD";
+    button.textContent = uiLang === "hu" ? "JELSZÓ MÓDOSÍTÁSA" : "CHANGE PASSWORD";
   }
 }
 
@@ -645,9 +748,25 @@ function renderPatients() {
     `;
 
     tr.onclick = () => {
-      selectedPatientId = patient.id;
+      const nextPatientId = patient.id;
+      if (nextPatientId === selectedPatientId) return;
+
+      const previousPatientId = selectedPatientId;
+
+      // First copy every visible field/test into the old patient's in-memory
+      // draft. persistNow snapshots that draft synchronously before its first
+      // await, so the UI can switch immediately while the network write runs.
+      if (previousPatientId) {
+        const currentDraft = commitCurrentDraft();
+        if (currentDraft) {
+          void persistNow({ reloadForm: false, silentAutosave: true }).catch((error) => {
+            console.warn("Background save during patient switch failed", error);
+          });
+        }
+      }
+
+      selectedPatientId = nextPatientId;
       renderPatients();
-      loadPatientForm();
     };
 
     tbody.appendChild(tr);
@@ -661,7 +780,83 @@ function renderPatients() {
     document.getElementById("recordTitle").textContent = uiLang === "hu" ? "Eset részletei" : "Case detail";
     document.getElementById("recordSubtitle").textContent = t("selectCasePrompt");
     document.getElementById("patientStatusBadge").innerHTML = "";
+    paintRecordHeaderSex("");
   }
+}
+
+function syncPatientRowFromState(patient) {
+  if (!patient) return;
+  const row = document.querySelector(`#patientTbody tr[data-id="${patient.id}"]`);
+  if (!row) return;
+  const cells = row.querySelectorAll(":scope > td");
+  if (cells[0]) cells[0].textContent = patient.localId || "";
+  if (cells[1]) cells[1].textContent = patient.sex || "";
+  if (cells[2]) cells[2].textContent = ageFromYob(patient.yob);
+  if (cells[3]) cells[3].textContent = patient.mainComplaint || "";
+  if (cells[4]) cells[4].innerHTML = patientListStatusHtml(patient);
+}
+
+function caseMetadataFromPatient(patient) {
+  if (!patient) return null;
+  return {
+    id: patient.id,
+    sex: patient.sex || null,
+    year_of_birth: patient.yob ? Number(patient.yob) : null,
+    main_complaint: patient.mainComplaint || "",
+    arrival_mode: patient.arrivalMode || "",
+    arrival_other: patient.arrivalOther || "",
+    other_details: patient.otherDetails || ""
+  };
+}
+
+function getCaseMetadata(caseId = selectedPatientId) {
+  return caseMetadataFromPatient(patientById(caseId));
+}
+
+async function saveCaseMetadata(caseId, metadata = {}) {
+  const patient = patientById(caseId);
+  if (!patient) throw new Error("Selected case was not found.");
+
+  const result = await window.BachSBOBackend.updateCaseMetadata(caseId, metadata);
+  const authoritative = result?.metadata || {};
+  applyCaseMetadata(caseId, authoritative);
+
+  if (selectedPatientId === caseId) {
+    const age = ageFromYob(patient.yob);
+    const subtitle = document.getElementById("recordSubtitle");
+    if (subtitle) {
+      subtitle.textContent = `${patient.sex || "—"} • ${age || "—"} y • ${patient.mainComplaint || ""}`;
+    }
+  }
+
+  return result;
+}
+
+function applyCaseMetadata(caseId, metadata = {}) {
+  const patient = patientById(caseId);
+  if (!patient) return null;
+
+  if (Object.prototype.hasOwnProperty.call(metadata, "sex")) {
+    patient.sex = metadata.sex || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "year_of_birth")) {
+    patient.yob = metadata.year_of_birth ? String(metadata.year_of_birth) : "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "main_complaint")) {
+    patient.mainComplaint = metadata.main_complaint || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "arrival_mode")) {
+    patient.arrivalMode = metadata.arrival_mode || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "arrival_other")) {
+    patient.arrivalOther = metadata.arrival_other || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
+    patient.otherDetails = metadata.other_details || "";
+  }
+  patient.updatedAt = nowIso();
+  syncPatientRowFromState(patient);
+  return structuredClone(patient);
 }
 
 function updateStatusCell(patient) {
@@ -723,8 +918,9 @@ async function addPatient() {
     course: "",
     courseSkipped: false,
     diagnoses: "",
+    diagnosesSkipped: false,
     disposition: "",
-    recommendations: [""],
+    recommendations: ["", "", "", "", ""],
     hospital: "",
     ward: "",
     physician: "",
@@ -768,7 +964,8 @@ function loadPatientForm() {
   document.getElementById("recordTitle").textContent =
     `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId}`;
   document.getElementById("recordSubtitle").textContent =
-    `${patient.sex} • ${ageFromYob(patient.yob)} y • ${patient.mainComplaint}`;
+    `${patientSexLabel(patient.sex)} • ${ageFromYob(patient.yob)} ${uiLang === "hu" ? "év" : "y"} • ${patient.mainComplaint}`;
+  paintRecordHeaderSex(patient.sex);
 
   const statusLabel = isCompleted(patient)
     ? (uiLang === "hu" ? "LEZÁRT" : "COMPLETED / CLOSED")
@@ -777,6 +974,11 @@ function loadPatientForm() {
     `<span class="badge ${isCompleted(patient) ? "done" : "active"}">${statusLabel}</span>`;
 
   const values = {
+    iceSex: patient.sex,
+    iceYob: patient.yob,
+    iceAge: ageFromYob(patient.yob),
+    iceArrival: patient.arrivalMode,
+    iceArrivalOther: patient.arrivalOther,
     fMainComplaint: patient.mainComplaint,
     fComplaint: patient.complaint,
     fHistory: patient.history,
@@ -796,8 +998,13 @@ function loadPatientForm() {
   };
 
   Object.entries(values).forEach(([id, value]) => {
-    document.getElementById(id).value = value || "";
+    const el = document.getElementById(id);
+    if (el) el.value = value || "";
   });
+  document.getElementById("iceArrivalOtherWrap")?.classList.toggle(
+    "hidden",
+    patient.arrivalMode !== "other"
+  );
 
   renderAllTests(patient);
   renderRecommendations(patient);
@@ -872,9 +1079,9 @@ function renderAllTests(patient) {
   renderDynamicCards(
     "consultCards",
     patient.tests.consultations,
-    "Consultation",
+    uiLang === "hu" ? "Konzílium" : "Consultation",
     "consultations",
-    "Type e.g. Cardiology, Neurology"
+    uiLang === "hu" ? "Szakterület, pl. Kardiológia, Neurológia" : "Type e.g. Cardiology, Neurology"
   );
   refreshSummaryControls(patient);
 }
@@ -953,11 +1160,11 @@ function makeSimpleCard(label, entry, key, isGas = false) {
 
     <div class="test-grid">
 
-      <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${label} result...">${esc(entry.text || "")}</textarea>
+      <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? `${label} eredménye…` : `${label} result…`}">${esc(entry.text || "")}</textarea>
 
       <button type="button" class="btn small primary test-save" data-save="${key}"
         ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>
-        SAVE RESULT
+        ${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}
       </button>
     </div>
   `;
@@ -1009,11 +1216,11 @@ function renderDynamicCards(hostId, entries, label, prefix, placeholder) {
       <div class="dynamic-grid">
         <input data-type="${key}" value="${attr(entry.type || "")}" placeholder="${placeholder}" />
 
-        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="Result / note...">${esc(entry.text || "")}</textarea>
+        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? "Eredmény / megjegyzés…" : "Result / note…"}">${esc(entry.text || "")}</textarea>
 
         <button type="button" class="btn small primary test-save" data-save="${key}"
           ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>
-          SAVE RESULT
+          ${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}
         </button>
       </div>
     `;
@@ -1091,9 +1298,9 @@ function renderRadiologyCards(patient) {
       <div class="radiology-grid${entry.modality === "other" ? " has-other" : ""}">
         <select data-body>${options(bodyParts, entry.bodyPart, bodyLabels)}</select>
         <select data-modality>${options(modalities, entry.modality, modalityLabels)}</select>
-        <input data-other class="${entry.modality === "other" ? "" : "hidden"}" value="${attr(entry.otherTest || "")}" placeholder="Specific test e.g. CT angiographia" />
-        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="Radiology result...">${esc(entry.text || "")}</textarea>
-        <button type="button" class="btn small primary test-save" data-save="${key}" ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>SAVE RESULT</button>
+        <input data-other class="${entry.modality === "other" ? "" : "hidden"}" value="${attr(entry.otherTest || "")}" placeholder="${uiLang === "hu" ? "Specifikus vizsgálat, pl. CT angiográfia" : "Specific test, e.g. CT angiography"}" />
+        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? "Radiológiai eredmény…" : "Radiology result…"}">${esc(entry.text || "")}</textarea>
+        <button type="button" class="btn small primary test-save" data-save="${key}" ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}</button>
       </div>`;
 
     const body = card.querySelector("[data-body]");
@@ -1247,9 +1454,74 @@ function addConsult() {
   updateStatusCell(patient);
 }
 
+function patientTestEntryByKey(patient, key) {
+  if (!patient?.tests || !key) return null;
+  if (key === "ekg") return patient.tests.ekg || null;
+  if (key === "gas") return patient.tests.gas || null;
+
+  let match = String(key).match(/^lab-(\d+)$/);
+  if (match) return patient.tests.labs?.[Number(match[1])] || null;
+
+  match = String(key).match(/^radiology-(\d+)$/);
+  if (match) return patient.tests.radiology?.[Number(match[1])] || null;
+
+  match = String(key).match(/^consultations-(\d+)$/);
+  if (match) return patient.tests.consultations?.[Number(match[1])] || null;
+
+  return null;
+}
+
+function collectTestDraftsFromDom(patient) {
+  if (!patient?.tests) return;
+
+  document.querySelectorAll("#patientForm [data-text]").forEach((control) => {
+    const key = control.dataset.text || "";
+    const entry = patientTestEntryByKey(patient, key);
+    if (!entry) return;
+
+    entry.text = control.value || "";
+    entry.savedText =
+      entry.mode === "notordered"
+        ? ""
+        : (String(entry.text || "").trim() ? entry.text : "");
+  });
+
+  document.querySelectorAll('#patientForm [data-type^="consultations-"]').forEach((control) => {
+    const key = control.dataset.type || "";
+    const entry = patientTestEntryByKey(patient, key);
+    if (entry) entry.type = control.value || "";
+  });
+
+  document.querySelectorAll('#patientForm .test-card[data-card^="radiology-"]').forEach((card) => {
+    const entry = patientTestEntryByKey(patient, card.dataset.card || "");
+    if (!entry) return;
+    entry.bodyPart = card.querySelector("[data-body]")?.value || "";
+    entry.modality = card.querySelector("[data-modality]")?.value || "";
+    entry.otherTest = card.querySelector("[data-other]")?.value || "";
+    entry.type = radiologyType(entry);
+  });
+}
+
 function collectForm() {
   const patient = patientById(selectedPatientId);
   if (!patient) return null;
+
+  // DOM is the final authority for any in-progress test text. This prevents
+  // patient/tab switches from losing a result if an input handler has not
+  // propagated to the patient object yet.
+  collectTestDraftsFromDom(patient);
+
+  const sexEl = document.getElementById("iceSex");
+  const yobEl = document.getElementById("iceYob");
+  const arrivalEl = document.getElementById("iceArrival");
+  const arrivalOtherEl = document.getElementById("iceArrivalOther");
+
+  if (sexEl) patient.sex = sexEl.value || "";
+  if (yobEl) patient.yob = normalizeYob(yobEl.value || "");
+  if (arrivalEl) patient.arrivalMode = arrivalEl.value || "";
+  if (arrivalOtherEl) {
+    patient.arrivalOther = patient.arrivalMode === "other" ? arrivalOtherEl.value || "" : "";
+  }
 
   patient.mainComplaint = document.getElementById("fMainComplaint").value;
   patient.complaint = document.getElementById("fComplaint").value;
@@ -1266,6 +1538,7 @@ function collectForm() {
   if (patient.course.trim()) patient.courseSkipped = false;
 
   patient.diagnoses = document.getElementById("fDiagnoses").value;
+  if (patient.diagnoses.trim()) patient.diagnosesSkipped = false;
   patient.disposition = document.getElementById("fDisposition").value;
   patient.hospital = document.getElementById("fHospital").value;
   patient.ward = document.getElementById("fWard").value;
@@ -1280,6 +1553,20 @@ function collectForm() {
   patient.updatedAt = nowIso();
 
   return patient;
+}
+
+function commitCurrentDraft() {
+  const patient = collectForm();
+  if (!patient || isCompleted(patient)) return null;
+  stateDirty = true;
+  return patient;
+}
+
+async function autosaveCurrentCase() {
+  const patient = commitCurrentDraft();
+  if (!patient) return { skipped: true };
+
+  return persistNow({ reloadForm: false, silentAutosave: true });
 }
 
 async function savePatient() {
@@ -1323,8 +1610,10 @@ function renderRecommendations(patient) {
   recList.innerHTML = "";
 
   const entries = patient.recommendations?.length
-    ? patient.recommendations
-    : [""];
+    ? [...patient.recommendations]
+    : [];
+
+  while (entries.length < 5) entries.push("");
 
   entries.forEach((text, i) => {
     const row = document.createElement("div");
@@ -1332,8 +1621,8 @@ function renderRecommendations(patient) {
 
     row.innerHTML = `
       <div class="n">${i + 1}.</div>
-      <input data-rec value="${attr(text)}" />
-      <button type="button" class="btn small" data-del-rec="${i}">×</button>
+      <input data-rec value="${attr(text)}" placeholder="${uiLang === "hu" ? "Javaslat " + (i + 1) : "Recommendation " + (i + 1)}" />
+      ${i >= 5 ? `<button type="button" class="btn small" data-del-rec="${i}">×</button>` : '<span></span>'}
     `;
 
     recList.appendChild(row);
@@ -1362,6 +1651,22 @@ function addRecommendation() {
 
   persist();
   renderRecommendations(patient);
+}
+
+function syncFixedSummaryFooter() {
+  const field = document.getElementById("summaryFixedFooter");
+  if (field) field.value = SUMMARY_FIXED_FOOTER;
+}
+
+function summaryWithFixedFooter(summaryText) {
+  const main = String(summaryText || "").trim();
+  const footer = SUMMARY_FIXED_FOOTER.trim();
+
+  if (!main) return footer;
+  if (main.endsWith(footer)) return main;
+
+  // Two completely blank lines between the editable summary and the fixed footer.
+  return `${main}\n\n\n${footer}`;
 }
 
 async function generateSummary() {
@@ -1475,8 +1780,9 @@ async function finalizeSummary() {
     return;
   }
 
-  const clipboardText =
-    patient.summaryFinalizedText || patient.summary || text;
+  const clipboardText = summaryWithFixedFooter(
+    patient.summaryFinalizedText || patient.summary || text
+  );
 
   try {
     await navigator.clipboard.writeText(clipboardText);
@@ -1635,7 +1941,7 @@ function renderCorpusRevisions(revisions) {
   if (!host) return;
 
   if (!revisions.length) {
-    host.innerHTML = '<div class="subtle">No finalized revisions yet.</div>';
+    host.innerHTML = `<div class="subtle">${uiLang === "hu" ? "Még nincs véglegesített revízió." : "No finalized revisions yet."}</div>`;
     return;
   }
 
@@ -1651,7 +1957,7 @@ function renderCorpusRevisions(revisions) {
       <div class="learning-item corpus-review-item">
         <div class="learning-item-head">
           <div>
-            <b>Finalized revision</b>
+            <b>${uiLang === "hu" ? "Véglegesített revízió" : "Finalized revision"}</b>
             <div class="subtle">${esc(finalized)}${item.model ? ` • ${esc(item.model)}` : ""}</div>
           </div>
           <span class="badge ${status === "approved" ? "done" : "rejected"}">
@@ -1659,14 +1965,14 @@ function renderCorpusRevisions(revisions) {
           </span>
         </div>
         <div class="learning-text corpus-finalized-text">${esc(item.finalized_text || "")}</div>
-        ${item.learning_note ? `<div class="footer-note">Review note: ${esc(item.learning_note)}</div>` : ""}
-        ${reviewed ? `<div class="footer-note">Reviewed: ${esc(reviewed)}</div>` : ""}
+        ${item.learning_note ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrzési megjegyzés" : "Review note"}: ${esc(item.learning_note)}</div>` : ""}
+        ${reviewed ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrizve" : "Reviewed"}: ${esc(reviewed)}</div>` : ""}
         <div class="learning-actions">
           <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
-            APPROVE
+            ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
           </button>
           <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
-            EXCLUDE
+            ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
           </button>
         </div>
       </div>
@@ -1678,11 +1984,15 @@ function renderCorpusRevisions(revisions) {
       const decision = button.dataset.decision;
       const revisionId = button.dataset.corpusReview;
       const verb = decision === "approved" ? "approve" : "exclude";
-      if (!window.confirm(`Confirm ${verb} for AI learning?`)) return;
+      if (!window.confirm(
+        uiLang === "hu"
+          ? `Megerősíti ezt a döntést az AI-tanuláshoz? (${verb})`
+          : `Confirm ${verb} for AI learning?`
+      )) return;
 
       let note = "";
       if (decision === "excluded") {
-        note = window.prompt("Optional reason for exclusion:", "") || "";
+        note = window.prompt(uiLang === "hu" ? "A kizárás oka (opcionális):" : "Optional reason for exclusion:", "") || "";
       }
 
       host.querySelectorAll(`[data-corpus-review="${revisionId}"]`).forEach((x) => {
@@ -1697,12 +2007,12 @@ function renderCorpusRevisions(revisions) {
         );
         learningMessage(
           decision === "approved"
-            ? "Revision approved for AI learning."
-            : "Revision excluded from AI learning."
+            ? (uiLang === "hu" ? "A revízió jóváhagyva az AI-tanuláshoz." : "Revision approved for AI learning.")
+            : (uiLang === "hu" ? "A revízió kizárva az AI-tanulásból." : "Revision excluded from AI learning.")
         );
         await renderLearningDashboard();
       } catch (error) {
-        learningMessage(error?.message || "Corpus review failed.", true);
+        learningMessage(error?.message || (uiLang === "hu" ? "A korpusz ellenőrzése sikertelen." : "Corpus review failed."), true);
       }
     };
   });
@@ -1712,7 +2022,9 @@ function renderStyleProfiles(profiles, coachRuns = []) {
   const host = document.getElementById("styleProfilesList");
   if (!profiles.length) {
     host.innerHTML =
-      '<div class="subtle">No style profile yet. Finalize at least 5 approved distinct cases, then generate a candidate.</div>';
+      `<div class="subtle">${uiLang === "hu"
+        ? "Még nincs stílusprofil. Véglegesítsen legalább 5 jóváhagyott, különböző esetet, majd generáljon jelöltet."
+        : "No style profile yet. Finalize at least 5 approved distinct cases, then generate a candidate."}</div>`;
     return;
   }
 
@@ -1833,7 +2145,9 @@ function renderSkillSuggestions(suggestions) {
   const host = document.getElementById("skillSuggestionsList");
   if (!suggestions.length) {
     host.innerHTML =
-      '<div class="subtle">No Skill suggestions yet. At least 10 Generated → Finalized pairs are required.</div>';
+      `<div class="subtle">${uiLang === "hu"
+        ? "Még nincs Skill-javaslat. Legalább 10 Generált → Véglegesített pár szükséges."
+        : "No Skill suggestions yet. At least 10 Generated → Finalized pairs are required."}</div>`;
     return;
   }
 
@@ -1872,10 +2186,10 @@ function renderSkillSuggestions(suggestions) {
           button.dataset.skillReview,
           button.dataset.decision
         );
-        learningMessage(result?.note || "Suggestion reviewed.");
+        learningMessage(result?.note || (uiLang === "hu" ? "A javaslat ellenőrizve." : "Suggestion reviewed."));
         await renderLearningDashboard();
       } catch (error) {
-        learningMessage(error?.message || "Suggestion review failed.", true);
+        learningMessage(error?.message || (uiLang === "hu" ? "A javaslat ellenőrzése sikertelen." : "Suggestion review failed."), true);
       } finally {
         button.disabled = false;
       }
@@ -1895,11 +2209,11 @@ async function renderLearningDashboard() {
   document.getElementById("learningActiveSkill").textContent =
     overview.activeSkill
       ? `${overview.activeSkill.name || "SBO Skill"} v${overview.activeSkill.version}`
-      : "Not configured";
+      : (uiLang === "hu" ? "Nincs beállítva" : "Not configured");
 
   const activeStyle = (overview.styleProfiles || []).find((x) => x.is_active);
   document.getElementById("learningActiveStyle").textContent =
-    activeStyle ? `v${activeStyle.version}` : "None";
+    activeStyle ? `v${activeStyle.version}` : (uiLang === "hu" ? "Nincs" : "None");
 
   renderCorpusRevisions(overview.corpusRevisions || []);
   renderStyleProfiles(overview.styleProfiles || [], overview.styleCoachRuns || []);
@@ -1916,7 +2230,7 @@ async function generateStyleCandidate() {
   const button = document.getElementById("generateStyleBtn");
   button.disabled = true;
   const old = button.textContent;
-  button.textContent = "ANALYZING…";
+  button.textContent = uiLang === "hu" ? "ELEMZÉS…" : "ANALYZING…";
 
   try {
     const result = await window.BachSBOBackend.analyzeStyle();
@@ -1925,11 +2239,13 @@ async function generateStyleCandidate() {
       : "";
     const warning = result?.coachWarning ? ` ${result.coachWarning}` : "";
     learningMessage(
-      `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.${maturity}${warning}`
+      uiLang === "hu"
+        ? `Stílusjelölt v${result?.candidate?.version || "?"} létrehozva. Aktiválás előtt ellenőrizze.${maturity}${warning}`
+        : `Style candidate v${result?.candidate?.version || "?"} created. Review it before activation.${maturity}${warning}`
     );
     await renderLearningDashboard();
   } catch (error) {
-    learningMessage(error?.message || "Style analysis failed.", true);
+    learningMessage(error?.message || (uiLang === "hu" ? "A stíluselemzés sikertelen." : "Style analysis failed."), true);
   } finally {
     button.textContent = old;
   }
@@ -1939,16 +2255,18 @@ async function generateSkillSuggestion() {
   const button = document.getElementById("generateSkillSuggestionBtn");
   button.disabled = true;
   const old = button.textContent;
-  button.textContent = "ANALYZING…";
+  button.textContent = uiLang === "hu" ? "ELEMZÉS…" : "ANALYZING…";
 
   try {
     await window.BachSBOBackend.analyzeSkill();
     learningMessage(
-      "Pending Skill suggestion created. It will not change the active Skill."
+      uiLang === "hu"
+        ? "Függő Skill-javaslat létrehozva. Ez nem módosítja az aktív Skill-t."
+        : "Pending Skill suggestion created. It will not change the active Skill."
     );
     await renderLearningDashboard();
   } catch (error) {
-    learningMessage(error?.message || "Skill analysis failed.", true);
+    learningMessage(error?.message || (uiLang === "hu" ? "A Skill elemzése sikertelen." : "Skill analysis failed."), true);
   } finally {
     button.textContent = old;
   }
@@ -1978,7 +2296,19 @@ function showSetupRequired() {
 function showSignIn() {
   const adminEmail = window.BACH_SBO_CONFIG?.adminEmail || "";
 
-  modal(`
+  modal(uiLang === "hu" ? `
+    <h3>Admin bejelentkezés</h3>
+    <p class="subtle">${esc(adminEmail)}</p>
+    <div class="field">
+      <label>Jelszó</label>
+      <input id="authPassword" type="password" autocomplete="current-password"
+        minlength="6" placeholder="Admin jelszó" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="passwordSignIn">BEJELENTKEZÉS</button>
+    </div>
+    <div id="authMessage" class="subtle"></div>
+  ` : `
     <h3>Admin sign in</h3>
     <p class="subtle">${esc(adminEmail)}</p>
     <div class="field">
@@ -1998,12 +2328,12 @@ function showSignIn() {
 
   const submit = async () => {
     if (password.value.length < 6) {
-      message.textContent = "Password must contain at least 6 characters.";
+      message.textContent = uiLang === "hu" ? "A jelszónak legalább 6 karakterből kell állnia." : "Password must contain at least 6 characters.";
       return;
     }
 
     button.disabled = true;
-    message.textContent = "Signing in…";
+    message.textContent = uiLang === "hu" ? "Bejelentkezés…" : "Signing in…";
 
     try {
       const session =
@@ -2185,8 +2515,13 @@ async function addInvestigationFromBeta(caseId, kind, rawName = "") {
 
 window.BachSBOClinicalUi = Object.freeze({
   applyAcceptedExtraction,
+  applyCaseMetadata,
+  autosaveCurrentCase,
+  commitCurrentDraft,
+  getCaseMetadata,
   getExtractionContext,
-  addInvestigation: addInvestigationFromBeta
+  addInvestigation: addInvestigationFromBeta,
+  saveCaseMetadata
 });
 
 function flash(message) {
@@ -2261,4 +2596,5 @@ document.getElementById("fSummary").addEventListener("input", () => {
 });
 
 applyLanguage(uiLang);
+syncFixedSummaryFooter();
 bootstrap();

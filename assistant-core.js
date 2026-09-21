@@ -64,6 +64,14 @@
   function comparableTestLabel(value) {
     return normalized(value)
       .replace(/\b(lab|labor|laboratory|radiology|radiologia|imaging|consultation|consult|konzilium|result|eredmeny)\b/g, " ")
+      .replace(/\b(cardiology|kardiologia)\b/g, "cardiology")
+      .replace(/\b(neurology|neurologia)\b/g, "neurology")
+      .replace(/\b(neurosurgery|idegsebeszet)\b/g, "neurosurgery")
+      .replace(/\b(nephrology|nefrologia)\b/g, "nephrology")
+      .replace(/\b(gastroenterology|gasztroenterologia)\b/g, "gastroenterology")
+      .replace(/\b(infectious diseases|infectology|infektologia)\b/g, "infectology")
+      .replace(/\b(internal medicine|belgyogyaszat)\b/g, "internal medicine")
+      .replace(/\b(surgery|sebeszet)\b/g, "surgery")
       .replace(/\s+/g, " ")
       .trim();
   }

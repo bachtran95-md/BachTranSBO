@@ -602,6 +602,80 @@ function commitFilledTestResults(patient) {
   });
 }
 
+function cockpitInvestigationItems(patient) {
+  const tests = patient?.tests || {};
+  const radiologyName = (entry, index) => {
+    const body = String(entry?.bodyPart || "").trim();
+    const modality = String(entry?.modality || "").trim();
+    const other = String(entry?.otherTest || "").trim();
+    const detail = modality === "other"
+      ? [body, other].filter(Boolean).join(" — ")
+      : [body, modality].filter(Boolean).join(" ");
+    const base = uiLang === "hu" ? "Radiológia" : "Radiology";
+    return detail ? `${base} · ${detail}` : `${base} ${index + 1}`;
+  };
+
+  const consultationName = (entry, index) => {
+    const specialty = String(entry?.type || "").trim();
+    const base = uiLang === "hu" ? "Konzílium" : "Consultation";
+    return specialty ? `${base} · ${specialty}` : `${base} ${index + 1}`;
+  };
+
+  return [
+    ...(tests.labs || []).map((entry, index) => ({
+      name: `Lab ${index + 1}`,
+      status: entryStatus(entry)
+    })),
+    ...(tests.ekgs || []).map((entry, index) => ({
+      name: `EKG ${index + 1}`,
+      status: entryStatus(entry)
+    })),
+    ...(tests.gases || []).map((entry, index) => ({
+      name: `${/\bVVG\b/i.test(String(entry?.text || "")) ? "VVG" : "AVG"} ${index + 1}`,
+      status: entryStatus(entry)
+    })),
+    ...(tests.radiology || []).map((entry, index) => ({
+      name: radiologyName(entry, index),
+      status: entryStatus(entry)
+    })),
+    ...(tests.consultations || []).map((entry, index) => ({
+      name: consultationName(entry, index),
+      status: entryStatus(entry)
+    }))
+  ];
+}
+
+function patientProgress(patient) {
+  if (!patient) return null;
+
+  const clinicalDefinitions = [
+    ["complaint", "complaintSkipped", uiLang === "hu" ? "Panasz" : "Complaint"],
+    ["history", "historySkipped", uiLang === "hu" ? "Anamnézis" : "History"],
+    ["physical", "physicalSkipped", uiLang === "hu" ? "Fizikális vizsgálat" : "Physical examination"],
+    ["therapy", "therapySkipped", uiLang === "hu" ? "Terápia" : "Therapy"],
+    ["course", "courseSkipped", uiLang === "hu" ? "Klinikai lefolyás" : "Clinical course"]
+  ];
+  const clinical = clinicalDefinitions.map(([valueKey, skippedKey, name]) => ({
+    name,
+    complete: Boolean(patient[skippedKey] || String(patient[valueKey] || "").trim())
+  }));
+  const tests = cockpitInvestigationItems(patient);
+
+  return {
+    clinical,
+    tests,
+    completeClinical: clinical.filter((item) => item.complete),
+    incompleteClinical: clinical.filter((item) => !item.complete),
+    completeTests: tests.filter((item) => item.status !== "waiting"),
+    waitingTests: tests.filter((item) => item.status === "waiting")
+  };
+}
+
+function getPatientProgress(caseId = selectedPatientId) {
+  const progress = patientProgress(patientById(caseId));
+  return progress ? structuredClone(progress) : null;
+}
+
 function refreshSummaryControls(patient) {
   const generate = document.getElementById("generateSummaryBtn");
   const finalize = document.getElementById("finalizeSummaryBtn");
@@ -2578,7 +2652,8 @@ window.BachSBOClinicalUi = Object.freeze({
   normalizeSex,
   normalizeArrivalMode,
   testEntryStatus: entryStatus,
-  getPatientSnapshot
+  getPatientSnapshot,
+  getPatientProgress
 });
 
 function flash(message) {

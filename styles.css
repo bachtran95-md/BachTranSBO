@@ -28,6 +28,23 @@ button{cursor:pointer}
 .dot{width:9px;height:9px;border-radius:50%;background:#22c55e}
 .metric{font-size:13px;color:#d1d5db}
 .metric b{color:#fff}
+.session-reauth-card{
+  display:inline-flex;align-items:center;gap:7px;padding:6px 7px 6px 9px;
+  border:1px solid #374151;border-radius:10px;background:#1f2937;color:#fff;
+  min-height:38px
+}
+.session-lock{font-size:13px;line-height:1}
+.session-countdown{
+  min-width:46px;font-variant-numeric:tabular-nums;font-size:13px;font-weight:850;
+  letter-spacing:.03em;color:#d1fae5;text-align:center
+}
+.session-countdown.warning{color:#fde68a}
+.session-countdown.critical{color:#fecaca}
+.session-reset-btn{
+  border:1px solid #4b5563;border-radius:7px;padding:5px 7px;background:#111827;
+  color:#e5e7eb;font-size:10px;font-weight:850;letter-spacing:.04em
+}
+.session-reset-btn:hover{background:#374151}
 .btn{
   border:none;border-radius:9px;padding:10px 14px;font-weight:750;
   background:#e5e7eb;color:#111827
@@ -209,6 +226,8 @@ textarea{min-height:92px;resize:vertical}
   .inline,.inline3,.test-grid,.dynamic-grid{grid-template-columns:1fr}
   .main{padding:12px}
   .topbar{align-items:flex-start;flex-direction:column}
+  .topbar-tools{width:100%;justify-content:space-between}
+  .session-reauth-card{min-height:36px}
   .workspace-nav{padding:8px 12px;flex-direction:column;align-items:stretch}
   .workspace-nav-main,.workspace-nav-future{overflow-x:auto}
   .nav-future-label{margin-left:0}

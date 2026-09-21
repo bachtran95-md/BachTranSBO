@@ -1271,6 +1271,7 @@ await beta.evaluate(() => {
   }
   p.disposition = "discharged";
   p.dischargeCondition = "Panaszmentes, jó általános állapotú.";
+  p.recommendations = ["Háziorvosi kontroll javasolt."];
   p.summary = "";
   p.summaryGeneratedText = "";
   p.summaryGeneratedAt = null;
@@ -1285,7 +1286,18 @@ await beta.locator('[data-cockpit-tab="summary"]').click();
 await beta.waitForFunction(() => {
   const generate = document.querySelector("#generateSummaryBtn");
   const finalize = document.querySelector("#finalizeSummaryBtn");
-  return Boolean(generate && finalize && !generate.disabled && !finalize.disabled);
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  const tabsReady = ["clinical", "tests", "course", "disposition"].every((key) =>
+    !document.querySelector(`[data-cockpit-tab="${key}"]`)?.classList.contains("has-summary-gap")
+  );
+  return Boolean(
+    workflow?.summaryReady &&
+    tabsReady &&
+    generate &&
+    finalize &&
+    !generate.disabled &&
+    !finalize.disabled
+  );
 });
 await beta.locator("#generateSummaryBtn").click();
 await beta.waitForFunction(() => document.querySelector("#fSummary")?.value === "Mock summary");

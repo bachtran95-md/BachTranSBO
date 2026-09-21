@@ -444,8 +444,10 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 }
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
-await beta.locator("#cockpitPasteText").waitFor();
-await beta.locator("#cockpitDocumentationReview").waitFor();
+await beta.locator("#cockpitDataEntryBtn").waitFor({ state: "visible" });
+if (await beta.locator("#cockpitDataEntryBtn").isDisabled()) {
+  throw new Error("AI Data Entry header button is unexpectedly disabled for an active case");
+}
 
 const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 await beta.waitForFunction(() =>
@@ -629,11 +631,11 @@ await beta.evaluate(() => {
 
 await beta.locator("#cockpitAnalyzeCase").click();
 await beta.waitForFunction(() =>
-  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Gyógyszerallergia")
+  (document.querySelector("#cockpitAssistantResults")?.textContent || "").includes("Gyógyszerallergia")
 );
-const documentationAfterAssistant = await beta.locator("#cockpitDocumentationReview").textContent();
-if (!documentationAfterAssistant.includes("Gyógyszerallergia")) {
-  throw new Error("Documentation review did not surface assistant missing information");
+const assistantTextAfterRun = await beta.locator("#cockpitAssistantResults").textContent();
+if (!assistantTextAfterRun.includes("Gyógyszerallergia")) {
+  throw new Error("Case Assistant did not surface expected missing information");
 }
 
 const assistantOrderBefore = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
@@ -683,11 +685,15 @@ if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)
   throw new Error("Case Assistant reordered items after doctor decision");
 }
 
+await beta.locator("#cockpitDataEntryBtn").click();
+await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item").waitFor();
 await beta.locator(".cockpit-extract-item .cockpit-decision.yes").click();
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmOverlay:not(.hidden)").waitFor();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => document.querySelector("#fComplaint")?.value.includes("mellkasi fájdalom"));
 
 const appliedComplaint = await beta.locator("#fComplaint").inputValue();
@@ -708,15 +714,17 @@ await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
 await beta.waitForFunction(() =>
-  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Conflicting timing in source")
+  (document.querySelector("#cockpitExtractPreview")?.textContent || "").includes("Conflicting timing in source")
 );
-const documentationAfterWarning = await beta.locator("#cockpitDocumentationReview").textContent();
-if (!documentationAfterWarning.includes("Conflicting timing in source")) {
-  throw new Error("Documentation review did not surface extraction warning");
+const extractionWarningText = await beta.locator("#cockpitExtractPreview").textContent();
+if (!extractionWarningText.includes("Conflicting timing in source")) {
+  throw new Error("Extraction preview did not surface extraction warning");
 }
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
 await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmOverlay:not(.hidden)").waitFor();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => (document.querySelector("#cockpitExtractStatus")?.textContent || "").includes("Synthetic save failure"));
 
 const historyAfterFailure = await beta.locator("#fHistory").inputValue();
@@ -726,6 +734,9 @@ if (historyAfterFailure !== "Doctor draft must survive") {
 if (historyAfterFailure.includes("Hypertonia")) {
   throw new Error("Failed AI apply leaked extracted content into clinician draft");
 }
+
+await beta.locator("#cockpitDataEntryClose").click();
+await beta.locator("#cockpitDataEntryOverlay.hidden").waitFor();
 
 await beta.locator("#aiLearningNav").click();
 await beta.locator("#styleProfilesList").waitFor();

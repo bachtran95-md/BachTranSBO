@@ -273,11 +273,12 @@
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
-                  <div class="field narrative-field waiting" id="diagnosesWrap">
+                  <div class="field narrative-field waiting" id="diagnosesWrap" data-narrative-field="diagnoses">
                     <div class="narrative-head">
                       <label data-i18n="diagnoses">Diagnoses</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" id="diagnosesState">KÖTELEZŐ</span>
+                        <span class="field-state waiting" data-field-state="diagnoses">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
                       </div>
                     </div>
                     <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Panaszok hátterében mi állhat?</div>
@@ -507,8 +508,8 @@
   <script src="case-ui.js?beta=patient-header-20260921-2"></script>
   <script src="backend.js?v=save-queue-20260921-1"></script>
   <script src="assistant-core.js?beta=20260920-12"></script>
-  <script src="app.js?v=five-home-recommendations-20260921-1"></script>
+  <script src="app.js?v=diagnoses-none-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=required-diagnoses-20260921-1"></script>
+  <script src="cockpit-beta.js?beta=diagnoses-none-20260921-1"></script>
 </body>
 </html>

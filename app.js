@@ -905,7 +905,7 @@ async function addPatient() {
     courseSkipped: false,
     diagnoses: "",
     disposition: "",
-    recommendations: [""],
+    recommendations: ["", "", "", "", ""],
     hospital: "",
     ward: "",
     physician: "",
@@ -1594,8 +1594,10 @@ function renderRecommendations(patient) {
   recList.innerHTML = "";
 
   const entries = patient.recommendations?.length
-    ? patient.recommendations
-    : [""];
+    ? [...patient.recommendations]
+    : [];
+
+  while (entries.length < 5) entries.push("");
 
   entries.forEach((text, i) => {
     const row = document.createElement("div");
@@ -1603,8 +1605,8 @@ function renderRecommendations(patient) {
 
     row.innerHTML = `
       <div class="n">${i + 1}.</div>
-      <input data-rec value="${attr(text)}" />
-      <button type="button" class="btn small" data-del-rec="${i}">×</button>
+      <input data-rec value="${attr(text)}" placeholder="${uiLang === "hu" ? "Javaslat " + (i + 1) : "Recommendation " + (i + 1)}" />
+      ${i >= 5 ? `<button type="button" class="btn small" data-del-rec="${i}">×</button>` : '<span></span>'}
     `;
 
     recList.appendChild(row);

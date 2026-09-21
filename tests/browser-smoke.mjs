@@ -577,6 +577,39 @@ if (await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)'
   throw new Error("Tests panel remained visible while Therapy/Course tab was active");
 }
 
+// Regression: discharged disposition + discharge condition must survive both
+// draft autosave/manual save and a full page reload.
+await beta.locator('[data-cockpit-tab="disposition"]').click();
+await beta.locator("#fDisposition").selectOption("discharged");
+await beta.locator("#fDischargeCondition").fill("Panaszmentes, jó általános állapotú.");
+await beta.locator("#savePatientBtn").click();
+await beta.waitForTimeout(250);
+let dischargePersisted = await beta.evaluate(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  const patient = state?.patients?.[0] || null;
+  return {
+    disposition: patient?.disposition || "",
+    dischargeCondition: patient?.dischargeCondition || ""
+  };
+});
+if (
+  dischargePersisted.disposition !== "discharged" ||
+  dischargePersisted.dischargeCondition !== "Panaszmentes, jó általános állapotú."
+) {
+  throw new Error("Decision discharge fields did not persist: " + JSON.stringify(dischargePersisted));
+}
+
+await beta.reload({ waitUntil: "domcontentloaded" });
+await beta.locator("#patientsView:not(.hidden)").waitFor();
+await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await beta.locator('[data-cockpit-tab="disposition"]').click();
+if ((await beta.locator("#fDisposition").inputValue()) !== "discharged") {
+  throw new Error("Discharged disposition was lost after reload");
+}
+if ((await beta.locator("#fDischargeCondition").inputValue()) !== "Panaszmentes, jó általános állapotú.") {
+  throw new Error("Discharge condition was lost after reload");
+}
+
 // Regression from the uploaded recording: typing into a result must not remove
 // Beta's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();

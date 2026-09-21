@@ -461,7 +461,7 @@ beta.on("dialog", async (dialog) => {
 });
 await beta.goto(baseUrl + "/", { waitUntil: "domcontentloaded" });
 await beta.locator("#patientsView:not(.hidden)").waitFor();
-await beta.locator("#cockpitBetaBadge").waitFor();
+await beta.waitForFunction(() => document.body.classList.contains("cockpit-ui"));
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
   throw new Error("Beta did not restore the expected case state");
 }

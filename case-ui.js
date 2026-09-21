@@ -103,34 +103,82 @@
     select.style.fontWeight = normalized ? "700" : "";
   }
 
-  function sexOptionsAreCurrent(select) {
-    if (!select) return false;
-    const expected = ["", ...SEX_VALUES];
-    const options = [...select.options];
-    if (options.length !== expected.length) return false;
-
-    return options.every((option, index) => {
-      const value = expected[index];
-      const expectedText = value ? sexLabel(value) : "—";
-      return option.value === value && option.textContent === expectedText;
-    });
-  }
-
-  function paintSexSelect(select, { forceOptions = false } = {}) {
+  function paintSexSelect(select) {
     if (!select) return;
     const normalized = normalizeSex(select.value);
+    const expected = ["", ...SEX_VALUES];
+    const options = [...select.options];
+    const current =
+      options.length === expected.length &&
+      options.every((option, index) => {
+        const value = expected[index];
+        const expectedText = value ? sexLabel(value) : "—";
+        return option.value === value && option.textContent === expectedText;
+      });
 
-    // Never replace <option> nodes while the native macOS select owns focus.
-    // Doing so can leave the menu visually stuck or make the selection jump.
-    // A later enhancement pass repairs labels/order after focus leaves.
-    const mayRebuildOptions = document.activeElement !== select;
-    if ((forceOptions || !sexOptionsAreCurrent(select)) && mayRebuildOptions) {
+    if (!current) {
       select.innerHTML = sexOptionsHtml(normalized);
       select.value = normalized;
     }
 
     select.dataset.sexEnhanced = "true";
     styleSexSelect(select, normalized);
+  }
+
+  function sexChoiceHtml(current = "") {
+    const normalized = normalizeSex(current);
+    const choices = SEX_VALUES.map((value) => {
+      const checked = value === normalized ? " checked" : "";
+      return `<label class="sex-choice sex-choice-${value.toLowerCase()}">
+        <input type="radio" name="iceSexChoice" value="${value}"${checked} />
+        <span class="sex-choice-check" aria-hidden="true">✓</span>
+        <span data-sex-choice-label="${value}">${sexLabel(value)}</span>
+      </label>`;
+    }).join("");
+
+    return `<input id="iceSex" type="hidden" value="${normalized}" />
+      <div id="iceSexChoices" class="sex-choice-group" role="radiogroup" aria-label="${label("Sex", "Nem")}">
+        ${choices}
+      </div>`;
+  }
+
+  function syncSexChoiceUi(value = document.getElementById("iceSex")?.value || "") {
+    const normalized = normalizeSex(value);
+    const hidden = document.getElementById("iceSex");
+    if (hidden) hidden.value = normalized;
+
+    document.querySelectorAll('#iceSexChoices input[name="iceSexChoice"]').forEach((radio) => {
+      radio.checked = radio.value === normalized;
+    });
+
+    const group = document.getElementById("iceSexChoices");
+    if (group) group.setAttribute("aria-label", label("Sex", "Nem"));
+  }
+
+  function updateSexChoiceLabels() {
+    SEX_VALUES.forEach((value) => {
+      const text = document.querySelector(`[data-sex-choice-label="${value}"]`);
+      if (text) text.textContent = sexLabel(value);
+    });
+
+    const group = document.getElementById("iceSexChoices");
+    if (group) group.setAttribute("aria-label", label("Sex", "Nem"));
+  }
+
+  function wireSexChoiceUi() {
+    const hidden = document.getElementById("iceSex");
+    if (!hidden) return;
+
+    document.querySelectorAll('#iceSexChoices input[name="iceSexChoice"]').forEach((radio) => {
+      if (radio.dataset.sexChoiceWired === "true") return;
+      radio.dataset.sexChoiceWired = "true";
+      radio.addEventListener("change", () => {
+        if (!radio.checked) return;
+        hidden.value = radio.value;
+        syncSexChoiceUi(radio.value);
+        hidden.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
   }
 
   function selectedId() {
@@ -192,7 +240,7 @@
     const arrival = document.getElementById("iceArrival");
     const arrivalOther = document.getElementById("iceArrivalOther");
     const discharge = document.getElementById("fDischargeCondition");
-    if (sex) { sex.value = ""; paintSexSelect(sex); }
+    if (sex) { sex.value = ""; syncSexChoiceUi(""); }
     if (yob) yob.value = "";
     if (age) age.value = "";
     if (arrival) arrival.value = "";
@@ -234,7 +282,7 @@
 
     if (sex && sexEl && (!sexEl.value || force)) {
       sexEl.value = sex;
-      paintSexSelect(sexEl);
+      syncSexChoiceUi(sex);
     }
     if (yob && yobEl && (!yobEl.value || force)) {
       yobEl.value = yob;
@@ -333,7 +381,7 @@
         <div class="inline3">
           <div class="field">
             <label data-ice-label="sex">Sex</label>
-            <select id="iceSex">${sexOptionsHtml("")}</select>
+            ${sexChoiceHtml("")}
           </div>
           <div class="field">
             <label data-ice-label="yob">Year of birth</label>
@@ -365,6 +413,7 @@
       if (mount && host.parentElement !== mount) mount.appendChild(host);
     }
     updateLabels();
+    wireSexChoiceUi();
     wireUi();
     enhanceSexUi();
     ensureDischargeConditionUi();
@@ -382,6 +431,7 @@
     document.querySelectorAll("[data-ice-label]").forEach((el) => {
       el.textContent = labels[el.dataset.iceLabel] || el.textContent;
     });
+
     const sel = document.getElementById("iceArrival");
     if (sel) {
       const current = sel.value;
@@ -390,24 +440,26 @@
       ).join("");
       sel.value = current;
     }
+
     const del = document.getElementById("iceDeleteCase");
     if (del) del.textContent = label("DELETE CASE", "ESET TÖRLÉSE");
 
-    [document.getElementById("iceSex"), document.getElementById("newSex")].forEach((select) => {
-      // paintSexSelect already detects stale language/order. Forcing an option
-      // rebuild here is unsafe because updateLabels can run from MutationObserver
-      // while a native select interaction is still active.
-      if (select) paintSexSelect(select);
-    });
+    updateSexChoiceLabels();
+    const newSex = document.getElementById("newSex");
+    if (newSex) paintSexSelect(newSex);
   }
 
   function enhanceSexUi() {
-    [document.getElementById("iceSex"), document.getElementById("newSex")].forEach((select) => {
-      if (!select) return;
-      const current = normalizeSex(select.value);
-      paintSexSelect(select);
-      select.value = current;
-    });
+    const iceSex = document.getElementById("iceSex");
+    if (iceSex) syncSexChoiceUi(iceSex.value);
+
+    const newSex = document.getElementById("newSex");
+    if (newSex) {
+      const current = normalizeSex(newSex.value);
+      paintSexSelect(newSex);
+      newSex.value = current;
+    }
+
     document.querySelectorAll("tr[data-id] td:nth-child(2)").forEach((cell) => {
       const normalized = normalizeSex(cell.textContent || "");
       if (normalized) cell.innerHTML = sexBadge(normalized);
@@ -439,7 +491,7 @@
 
     if (sexEl) {
       sexEl.value = sex;
-      paintSexSelect(sexEl);
+      syncSexChoiceUi(sex);
     }
     if (yobEl) yobEl.value = data.year_of_birth ? String(data.year_of_birth) : "";
     if (ageEl) ageEl.value = ageFromYob(data.year_of_birth);
@@ -548,7 +600,7 @@
     const ageEl = document.getElementById("iceAge");
     if (sex && sexEl) {
       sexEl.value = sex;
-      paintSexSelect(sexEl);
+      syncSexChoiceUi(sex);
     }
     if (yob && yobEl) {
       yobEl.value = yob;
@@ -693,12 +745,7 @@
       metadataDirtyCaseId = "";
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
-      // Do not write back into the focused native sex select. The control
-      // already contains the committed value; a blur-triggered pass can safely
-      // reconcile authoritative metadata afterwards.
-      if (document.activeElement?.id !== "iceSex") {
-        loadSelected({ force: true });
-      }
+      loadSelected({ force: true });
     } catch (error) {
       metadataDirtyCaseId = id;
       lastSaveFailedAt = Date.now();
@@ -755,14 +802,13 @@
         const age = document.getElementById("iceAge");
         const arrival = document.getElementById("iceArrival");
         if (id === "iceYob" && age && yob) age.value = ageFromYob(yob.value);
-        if (id === "iceSex") styleSexSelect(el);
+        if (id === "iceSex") syncSexChoiceUi(el.value);
         document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (arrival?.value || "") !== "other");
         syncDraftIntoPatientState();
         scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
-      // Native <select> on macOS emits input while the popup is still open.
-      // For sex, commit only on change so app rerenders/autosave cannot interfere
-      // with the currently open native menu.
+      // iceSex is a hidden value controlled by the three exclusive tick choices.
+      // The visible radios dispatch one canonical change event through this field.
       if (id !== "iceSex") el.addEventListener("input", handler);
       el.addEventListener("change", handler);
       el.addEventListener("blur", () => scheduleSave(50));

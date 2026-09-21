@@ -474,7 +474,9 @@ await page.locator("#normalRawUseAiBtn").click();
 await page.waitForFunction(() =>
   !document.querySelector("#normalRawDrawer")?.classList.contains("open")
 );
-await page.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
+await page.waitForFunction(() =>
+  document.querySelector("#cockpitDataEntryOverlay")?.classList.contains("open")
+);
 if (!(await page.locator("#cockpitPasteText").inputValue()).includes("Heidi raw transcript")) {
   throw new Error("Raw data was not loaded into AI data entry");
 }
@@ -1217,7 +1219,9 @@ await beta.locator("#fDischargeCondition").fill("");
 await beta.locator('[data-cockpit-tab="clinical"]').click();
 
 await beta.locator("#cockpitDataEntryBtn").click();
-await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
+await beta.waitForFunction(() =>
+  document.querySelector("#cockpitDataEntryOverlay")?.classList.contains("open")
+);
 
 // Regression: losing the global validation-core reference while the extraction
 // request is in flight must not break preview rendering.
@@ -1234,36 +1238,45 @@ await beta.waitForTimeout(80);
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item").waitFor();
-await beta.locator(".cockpit-extract-item .cockpit-decision.yes").click();
+
+// Doctor override: destination field and proposed wording must both remain editable.
+const firstExtract = beta.locator(".cockpit-extract-item").first();
+await firstExtract.locator(".cockpit-target-select").selectOption("others");
+await firstExtract.locator(".cockpit-extract-edit").fill("mellkasi fájdalom – orvos által felülírt szöveg");
+await firstExtract.locator(".cockpit-decision.yes").click();
 await beta.locator("#cockpitApplyAccepted").click();
 await beta.locator("#cockpitExtractConfirmOverlay:not(.hidden)").waitFor();
 await beta.locator("#cockpitExtractConfirmApply").click();
-await beta.waitForFunction(() => document.querySelector("#fComplaint")?.value.includes("mellkasi fájdalom"));
+await beta.waitForFunction(() => document.querySelector("#fOthers")?.value.includes("orvos által felülírt"));
 
-const appliedComplaint = await beta.locator("#fComplaint").inputValue();
-if (!appliedComplaint.includes("mellkasi fájdalom")) {
-  throw new Error("Accepted extracted complaint was not applied");
+const appliedOverride = await beta.locator("#fOthers").inputValue();
+if (!appliedOverride.includes("mellkasi fájdalom – orvos által felülírt szöveg")) {
+  throw new Error("Doctor-edited extracted text or target override was not applied");
 }
 const applyStatusWithIncompleteDischarge = await beta.locator("#cockpitExtractStatus").textContent();
 if (/Otthonába bocsátás esetén kötelező|Discharge condition \/ symptoms is required/i.test(applyStatusWithIncompleteDischarge || "")) {
   throw new Error("AI fact apply was incorrectly blocked by discharge completeness");
 }
-const persistedComplaint = await beta.evaluate(() => {
+const persistedOverride = await beta.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
-  return state?.patients?.[0]?.complaint || "";
+  return state?.patients?.[0]?.others || "";
 });
-if (!persistedComplaint.includes("mellkasi fájdalom")) {
-  throw new Error("Accepted extracted complaint was not persisted");
+if (!persistedOverride.includes("orvos által felülírt szöveg")) {
+  throw new Error("Doctor override from AI data entry was not persisted");
 }
 
 // Close the modal before editing the underlying clinical form, then reopen it
 // for the conflict/failure extraction scenario.
 await beta.locator("#cockpitDataEntryClose").click();
-await beta.locator("#cockpitDataEntryOverlay").waitFor({ state: "hidden" });
+await beta.waitForFunction(() =>
+  !document.querySelector("#cockpitDataEntryOverlay")?.classList.contains("open")
+);
 await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
 await beta.locator("#cockpitDataEntryBtn").click();
-await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
+await beta.waitForFunction(() =>
+  document.querySelector("#cockpitDataEntryOverlay")?.classList.contains("open")
+);
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
@@ -1290,7 +1303,9 @@ if (historyAfterFailure.includes("Hypertonia")) {
 }
 
 await beta.locator("#cockpitDataEntryClose").click();
-await beta.locator("#cockpitDataEntryOverlay").waitFor({ state: "hidden" });
+await beta.waitForFunction(() =>
+  !document.querySelector("#cockpitDataEntryOverlay")?.classList.contains("open")
+);
 
 await beta.locator("#aiLearningNav").click();
 await beta.locator("#styleProfilesList").waitFor();

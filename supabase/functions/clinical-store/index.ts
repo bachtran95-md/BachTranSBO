@@ -852,6 +852,92 @@ async function appendRevision(db: any, ownerId: string, patientInput: any) {
   };
 }
 
+
+async function saveRawData(
+  db: any,
+  ownerId: string,
+  caseId: string,
+  rawInput: unknown,
+) {
+  const raw = String(rawInput ?? "");
+  if (!caseId) throw new Error("Missing case ID.");
+  if (!raw.trim()) throw new Error("Raw data is empty.");
+  if (raw.length > 100000) throw new Error("Raw data is too long.");
+
+  const { data: ownedCase, error: caseError } = await db
+    .from("cases")
+    .select("id, status")
+    .eq("id", caseId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (caseError) throw caseError;
+  if (!ownedCase) throw new Error("Case does not belong to authenticated user.");
+  if (ownedCase.status !== "active") throw new Error("Raw data can only be sent to an active case.");
+
+  // Reuse the same clinical persistence privacy pipeline. Wrapping the raw
+  // transcript as a normal clinical narrative gives it the established
+  // rule-based + best-effort person-name scrub before anything is stored.
+  const { patient, report } = await deidentifyPatient({ complaint: raw });
+  const content = String(patient?.complaint || "").trim();
+  if (!content) throw new Error("Raw data was empty after privacy filtering.");
+
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("case_raw_data")
+    .upsert(
+      {
+        case_id: caseId,
+        owner_id: ownerId,
+        content,
+        source: "heidi",
+        updated_at: now,
+      },
+      { onConflict: "case_id" },
+    )
+    .select("case_id, content, source, created_at, updated_at")
+    .single();
+
+  if (error) throw error;
+
+  return {
+    caseId: data.case_id,
+    content: data.content || "",
+    source: data.source || "heidi",
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    report,
+    removed: reportTotal(report),
+  };
+}
+
+async function deleteRawData(
+  db: any,
+  ownerId: string,
+  caseId: string,
+) {
+  if (!caseId) throw new Error("Missing case ID.");
+
+  const { data: ownedCase, error: caseError } = await db
+    .from("cases")
+    .select("id")
+    .eq("id", caseId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (caseError) throw caseError;
+  if (!ownedCase) throw new Error("Case does not belong to authenticated user.");
+
+  const { error } = await db
+    .from("case_raw_data")
+    .delete()
+    .eq("case_id", caseId)
+    .eq("owner_id", ownerId);
+
+  if (error) throw error;
+  return { deleted: true, caseId };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -918,6 +1004,27 @@ Deno.serve(async (req) => {
 
     if (body?.action === "append_revision") {
       return json(await appendRevision(db, user.id, body.patient));
+    }
+
+    if (body?.action === "save_raw_data") {
+      return json(
+        await saveRawData(
+          db,
+          user.id,
+          String(body.caseId || ""),
+          body.content,
+        ),
+      );
+    }
+
+    if (body?.action === "delete_raw_data") {
+      return json(
+        await deleteRawData(
+          db,
+          user.id,
+          String(body.caseId || ""),
+        ),
+      );
     }
 
     return json({ error: "Unknown action." }, 400);

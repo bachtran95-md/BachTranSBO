@@ -498,6 +498,9 @@ await beta.waitForFunction(() =>
   document.querySelector('[data-cockpit-tab="tests"]')?.classList.contains("has-summary-gap") &&
   document.querySelector('[data-cockpit-tab="disposition"]')?.classList.contains("has-summary-gap")
 );
+if (await beta.locator('[data-cockpit-tab="clinical"].has-summary-gap').count()) {
+  throw new Error("Klinikum stayed orange despite complete demographics and Jelen panaszok/Anamnézis resolved as NINCS");
+}
 if (await beta.locator('[data-cockpit-tab="summary"].has-summary-gap').count()) {
   throw new Error("Summary tab must never show an orange readiness dot");
 }
@@ -611,6 +614,15 @@ for (const value of ["F", "O", "M", "F"]) {
 }
 
 const expectedYob = String(new Date().getFullYear() - 44);
+
+// Invalid/incomplete YOB must keep Klinikum orange; Age itself is derived and
+// is not an independent requirement.
+await beta.locator("#iceYob").fill("12");
+await beta.locator("#iceYob").dispatchEvent("input");
+await beta.waitForFunction(() =>
+  document.querySelector('[data-cockpit-tab="clinical"]')?.classList.contains("has-summary-gap")
+);
+
 await beta.locator("#iceYob").fill(expectedYob);
 await beta.locator("#iceYob").dispatchEvent("change");
 

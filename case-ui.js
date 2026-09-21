@@ -131,7 +131,7 @@
       const checked = value === normalized ? " checked" : "";
       return `<label class="sex-choice sex-choice-${value.toLowerCase()}">
         <input type="radio" name="iceSexChoice" value="${value}"${checked} />
-        <span class="sex-choice-check" aria-hidden="true">✓</span>
+        <span class="sex-choice-check" aria-hidden="true"></span>
         <span data-sex-choice-label="${value}">${sexLabel(value)}</span>
       </label>`;
     }).join("");

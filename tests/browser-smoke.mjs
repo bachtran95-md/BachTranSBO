@@ -483,7 +483,7 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 }
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
-await beta.locator("#cockpitPasteText").waitFor();
+await beta.locator("#cockpitDataEntryBtn").waitFor();
 
 await beta.locator('[data-cockpit-tab="tests"]').click();
 await beta.locator('[data-add-test-kind="consultation"]').click();
@@ -746,11 +746,13 @@ if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)
   throw new Error("Case Assistant reordered items after doctor decision");
 }
 
+await beta.locator("#cockpitDataEntryBtn").click();
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item").waitFor();
 await beta.locator(".cockpit-extract-item .cockpit-decision.yes").click();
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => document.querySelector("#fComplaint")?.value.includes("mellkasi fájdalom"));
 
 const appliedComplaint = await beta.locator("#fComplaint").inputValue();
@@ -774,6 +776,7 @@ if (!(await labUpdate.getAttribute("class")).includes("action-update")) {
 }
 await labUpdate.locator(".cockpit-decision.yes").click();
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
   return state?.patients?.[0]?.tests?.labs?.[0]?.savedText === "Troponin 46 ng/L";
@@ -806,13 +809,16 @@ if (!(await consultationUpdate.getAttribute("class")).includes("action-update"))
 }
 await consultationUpdate.locator(".cockpit-decision.yes").click();
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
   return state?.patients?.[0]?.tests?.consultations?.[0]?.savedText === "CCU admission recommended";
 });
 
+await beta.locator("#cockpitDataEntryClose").click();
 await beta.locator('[data-none-toggle="history"]').click();
 await beta.locator("#fHistory").fill("Doctor draft must survive");
+await beta.locator("#cockpitDataEntryBtn").click();
 await beta.locator("#cockpitPasteText").fill("Anamnézis: hypertonia.");
 await beta.locator("#cockpitExtractText").click();
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor();
@@ -826,6 +832,7 @@ if (!extractionWarning.includes("Conflicting timing in source")) {
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
 await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
 await beta.locator("#cockpitApplyAccepted").click();
+await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => (document.querySelector("#cockpitExtractStatus")?.textContent || "").includes("Synthetic save failure"));
 
 const historyAfterFailure = await beta.locator("#fHistory").inputValue();
@@ -836,6 +843,7 @@ if (historyAfterFailure.includes("Hypertonia")) {
   throw new Error("Failed AI apply leaked extracted content into clinician draft");
 }
 
+await beta.locator("#cockpitDataEntryClose").click();
 await beta.locator("#aiLearningNav").click();
 await beta.locator("#styleProfilesList").waitFor();
 await beta.waitForFunction(() =>

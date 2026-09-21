@@ -524,6 +524,31 @@ if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
   throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
 
+// SBO arrival is required: blank must be visibly orange, a valid selection clears it.
+await beta.locator("#iceArrival").selectOption("");
+await beta.waitForFunction(() =>
+  document.querySelector("#iceArrival")?.closest(".field")?.classList.contains("cockpit-arrival-missing")
+);
+const missingArrivalStyle = await beta.locator("#iceArrival").evaluate((el) => ({
+  background: getComputedStyle(el).backgroundColor,
+  border: getComputedStyle(el).borderColor,
+  ariaInvalid: el.getAttribute("aria-invalid")
+}));
+if (
+  missingArrivalStyle.background === "rgb(255, 255, 255)" ||
+  missingArrivalStyle.border === "rgb(208, 213, 221)" ||
+  missingArrivalStyle.ariaInvalid !== "true"
+) {
+  throw new Error("Blank SBO arrival is not highlighted orange: " + JSON.stringify(missingArrivalStyle));
+}
+await beta.locator("#iceArrival").selectOption("walk_in");
+await beta.waitForFunction(() =>
+  !document.querySelector("#iceArrival")?.closest(".field")?.classList.contains("cockpit-arrival-missing")
+);
+if ((await beta.locator("#iceArrival").getAttribute("aria-invalid")) !== "false") {
+  throw new Error("SBO arrival remained invalid after choosing an option");
+}
+
 // Jelen panaszok and Anamnézis should be full-width stacked rows, not side-by-side.
 const clinicalNarrativeLayout = await beta.evaluate(() => {
   const complaint = document.querySelector('[data-narrative-field="complaint"]')?.getBoundingClientRect();

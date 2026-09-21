@@ -286,9 +286,7 @@
     document.getElementById("cockpitExtractText")?.addEventListener("click", extractPastedText);
     document.getElementById("cockpitDataEntryBtn")?.addEventListener("click", openDataEntryDialog);
     document.getElementById("cockpitDataEntryClose")?.addEventListener("click", closeDataEntryDialog);
-    document.getElementById("cockpitDataEntryOverlay")?.addEventListener("click", (event) => {
-      if (event.target?.id === "cockpitDataEntryOverlay") closeDataEntryDialog();
-    });
+    document.getElementById("cockpitDataEntryBackdrop")?.addEventListener("click", closeDataEntryDialog);
     document.getElementById("cockpitExtractConfirmCancel")?.addEventListener("click", closeExtractionConfirmation);
     document.getElementById("cockpitExtractConfirmApply")?.addEventListener("click", applyAcceptedExtraction);
 
@@ -757,11 +755,14 @@
     const form = document.getElementById("patientForm");
     if (!id || form?.classList.contains("case-readonly")) return;
 
-    const overlay = document.getElementById("cockpitDataEntryOverlay");
-    if (!overlay) return;
+    const drawer = document.getElementById("cockpitDataEntryOverlay");
+    const backdrop = document.getElementById("cockpitDataEntryBackdrop");
+    if (!drawer || !backdrop) return;
 
-    overlay.classList.remove("hidden");
-    overlay.setAttribute("aria-hidden", "false");
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    backdrop.classList.add("open");
+    backdrop.setAttribute("aria-hidden", "false");
     document.body.classList.add("cockpit-data-entry-open");
     document.getElementById("cockpitPasteText")?.focus();
   }
@@ -769,10 +770,13 @@
   function closeDataEntryDialog() {
     if (assistantBusy) return;
     closeExtractionConfirmation();
-    const overlay = document.getElementById("cockpitDataEntryOverlay");
-    if (!overlay) return;
-    overlay.classList.add("hidden");
-    overlay.setAttribute("aria-hidden", "true");
+    const drawer = document.getElementById("cockpitDataEntryOverlay");
+    const backdrop = document.getElementById("cockpitDataEntryBackdrop");
+    if (!drawer || !backdrop) return;
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    backdrop.classList.remove("open");
+    backdrop.setAttribute("aria-hidden", "true");
     document.body.classList.remove("cockpit-data-entry-open");
   }
 
@@ -864,10 +868,17 @@
     return labels[target] || String(target || label("Unknown", "Ismeretlen"));
   }
 
+  function extractionTargetOptions(selectedTarget, assistantCore = assistantCoreRef || window.BachAssistantCore) {
+    const targets = assistantCore?.targets || [];
+    return targets.map((target) =>
+      `<option value="${esc(target)}"${target === selectedTarget ? " selected" : ""}>${esc(extractionTargetLabel(target))}</option>`
+    ).join("");
+  }
+
   function extractionItemModeControl(item, assistantCore = assistantCoreRef || window.BachAssistantCore) {
-    if (!assistantCore?.fields?.includes(item.target)) return "";
+    const hidden = assistantCore?.fields?.includes(item.target) ? "" : " hidden";
     return `
-      <label class="cockpit-apply-mode-wrap">
+      <label class="cockpit-apply-mode-wrap${hidden}">
         <span>${esc(label("When applied", "Alkalmazáskor"))}</span>
         <select class="cockpit-apply-mode" aria-label="${esc(label("Apply mode", "Alkalmazási mód"))}">
           <option value="append">${esc(label("Append", "Hozzáfűzés"))}</option>
@@ -875,6 +886,13 @@
         </select>
       </label>
     `;
+  }
+
+  function syncExtractionTargetControls(node, assistantCore = assistantCoreRef || window.BachAssistantCore) {
+    if (!node) return;
+    const target = node.querySelector(".cockpit-target-select")?.value || "";
+    const modeWrap = node.querySelector(".cockpit-apply-mode-wrap");
+    modeWrap?.classList.toggle("hidden", !assistantCore?.fields?.includes(target));
   }
 
   function refreshExtractionApplyButton() {
@@ -916,11 +934,27 @@
     const selected = acceptedExtractionNodes()
       .map((node) => {
         const index = Number(node.dataset.index);
-        const item = structuredClone(state.items[index]);
-        const mode = node.querySelector(".cockpit-apply-mode")?.value;
-        if (mode) item.mode = mode;
+        const original = structuredClone(state.items[index]);
+        const target = node.querySelector(".cockpit-target-select")?.value || original.target;
+        const editedText = String(node.querySelector(".cockpit-extract-edit")?.value || "").trim();
+        if (!editedText) return null;
+
+        const item = {
+          ...original,
+          target,
+          text: editedText
+        };
+
+        if ((assistantCoreRef || window.BachAssistantCore)?.fields?.includes(target)) {
+          item.status = "documented";
+          item.mode = node.querySelector(".cockpit-apply-mode")?.value || "append";
+        } else {
+          item.status = ["result", "waiting"].includes(original.status) ? original.status : "result";
+          delete item.mode;
+        }
         return item;
-      });
+      })
+      .filter(Boolean);
 
     if (!selected.length) return;
 
@@ -938,7 +972,7 @@
         if (node.dataset.decision !== "accept" || node.dataset.applied === "true") return;
         node.dataset.applied = "true";
         node.classList.add("applied");
-        node.querySelectorAll("button, select").forEach((control) => control.disabled = true);
+        node.querySelectorAll("button, select, textarea").forEach((control) => control.disabled = true);
         const yes = node.querySelector(".cockpit-decision.yes");
         if (yes) yes.textContent = label("APPLIED", "ALKALMAZVA");
       });
@@ -979,17 +1013,18 @@
       <div class="cockpit-extract-item" data-index="${index}" data-decision="">
         <div class="cockpit-extract-head">
           <strong>${esc(item.label || item.target || label("Fact", "Tény"))}</strong>
-          <span>${esc(item.status || label("documented", "dokumentált"))}</span>
+          <span>${esc(label("AI suggestion", "AI javaslat"))}</span>
         </div>
-        <div class="cockpit-extract-target">
+        <label class="cockpit-extract-target">
           <span>${esc(label("Destination field", "Célmező"))}</span>
-          <strong>→ ${esc(extractionTargetLabel(item.target))}</strong>
-        </div>
-        <div class="cockpit-extract-text">${esc(item.text || "")}</div>
-        <details>
-          <summary>${esc(label("Evidence", "Bizonyíték"))}</summary>
-          <div class="cockpit-evidence">${esc(item.evidence || "")}</div>
-        </details>
+          <select class="cockpit-target-select" aria-label="${esc(label("Destination field", "Célmező"))}">
+            ${extractionTargetOptions(item.target, assistantCore)}
+          </select>
+        </label>
+        <label class="cockpit-extract-edit-wrap">
+          <span>${esc(label("Text to write", "Beírandó szöveg"))}</span>
+          <textarea class="cockpit-extract-edit" rows="4">${esc(item.text || "")}</textarea>
+        </label>
         ${extractionItemModeControl(item, assistantCore)}
         <div class="cockpit-decision-row">
           <button type="button" class="cockpit-decision yes" data-extract-decision="accept">${esc(label("ACCEPT", "ELFOGAD"))}</button>
@@ -1013,6 +1048,13 @@
       : "";
 
     preview.innerHTML = warningHtml + (itemHtml || `<div class="subtle">${esc(label("No supported facts extracted.", "Nem sikerült alátámasztott tényt kinyerni."))}</div>`) + applyHtml;
+
+    preview.querySelectorAll(".cockpit-extract-item").forEach((node) => {
+      node.querySelector(".cockpit-target-select")?.addEventListener("change", () => {
+        syncExtractionTargetControls(node, assistantCore);
+      });
+      node.querySelector(".cockpit-extract-edit")?.addEventListener("input", refreshExtractionApplyButton);
+    });
 
     preview.querySelectorAll(".cockpit-decision-row").forEach((row) => {
       row.addEventListener("click", (event) => {

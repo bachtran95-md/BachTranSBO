@@ -389,12 +389,17 @@
   async function savePatient(shiftId, patient) {
     if (!shiftId || !patient) return { removed: 0, report: null };
 
+    // Snapshot immediately. invokeAuthedFunction awaits auth before sending,
+    // so passing a live mutable object can otherwise serialize newer/older
+    // form state than the caller intended.
+    const patientSnapshot = structuredClone(patient);
+
     return invokeAuthedFunction(
       "clinical-store",
       {
         action: "save_patient",
         shiftId,
-        patient
+        patient: patientSnapshot
       },
       "Clinical privacy service"
     );

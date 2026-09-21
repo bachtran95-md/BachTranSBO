@@ -190,32 +190,34 @@
     return Boolean(String(document.getElementById(id)?.value || "").trim());
   }
 
-  function validClinicalYob() {
-    const raw = String(document.getElementById("iceYob")?.value || "").trim();
-    if (!/^\d{4}$/.test(raw)) return false;
-    const year = Number(raw);
-    const currentYear = new Date().getFullYear();
-    return Number.isInteger(year) && year >= 1900 && year <= currentYear;
+  function clinicalMetadata() {
+    return window.BachSBOClinicalUi?.getCaseMetadata?.() || {};
   }
 
-  function validClinicalSex() {
+  function validClinicalYob(metadata = clinicalMetadata()) {
+    const yob = window.BachSBOClinicalUi?.normalizeYob?.(metadata.year_of_birth);
+    return Boolean(yob);
+  }
+
+  function validClinicalSex(metadata = clinicalMetadata()) {
     return ["M", "F", "O"].includes(
-      String(document.getElementById("iceSex")?.value || "").trim().toUpperCase()
+      window.BachSBOClinicalUi?.normalizeSex?.(metadata.sex) || ""
     );
   }
 
   function tabSummaryGaps() {
-    const arrival = document.getElementById("iceArrival")?.value || "";
+    const metadata = clinicalMetadata();
+    const arrival = window.BachSBOClinicalUi?.normalizeArrivalMode?.(metadata.arrival_mode) || "";
     const disposition = document.getElementById("fDisposition")?.value || "";
     const testsPending = [...document.querySelectorAll('[data-cockpit-panel="tests"] .test-card')]
       .some((card) => !card.classList.contains("result") && !card.classList.contains("notordered"));
 
     const clinical =
       !hasValue("fMainComplaint") ||
-      !validClinicalSex() ||
-      !validClinicalYob() ||
+      !validClinicalSex(metadata) ||
+      !validClinicalYob(metadata) ||
       !arrival ||
-      (arrival === "other" && !hasValue("iceArrivalOther")) ||
+      (arrival === "other" && !String(metadata.arrival_other || "").trim()) ||
       !narrativeResolved("complaint") ||
       !narrativeResolved("history");
 

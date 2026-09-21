@@ -110,7 +110,7 @@ const consultationPatient = {
   tests: {
     ...patient.tests,
     consultations: [
-      { id: "consult-cardio", type: "Cardiology", mode: "waiting", text: "", savedText: "" },
+      { id: "consult-cardio", type: "Kardiológia", mode: "waiting", text: "", savedText: "" },
       { id: "consult-neuro", type: "Neurology", mode: "waiting", text: "", savedText: "" }
     ]
   }

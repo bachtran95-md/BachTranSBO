@@ -228,11 +228,28 @@ const backendMock = String.raw`
           missingInformation: ["Gyógyszerallergia"],
           sources: [],
           doctorDecision: "pending"
+        }, {
+          id: "66666666-6666-4666-8666-666666666667",
+          itemKey: "item-02",
+          priority: "consider",
+          category: "documentation",
+          title: "Document reassessment",
+          reason: "Reassessment can clarify the course.",
+          missingInformation: [],
+          sources: [],
+          doctorDecision: "pending"
         }]
       };
     },
     async caseAssistantGetState(patient) { return { run: null, suggestions: [], caseId: patient.id }; },
-    async caseAssistantDecide() { return { doctorDecision: "yes", decidedAt: new Date().toISOString() }; },
+    async caseAssistantDecide(_caseId, _itemId, decision) {
+      const doctorDecision = decision === "done"
+        ? "already_done"
+        : decision === "na"
+        ? "not_applicable"
+        : decision;
+      return { doctorDecision, decidedAt: new Date().toISOString() };
+    },
     async caseAssistantExtract(_caseId, source) {
       if (/troponin/i.test(source)) {
         return {
@@ -439,6 +456,12 @@ await page.evaluate(() => {
     p.tests.radiology[0].otherTest = "";
     p.tests.radiology[0].type = "koponya Native CT";
   }
+  if (p.tests?.consultations?.[0]) {
+    p.tests.consultations[0].type = "Kardiológia";
+    p.tests.consultations[0].mode = "waiting";
+    p.tests.consultations[0].text = "";
+    p.tests.consultations[0].savedText = "";
+  }
   localStorage.setItem(key, JSON.stringify(state));
 });
 
@@ -461,7 +484,6 @@ if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
 await beta.locator("#cockpitPasteText").waitFor();
-await beta.locator("#cockpitDocumentationReview").waitFor();
 
 await beta.locator('[data-cockpit-tab="tests"]').click();
 await beta.locator('[data-add-test-kind="consultation"]').click();
@@ -474,9 +496,11 @@ await beta.waitForFunction(() => {
 if (!/saved|mentve/i.test(await beta.locator("#cockpitAddTestStatus").textContent())) {
   throw new Error("Unified Add test did not confirm immediate backend persistence");
 }
-const consultationCardsText = await beta.locator("#consultCards").textContent();
-if (!consultationCardsText.includes("Neurology")) {
-  throw new Error(`Added consultation does not show its category/name in the card: ${consultationCardsText}`);
+const addedConsultation = beta.locator("#consultCards .test-card").last();
+const addedConsultationType = await addedConsultation.locator("[data-type]").inputValue();
+const addedConsultationLabel = await addedConsultation.locator(".cockpit-consultation-prefix").textContent();
+if (addedConsultationType !== "Neurology" || !/Consultation|Konzílium/i.test(addedConsultationLabel)) {
+  throw new Error(`Added consultation does not show its category/name: ${addedConsultationLabel} / ${addedConsultationType}`);
 }
 
 const radiologyCountBeforeFailure = await beta.locator("#radiologyCards .test-card").count();
@@ -497,7 +521,7 @@ await beta.waitForFunction(() =>
   Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))
 );
 const pendingSummary = await caseRow.locator(".cockpit-test-summary").textContent();
-for (const expected of ["EKG", "AVG", "koponya Native CT"]) {
+for (const expected of ["EKG", "AVG", "koponya Native CT", "Kardiológia"]) {
   if (!pendingSummary.includes(expected)) {
     throw new Error(`Case list hid pending test ${expected}: ${pendingSummary}`);
   }
@@ -514,6 +538,16 @@ const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary
 if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
   throw new Error(`Unexpected Beta tab order: ${JSON.stringify(tabOrder)}`);
 }
+if (await beta.locator("#cockpitSummaryTitle").count()) {
+  throw new Error("Right-side Summary card still exists");
+}
+await beta.waitForFunction(() =>
+  document.querySelector('[data-cockpit-tab="tests"]')?.classList.contains("has-summary-gap") &&
+  document.querySelector('[data-cockpit-tab="disposition"]')?.classList.contains("has-summary-gap")
+);
+if (await beta.locator('[data-cockpit-tab="summary"].has-summary-gap').count()) {
+  throw new Error("Summary tab must never show an orange readiness dot");
+}
 
 // Klinikum demographics must be native-visible markup, not a late dynamic insertion.
 if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() !== 1) {
@@ -522,19 +556,79 @@ if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() 
 
 // Klinikum demographics must stay visible and editable.
 await beta.locator('[data-cockpit-tab="clinical"]').click();
+await beta.waitForFunction(() => {
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  const editor = document.querySelector("#inlineCaseEditor");
+  return Boolean(row?.dataset.id && editor?.dataset.loadedCaseId === row.dataset.id);
+});
 await beta.locator("#cockpitDemographicsMount #iceYob").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceAge").waitFor({ state: "visible" });
 await beta.locator("#cockpitDemographicsMount #iceArrival").waitFor({ state: "visible" });
-if (await beta.locator("#iceAge").isDisabled()) {
-  throw new Error("Klinikum Age input is disabled");
+if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
+  throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
-await beta.locator("#iceAge").fill("44");
-await beta.locator("#iceAge").dispatchEvent("change");
+await beta.locator("#iceSex").selectOption("F");
 const expectedYob = String(new Date().getFullYear() - 44);
-await beta.waitForFunction((expected) => document.querySelector("#iceYob")?.value === expected, expectedYob);
+await beta.locator("#iceYob").fill(expectedYob);
+await beta.locator("#iceYob").dispatchEvent("change");
+await beta.locator("#iceArrival").selectOption("omsz");
+await beta.waitForFunction(() => document.querySelector("#iceAge")?.value === "44");
 if (await beta.locator("#iceArrival").isDisabled()) {
   throw new Error("Klinikum arrival mode is disabled");
 }
+
+// Single-source invariant: the app patient model and Esetlista must change
+// immediately, before the 900ms autosave reaches the backend.
+await beta.waitForFunction(({ expectedYob }) => {
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  const rowSex = row?.querySelector('td:nth-child(2) [data-sex-badge="F"]');
+  const rowAge = row?.querySelector("td:nth-child(3)")?.textContent?.trim();
+  return meta?.sex === "F" &&
+    String(meta?.year_of_birth || "") === expectedYob &&
+    meta?.arrival_mode === "omsz" &&
+    Boolean(rowSex) &&
+    rowAge === "44";
+}, { expectedYob });
+
+await beta.waitForTimeout(1600);
+const demographicSaveDiagnostic = await beta.evaluate(({ expectedYob }) => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  const patient = state?.patients?.[0] || null;
+  const editor = document.querySelector("#inlineCaseEditor");
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return {
+    expectedYob,
+    persistedSex: patient?.sex || "",
+    persistedYob: patient?.yob || "",
+    persistedArrival: patient?.arrivalMode || "",
+    status: document.querySelector("#iceStatus")?.textContent || "",
+    loadedCaseId: editor?.dataset.loadedCaseId || "",
+    selectedCaseId: row?.dataset.id || ""
+  };
+}, { expectedYob });
+if (
+  demographicSaveDiagnostic.persistedSex !== "F" ||
+  demographicSaveDiagnostic.persistedYob !== expectedYob ||
+  demographicSaveDiagnostic.persistedArrival !== "omsz"
+) {
+  throw new Error("Demographic metadata did not persist: " + JSON.stringify(demographicSaveDiagnostic));
+}
+await beta.waitForFunction(() => {
+  const row = document.querySelector("#patientTbody tr[data-id]");
+  return row?.querySelector('td:nth-child(2) [data-sex-badge="F"]') &&
+    row?.querySelector("td:nth-child(3)")?.textContent?.trim() === "44";
+});
+
+await beta.reload({ waitUntil: "domcontentloaded" });
+await beta.locator("#patientsView:not(.hidden)").waitFor();
+await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await beta.waitForFunction(({ expectedYob }) => {
+  const meta = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  return meta?.sex === "F" &&
+    String(meta?.year_of_birth || "") === expectedYob &&
+    meta?.arrival_mode === "omsz";
+}, { expectedYob });
 
 // Section 2 wording and the dedicated third Therapy/Course tab.
 await beta.locator("#langHuBtn").click();
@@ -554,6 +648,9 @@ if (await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)'
 // Beta's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();
 await beta.locator('[data-card="ekg"].cockpit-test-row').waitFor();
+if (await beta.locator('[data-card="ekg"] .test-save').isVisible()) {
+  throw new Error("Beta still shows the redundant Save Result button");
+}
 await beta.locator('[data-card="ekg"] textarea[data-text="ekg"]').fill("temporary EKG text");
 let testClasses = await beta.locator('[data-card="ekg"]').getAttribute("class");
 if (!String(testClasses).includes("cockpit-test-row")) {
@@ -567,6 +664,14 @@ if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);
 }
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
+const consultationPrefix = beta.locator('#consultCards [data-card="consultations-0"] .cockpit-consultation-prefix');
+await consultationPrefix.waitFor({ state: "visible" });
+if (!/Consultation|Konzílium/.test(await consultationPrefix.textContent())) {
+  throw new Error("Consultation card does not show a generic consultation label");
+}
+if ((await beta.locator('#consultCards [data-type="consultations-0"]').inputValue()) !== "Kardiológia") {
+  throw new Error("Consultation specialty was lost");
+}
 await beta.locator('[data-cockpit-tab="clinical"]').click();
 
 // Regression: a case with many unresolved fields must not expand the Case list row
@@ -592,12 +697,53 @@ await beta.evaluate(() => {
 });
 
 await beta.locator("#cockpitAnalyzeCase").click();
-await beta.waitForFunction(() =>
-  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Gyógyszerallergia")
+await beta.locator("#cockpitAssistantResults .cockpit-todo-item").first().waitFor();
+
+const assistantOrderBefore = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
+  nodes.map((node) => node.dataset.itemId)
 );
-const documentationAfterAssistant = await beta.locator("#cockpitDocumentationReview").textContent();
-if (!documentationAfterAssistant.includes("Gyógyszerallergia")) {
-  throw new Error("Documentation review did not surface assistant missing information");
+const firstAssistantItem = beta.locator('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]');
+const assistantButtonOrder = await firstAssistantItem.locator(".cockpit-decision").evaluateAll((nodes) =>
+  nodes.map((node) => node.textContent.trim())
+);
+if (JSON.stringify(assistantButtonOrder) !== JSON.stringify(["DONE", "YES", "NO"])) {
+  throw new Error("Case Assistant decision order must be DONE → YES → NO");
+}
+if (await firstAssistantItem.locator('[data-decision="na"]').count()) {
+  throw new Error("Case Assistant still exposes N/A");
+}
+
+for (const spec of [
+  { decision: "done", buttonRgb: "rgb(6, 118, 71)", boxRgb: "rgb(236, 253, 243)" },
+  { decision: "yes", buttonRgb: "rgb(181, 71, 8)", boxRgb: "rgb(255, 247, 237)" },
+  { decision: "no", buttonRgb: "rgb(71, 84, 103)", boxRgb: "rgb(208, 213, 221)" }
+]) {
+  await firstAssistantItem.locator(`.cockpit-decision.${spec.decision}`).click();
+  await beta.waitForFunction(({ decision }) =>
+    document.querySelector('#cockpitAssistantResults .cockpit-todo-item[data-item-id="66666666-6666-4666-8666-666666666666"]')?.classList.contains("decision-" + decision),
+    { decision: spec.decision }
+  );
+  const visual = await firstAssistantItem.evaluate((node, decision) => {
+    const button = node.querySelector(".cockpit-decision." + decision + ".selected");
+    return {
+      buttonBackground: button ? getComputedStyle(button).backgroundColor : "",
+      buttonColor: button ? getComputedStyle(button).color : "",
+      boxBackground: getComputedStyle(node).backgroundColor
+    };
+  }, spec.decision);
+  if (
+    visual.buttonBackground !== spec.buttonRgb ||
+    visual.buttonColor !== "rgb(255, 255, 255)" ||
+    visual.boxBackground !== spec.boxRgb
+  ) {
+    throw new Error(`Unexpected Case Assistant ${spec.decision} visual: ${JSON.stringify(visual)}`);
+  }
+}
+const assistantOrderAfter = await beta.locator("#cockpitAssistantResults .cockpit-todo-item").evaluateAll((nodes) =>
+  nodes.map((node) => node.dataset.itemId)
+);
+if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)) {
+  throw new Error("Case Assistant reordered items after doctor decision");
 }
 
 await beta.locator("#cockpitPasteText").fill("Jelen panasz: mellkasi fájdalom.");
@@ -673,12 +819,9 @@ await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).waitFor()
 if (!(await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).getAttribute("class")).includes("action-update")) {
   throw new Error("Later patient history was not classified as an append update");
 }
-await beta.waitForFunction(() =>
-  (document.querySelector("#cockpitDocumentationReview")?.textContent || "").includes("Conflicting timing in source")
-);
-const documentationAfterWarning = await beta.locator("#cockpitDocumentationReview").textContent();
-if (!documentationAfterWarning.includes("Conflicting timing in source")) {
-  throw new Error("Documentation review did not surface extraction warning");
+const extractionWarning = await beta.locator(".cockpit-extract-warnings").textContent();
+if (!extractionWarning.includes("Conflicting timing in source")) {
+  throw new Error("Extraction preview did not surface the source warning");
 }
 await beta.locator(".cockpit-extract-item", { hasText: "Hypertonia" }).locator(".cockpit-decision.yes").click();
 await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });

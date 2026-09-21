@@ -1104,6 +1104,80 @@ body.cockpit-ui #iceAge[readonly]{
   color:#667085;
   cursor:default;
 }
+body.cockpit-ui #inlineCaseEditor .sex-choice-group{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  width:100%;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice{
+  position:relative;
+  min-width:0;
+  min-height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:5px 6px;
+  border:1px solid #d0d5dd;
+  border-radius:7px;
+  background:#fff;
+  color:#475467;
+  font-size:10px;
+  font-weight:750;
+  line-height:1;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice input{
+  position:absolute;
+  width:1px!important;
+  height:1px;
+  margin:0;
+  opacity:0;
+  pointer-events:none;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice-check{
+  display:grid;
+  place-items:center;
+  width:14px;
+  height:14px;
+  flex:0 0 14px;
+  border:1px solid #98a2b3;
+  border-radius:4px;
+  background:#fff;
+  color:transparent;
+  font-size:10px;
+  font-weight:900;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice:has(input:focus-visible){
+  outline:2px solid #2563eb;
+  outline-offset:2px;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice:has(input:checked) .sex-choice-check{
+  color:currentColor;
+  border-color:currentColor;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice-m:has(input:checked){
+  border-color:#7dd3fc;
+  background:#e0f2fe;
+  color:#075985;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice-f:has(input:checked){
+  border-color:#fbcfe8;
+  background:#fff1f2;
+  color:#9d174d;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice-o:has(input:checked){
+  border-color:#c4b5fd;
+  background:linear-gradient(90deg,#fee2e2,#fef3c7,#dcfce7,#dbeafe,#f3e8ff);
+  color:#312e81;
+}
+body.cockpit-ui #inlineCaseEditor .sex-choice:has(input:disabled){
+  opacity:.55;
+  cursor:not-allowed;
+}
 
 /* Beta ward dropdown wrapper. The original #fWard remains the actual persisted field. */
 body.cockpit-ui .cockpit-ward-source{

@@ -925,6 +925,7 @@ await addedOther.locator("[data-delete-test]").click();
 
 // EKG and AVG are one-menu-click multi-entry groups.
 const ekgCountBeforeAdd = await beta.locator('#ekgCard .test-card').count();
+await beta.locator("#cockpitAddTest").click();
 await beta.locator('#cockpitAddTestMenu [data-add-test-type="ekg"]').click();
 await beta.waitForFunction((expected) =>
   document.querySelectorAll("#ekgCard .test-card").length === expected,

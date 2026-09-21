@@ -111,7 +111,7 @@
           <div class="card">
             <div class="card-h">
               <div>
-                <h3 id="recordTitle">Case detail</h3>
+                <h3 id="recordTitle">Eset részletei</h3>
                 <div class="subtle" id="recordSubtitle" data-i18n="selectCasePrompt">Select a case from the list.</div>
               </div>
               <div class="record-actions">
@@ -133,7 +133,7 @@
                     <div id="inlineCaseEditor" class="cockpit-demographics-inline" style="margin:10px 0 14px">
                       <div class="inline3">
                         <div class="field">
-                          <label data-ice-label="sex">Sex</label>
+                          <label data-ice-label="sex">Nem</label>
                           <select id="iceSex">
                             <option value="">—</option>
                             <option value="F">Female</option>
@@ -142,32 +142,32 @@
                           </select>
                         </div>
                         <div class="field">
-                          <label data-ice-label="yob">Year of birth</label>
+                          <label data-ice-label="yob">Születési év</label>
                           <input id="iceYob" inputmode="numeric" maxlength="4" placeholder="1955" autocomplete="off" />
                         </div>
                         <div class="field">
-                          <label data-ice-label="age">Age</label>
+                          <label data-ice-label="age">Életkor</label>
                           <input id="iceAge" placeholder="auto" readonly aria-readonly="true" tabindex="-1" />
                         </div>
                       </div>
                       <div class="field cockpit-arrival-field">
-                        <label data-ice-label="arrival">Arrival to SBO</label>
+                        <label data-ice-label="arrival">SBO-ra érkezés módja</label>
                         <select id="iceArrival">
-                          <option value="">— select —</option>
-                          <option value="omsz">OMSz transported</option>
-                          <option value="esetkocsi">Emergency unit transported</option>
-                          <option value="walk_in">Arrived walking</option>
-                          <option value="gp_referral">With GP referral</option>
-                          <option value="other">Other</option>
+                          <option value="">— válasszon —</option>
+                          <option value="omsz">OMSz szállította</option>
+                          <option value="esetkocsi">Esetkocsi szállította</option>
+                          <option value="walk_in">Saját lábán érkezett</option>
+                          <option value="gp_referral">Háziorvosi beutalóval</option>
+                          <option value="other">Egyéb</option>
                         </select>
                       </div>
                       <div class="field hidden cockpit-arrival-other" id="iceArrivalOtherWrap">
-                        <label data-ice-label="arrivalOther">Arrival details</label>
+                        <label data-ice-label="arrivalOther">Érkezés részletei</label>
                         <input id="iceArrivalOther" placeholder="Az érkezés módjának részletei…" autocomplete="off" />
                       </div>
                       <div class="toolbar cockpit-demographics-toolbar" style="justify-content:space-between;margin-top:8px">
                         <div class="subtle" id="iceStatus"></div>
-                        <button class="btn small" id="iceDeleteCase" type="button" style="border-color:#fecaca;color:#b91c1c;background:#fff5f5">DELETE CASE</button>
+                        <button class="btn small" id="iceDeleteCase" type="button" style="border-color:#fecaca;color:#b91c1c;background:#fff5f5">ESET TÖRLÉSE</button>
                       </div>
                     </div>
                   </div>
@@ -175,7 +175,7 @@
                     <div class="narrative-head">
                       <label data-i18n="complaint">Complaint</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="complaint">REQUIRED</span>
+                        <span class="field-state waiting" data-field-state="complaint">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="complaint" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
@@ -185,7 +185,7 @@
                     <div class="narrative-head">
                       <label data-i18n="patientHistory">Medical history</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="history">REQUIRED</span>
+                        <span class="field-state waiting" data-field-state="history">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
@@ -203,7 +203,7 @@
                     <div class="narrative-head">
                       <label data-i18n="physicalExam">Physical examination — main points / status</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="physical">REQUIRED</span>
+                        <span class="field-state waiting" data-field-state="physical">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
@@ -250,7 +250,7 @@
                     <div class="narrative-head">
                       <label data-i18n="therapy">Therapy</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="therapy">REQUIRED</span>
+                        <span class="field-state waiting" data-field-state="therapy">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="therapy" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
@@ -260,7 +260,7 @@
                     <div class="narrative-head">
                       <label data-i18n="clinicalCourse">Clinical course / case status change</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="course">REQUIRED</span>
+                        <span class="field-state waiting" data-field-state="course">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="course" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
@@ -291,9 +291,9 @@
                   <div id="dischargedFields" class="hidden">
                     <div id="dischargeConditionWrap" class="field narrative-field waiting">
                       <div class="narrative-head">
-                        <label data-discharge-label>Condition / symptoms at discharge</label>
+                        <label data-discharge-label>Állapot / panaszok elbocsátáskor</label>
                         <div class="narrative-actions">
-                          <span class="field-state waiting" id="dischargeConditionState">REQUIRED</span>
+                          <span class="field-state waiting" id="dischargeConditionState">KÖTELEZŐ</span>
                         </div>
                       </div>
                       <textarea id="fDischargeCondition" placeholder="Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…"></textarea>
@@ -397,12 +397,12 @@
         <div class="card learning-corpus-card">
           <div class="card-h">
             <div>
-              <h3>Finalized corpus review</h3>
-              <div class="subtle">Approve or exclude finalized revisions from future AI learning. This never edits the clinical record or finalized text.</div>
+              <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
+              <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
             </div>
           </div>
           <div class="card-b" id="corpusReviewList">
-            <div class="subtle">Loading…</div>
+            <div class="subtle" data-i18n="loading">Betöltés…</div>
           </div>
         </div>
 
@@ -497,11 +497,11 @@
   <div id="modalHost"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
-  <script src="case-ui.js?beta=hu-default-20260921-1"></script>
+  <script src="case-ui.js?beta=hu-default-20260921-2"></script>
   <script src="backend.js?v=learning-20260920-1"></script>
   <script src="assistant-core.js?beta=20260920-12"></script>
-  <script src="app.js?v=hu-default-20260921-1"></script>
+  <script src="app.js?v=hu-default-20260921-2"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=hu-default-20260921-1"></script>
+  <script src="cockpit-beta.js?beta=hu-default-20260921-2"></script>
 </body>
 </html>

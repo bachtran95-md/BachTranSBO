@@ -835,6 +835,14 @@ if (JSON.stringify(assistantOrderAfter) !== JSON.stringify(assistantOrderBefore)
   throw new Error("Case Assistant reordered items after doctor decision");
 }
 
+// AI-assisted fact application must be able to save a still-incomplete active
+// chart. Discharge completeness is a Save/Generate/Finalize gate, not a reason
+// to discard explicitly accepted extracted facts.
+await beta.locator('[data-cockpit-tab="disposition"]').click();
+await beta.locator("#fDisposition").selectOption("discharged");
+await beta.locator("#fDischargeCondition").fill("");
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+
 await beta.locator("#cockpitDataEntryBtn").click();
 await beta.locator("#cockpitDataEntryOverlay:not(.hidden)").waitFor();
 
@@ -862,6 +870,10 @@ await beta.waitForFunction(() => document.querySelector("#fComplaint")?.value.in
 const appliedComplaint = await beta.locator("#fComplaint").inputValue();
 if (!appliedComplaint.includes("mellkasi fájdalom")) {
   throw new Error("Accepted extracted complaint was not applied");
+}
+const applyStatusWithIncompleteDischarge = await beta.locator("#cockpitExtractStatus").textContent();
+if (/Otthonába bocsátás esetén kötelező|Discharge condition \/ symptoms is required/i.test(applyStatusWithIncompleteDischarge || "")) {
+  throw new Error("AI fact apply was incorrectly blocked by discharge completeness");
 }
 const persistedComplaint = await beta.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");

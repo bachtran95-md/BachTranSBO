@@ -94,6 +94,33 @@
     return `<span data-sex-badge="${normalized}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${c.border};background:${c.background};color:${c.color};border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;line-height:1.4;white-space:nowrap">${sexLabel(normalized)}</span>`;
   }
 
+  function arrivalOptionsHtml() {
+    return ARRIVAL_OPTIONS.map(([value, en, hu]) =>
+      `<option value="${value}">${label(en, hu)}</option>`
+    ).join("");
+  }
+
+  function arrivalOptionsAreCurrent(select) {
+    if (!select) return false;
+    const options = [...select.options];
+    if (options.length !== ARRIVAL_OPTIONS.length) return false;
+    return options.every((option, index) => {
+      const [value, en, hu] = ARRIVAL_OPTIONS[index];
+      return option.value === value && option.textContent === label(en, hu);
+    });
+  }
+
+  function paintArrivalSelect(select) {
+    if (!select) return;
+    // Chromium can glitch or close/reopen a native select if its <option> nodes
+    // are replaced while the popup owns focus. Only rebuild when language/order
+    // is actually stale, and never during an active interaction.
+    if (arrivalOptionsAreCurrent(select) || document.activeElement === select) return;
+    const current = select.value;
+    select.innerHTML = arrivalOptionsHtml();
+    select.value = current;
+  }
+
   function styleSexSelect(select, normalized = normalizeSex(select?.value)) {
     if (!select) return;
     const c = sexStyle(normalized);
@@ -413,7 +440,7 @@
         </div>
         <div class="field">
           <label data-ice-label="arrival">Arrival to SBO</label>
-          <select id="iceArrival"></select>
+          <select id="iceArrival">${arrivalOptionsHtml()}</select>
         </div>
         <div class="field hidden" id="iceArrivalOtherWrap">
           <label data-ice-label="arrivalOther">Arrival details</label>
@@ -452,13 +479,7 @@
     });
 
     const sel = document.getElementById("iceArrival");
-    if (sel) {
-      const current = sel.value;
-      sel.innerHTML = ARRIVAL_OPTIONS.map(([value, en, hu]) =>
-        `<option value="${value}">${label(en, hu)}</option>`
-      ).join("");
-      sel.value = current;
-    }
+    if (sel) paintArrivalSelect(sel);
 
     const del = document.getElementById("iceDeleteCase");
     if (del) del.textContent = label("DELETE CASE", "ESET TÖRLÉSE");
@@ -826,11 +847,15 @@
         syncDraftIntoPatientState();
         scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
-      // iceSex is a hidden value controlled by the three exclusive tick choices.
-      // The visible radios dispatch one canonical change event through this field.
-      if (id !== "iceSex") el.addEventListener("input", handler);
+      // Native Chromium <select> can emit input while its popup is still open.
+      // Commit arrival only on change; otherwise autosave/rerender can interfere
+      // with the active popup in Chrome. Text inputs keep their live input path.
+      if (id !== "iceSex" && id !== "iceArrival") el.addEventListener("input", handler);
       el.addEventListener("change", handler);
-      el.addEventListener("blur", () => scheduleSave(50));
+      el.addEventListener("blur", () => {
+        if (id === "iceArrival") paintArrivalSelect(el);
+        scheduleSave(50);
+      });
     });
     const del = document.getElementById("iceDeleteCase");
     if (del && del.dataset.iceWired !== "true") {

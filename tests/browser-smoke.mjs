@@ -632,19 +632,20 @@ if (!String(testClasses).includes("cockpit-test-row")) {
 }
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("");
 
-// Unified test menu order is clinically fixed and must retain the free-form Other option.
-const unifiedTestOptions = await beta.locator("#cockpitTestType option").evaluateAll((nodes) =>
-  nodes.map((node) => node.value)
+// Unified direct-add menu order is clinically fixed and must retain free-form Other.
+await beta.locator("#cockpitAddTest").click();
+await beta.locator("#cockpitAddTestMenu:not(.hidden)").waitFor();
+const unifiedTestOptions = await beta.locator("#cockpitAddTestMenu [data-add-test-type]").evaluateAll((nodes) =>
+  nodes.map((node) => node.getAttribute("data-add-test-type"))
 );
 const expectedUnifiedOrder = ["lab", "ekg", "gas", "imaging", "consultation", "other"];
 if (JSON.stringify(unifiedTestOptions) !== JSON.stringify(expectedUnifiedOrder)) {
   throw new Error("Unexpected unified investigation order: " + JSON.stringify(unifiedTestOptions));
 }
 
-// EKG and AVG are multi-entry groups and must add with one click.
+// EKG and AVG are one-menu-click multi-entry groups.
 const ekgCountBeforeAdd = await beta.locator('#ekgCard .test-card').count();
-await beta.locator("#cockpitTestType").selectOption("ekg");
-await beta.locator("#cockpitAddTest").click();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="ekg"]').click();
 await beta.waitForFunction((expected) =>
   document.querySelectorAll("#ekgCard .test-card").length === expected,
   ekgCountBeforeAdd + 1
@@ -652,21 +653,18 @@ await beta.waitForFunction((expected) =>
 await beta.locator('#ekgCard .test-card').last().locator("[data-delete-test]").click();
 
 const gasCountBeforeAdd = await beta.locator('#gasCard .test-card').count();
-await beta.locator("#cockpitTestType").selectOption("gas");
 await beta.locator("#cockpitAddTest").click();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="gas"]').click();
 await beta.waitForFunction((expected) =>
   document.querySelectorAll("#gasCard .test-card").length === expected,
   gasCountBeforeAdd + 1
 );
 await beta.locator('#gasCard .test-card').last().locator("[data-delete-test]").click();
 
-// Unified Add Test must react to one selection + one click, with no hidden-button forwarding.
+// Radiology also adds from one menu choice, with no second Add click.
 const radiologyCountBeforeAdd = await beta.locator('#radiologyCards .test-card').count();
-await beta.locator("#cockpitTestType").selectOption("imaging");
-if ((await beta.locator("#cockpitTestType").inputValue()) !== "imaging") {
-  throw new Error("Unified test type selector did not retain the selected imaging option");
-}
 await beta.locator("#cockpitAddTest").click();
+await beta.locator('#cockpitAddTestMenu [data-add-test-type="imaging"]').click();
 await beta.waitForFunction((expected) =>
   document.querySelectorAll("#radiologyCards .test-card").length === expected,
   radiologyCountBeforeAdd + 1

@@ -169,7 +169,11 @@ function persist() {
   stateDirty = true;
 }
 
-async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
+async function persistNow({
+  reloadForm = true,
+  silentAutosave = false,
+  allowIncompleteWorkflow = false
+} = {}) {
   if (!backendReady || !state.shift) return { removed: 0, report: null };
 
   const livePatient = patientById(selectedPatientId);
@@ -190,7 +194,7 @@ async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
       const result = await window.BachSBOBackend.savePatient(
         shiftId,
         snapshot,
-        { silentAutosave }
+        { silentAutosave, allowIncompleteWorkflow }
       );
 
       const current = patientById(caseId);
@@ -2487,7 +2491,10 @@ async function applyAcceptedExtraction(caseId, items) {
   stateDirty = true;
 
   try {
-    const result = await persistNow();
+    // AI-assisted entry may update a still-incomplete active case. Persist the
+    // accepted facts without requiring unrelated final-disposition fields; the
+    // normal Save/Generate/Finalize workflow gates remain unchanged.
+    const result = await persistNow({ allowIncompleteWorkflow: true });
     renderApp();
     return {
       patient: structuredClone(state.patients[index]),

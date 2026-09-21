@@ -583,6 +583,13 @@ body.cockpit-ui .cockpit-clinical-primary > #cockpitDemographicsMount{
   bottom:-8px;
 }
 .cockpit-case-column .sticky-actions .btn{padding:7px 10px;font-size:10px}
+.cockpit-case-column .sticky-actions .autosave-hint{
+  margin-right:auto;
+  align-self:center;
+  color:#667085;
+  font-size:10px;
+  font-weight:650;
+}
 
 .cockpit-ai-rail{
   height:100%;

@@ -1456,6 +1456,30 @@ function addConsult() {
   updateStatusCell(patient);
 }
 
+function addInvestigation(kind, options = {}) {
+  const patient = patientById(selectedPatientId);
+  if (!patient || isCompleted(patient)) return false;
+
+  if (kind === "lab") {
+    if (patient.tests.labs.length >= 3) return false;
+    patient.tests.labs.push(newEntry());
+  } else if (kind === "imaging") {
+    patient.tests.radiology.push(radiologyEntry());
+  } else if (kind === "consultation" || kind === "other") {
+    const entry = newEntry("");
+    if (kind === "other") entry.type = String(options.name || "").trim() || (uiLang === "hu" ? "Egyéb" : "Other");
+    patient.tests.consultations.push(entry);
+  } else {
+    return false;
+  }
+
+  persist();
+  renderAllTests(patient);
+  updateStatusCell(patient);
+  refreshSummaryControls(patient);
+  return true;
+}
+
 function patientTestEntryByKey(patient, key) {
   if (!patient?.tests || !key) return null;
   if (key === "ekg") return patient.tests.ekg || null;
@@ -2452,6 +2476,7 @@ window.BachSBOClinicalUi = Object.freeze({
   applyCaseMetadata,
   autosaveCurrentCase,
   commitCurrentDraft,
+  addInvestigation,
   getCaseMetadata,
   saveCaseMetadata
 });

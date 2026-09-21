@@ -292,6 +292,7 @@
         physical: row.physical_exam || "",
         physicalSkipped: Boolean(row.physical_exam_skipped),
         diagnoses: row.diagnoses || "",
+        diagnosesSkipped: Boolean(row.diagnoses_skipped),
         tests: {
           labs: labs.length ? labs : [blankEntry()],
           ekg: rowToEntry(ekg),

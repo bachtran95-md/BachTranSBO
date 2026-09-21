@@ -120,10 +120,11 @@
     if (!select) return;
     const normalized = normalizeSex(select.value);
 
-    // Replacing <option> nodes while the native select menu is open causes
-    // Chrome/macOS to get stuck or jump back to the previous selection.
-    // Rebuild only for initialisation/language/order changes.
-    if (forceOptions || !sexOptionsAreCurrent(select)) {
+    // Never replace <option> nodes while the native macOS select owns focus.
+    // Doing so can leave the menu visually stuck or make the selection jump.
+    // A later enhancement pass repairs labels/order after focus leaves.
+    const mayRebuildOptions = document.activeElement !== select;
+    if ((forceOptions || !sexOptionsAreCurrent(select)) && mayRebuildOptions) {
       select.innerHTML = sexOptionsHtml(normalized);
       select.value = normalized;
     }
@@ -393,7 +394,10 @@
     if (del) del.textContent = label("DELETE CASE", "ESET TÖRLÉSE");
 
     [document.getElementById("iceSex"), document.getElementById("newSex")].forEach((select) => {
-      if (select) paintSexSelect(select, { forceOptions: true });
+      // paintSexSelect already detects stale language/order. Forcing an option
+      // rebuild here is unsafe because updateLabels can run from MutationObserver
+      // while a native select interaction is still active.
+      if (select) paintSexSelect(select);
     });
   }
 
@@ -689,7 +693,12 @@
       metadataDirtyCaseId = "";
       lastLoadedCaseId = id;
       setStatus("Case details saved.", "Esetadatok mentve.");
-      loadSelected({ force: true });
+      // Do not write back into the focused native sex select. The control
+      // already contains the committed value; a blur-triggered pass can safely
+      // reconcile authoritative metadata afterwards.
+      if (document.activeElement?.id !== "iceSex") {
+        loadSelected({ force: true });
+      }
     } catch (error) {
       metadataDirtyCaseId = id;
       lastSaveFailedAt = Date.now();
@@ -751,7 +760,10 @@
         syncDraftIntoPatientState();
         scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
       };
-      el.addEventListener("input", handler);
+      // Native <select> on macOS emits input while the popup is still open.
+      // For sex, commit only on change so app rerenders/autosave cannot interfere
+      // with the currently open native menu.
+      if (id !== "iceSex") el.addEventListener("input", handler);
       el.addEventListener("change", handler);
       el.addEventListener("blur", () => scheduleSave(50));
     });

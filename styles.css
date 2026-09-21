@@ -1087,6 +1087,20 @@ body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline > .inline3{
 body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-arrival-field{
   grid-column:auto;
 }
+body.cockpit-ui #inlineCaseEditor .cockpit-arrival-field.cockpit-arrival-missing label{
+  color:#b54708;
+  font-weight:800;
+}
+body.cockpit-ui #inlineCaseEditor .cockpit-arrival-field.cockpit-arrival-missing #iceArrival{
+  border-color:#f79009;
+  background:#fff7ed;
+  color:#b54708;
+  box-shadow:0 0 0 1px rgba(247,144,9,.08);
+}
+body.cockpit-ui #inlineCaseEditor .cockpit-arrival-field.cockpit-arrival-missing #iceArrival:focus{
+  border-color:#f79009;
+  box-shadow:0 0 0 3px rgba(247,144,9,.14);
+}
 body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-arrival-other,
 body.cockpit-ui #inlineCaseEditor.cockpit-demographics-inline .cockpit-demographics-toolbar{
   grid-column:1/-1;

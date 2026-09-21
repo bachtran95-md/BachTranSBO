@@ -5,6 +5,14 @@ let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
 const patientSaveQueues = new Map();
+
+const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
+Hirtelen vagy súlyos állapotromlás esetén haladéktalanul jelentkezzen a területileg illetékes Sürgősségi Betegellátó Osztályon / SBO-n!
+Ambuláns lappal minél előbb jelentkezzen háziorvosánál, kezelőorvosánál.
+
+FIGYELMEZTETÉS!
+A sürgősségi osztályon, sürgősségi körülmények között keletkezett leletek korlátozott értékűek, nem tekinthetők teljes körűnek, mivel az elvégzett vizsgálatok a sürgősségi jellegű panaszai és tünetei alapján kerülnek meghatározásra és erre fókuszálnak. A cél az életveszélyes, illetve az azonnal kezelendő kórállapotok felfedezése, beazonosítása. A sürgősségi osztályon végzett vizsgálatok nem helyettesítenek egy alapos, átfogó szakorvosi vizsgálatot vagy a háziorvosi gondozást. Kérjük, hogy osztályunkról történő távozást követően a lehető legrövidebb időn belül jelentkezzen háziorvosánál a szükséges további teendők egyeztetése céljából. Amennyiben jelen panaszai/fájdalmai újra fellépnek vagy felerősödnek, késlekedés nélkül forduljon orvoshoz, mivel ennek elmulasztása kedvezőtlenül befolyásolhatja egészségi állapotát.`;
+
 let uiLang = "hu";
 const I18N = {
   en: {
@@ -1645,6 +1653,22 @@ function addRecommendation() {
   renderRecommendations(patient);
 }
 
+function syncFixedSummaryFooter() {
+  const field = document.getElementById("summaryFixedFooter");
+  if (field) field.value = SUMMARY_FIXED_FOOTER;
+}
+
+function summaryWithFixedFooter(summaryText) {
+  const main = String(summaryText || "").trim();
+  const footer = SUMMARY_FIXED_FOOTER.trim();
+
+  if (!main) return footer;
+  if (main.endsWith(footer)) return main;
+
+  // Two completely blank lines between the editable summary and the fixed footer.
+  return `${main}\n\n\n${footer}`;
+}
+
 async function generateSummary() {
   const patient = collectForm();
   if (!patient) return;
@@ -1756,8 +1780,9 @@ async function finalizeSummary() {
     return;
   }
 
-  const clipboardText =
-    patient.summaryFinalizedText || patient.summary || text;
+  const clipboardText = summaryWithFixedFooter(
+    patient.summaryFinalizedText || patient.summary || text
+  );
 
   try {
     await navigator.clipboard.writeText(clipboardText);
@@ -2499,4 +2524,5 @@ document.getElementById("fSummary").addEventListener("input", () => {
 });
 
 applyLanguage(uiLang);
+syncFixedSummaryFooter();
 bootstrap();

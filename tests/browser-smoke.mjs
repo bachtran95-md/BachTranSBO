@@ -463,6 +463,35 @@ await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case"
 await beta.locator("#cockpitPasteText").waitFor();
 await beta.locator("#cockpitDocumentationReview").waitFor();
 
+await beta.locator('[data-cockpit-tab="tests"]').click();
+await beta.locator('[data-add-test-kind="consultation"]').click();
+await beta.locator("#cockpitOtherTestName").fill("Neurology");
+await beta.locator("#cockpitAddTest").click();
+await beta.waitForFunction(() => {
+  const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
+  return state?.patients?.[0]?.tests?.consultations?.some((entry) => entry.type === "Neurology");
+});
+if (!/saved|mentve/i.test(await beta.locator("#cockpitAddTestStatus").textContent())) {
+  throw new Error("Unified Add test did not confirm immediate backend persistence");
+}
+const consultationCardsText = await beta.locator("#consultCards").textContent();
+if (!consultationCardsText.includes("Neurology")) {
+  throw new Error(`Added consultation does not show its category/name in the card: ${consultationCardsText}`);
+}
+
+const radiologyCountBeforeFailure = await beta.locator("#radiologyCards .test-card").count();
+await beta.locator('[data-add-test-kind="imaging"]').click();
+await beta.locator("#cockpitOtherTestName").fill("Synthetic failing CT");
+await beta.evaluate(() => { window.__BACH_E2E_FAIL_NEXT_SAVE = true; });
+await beta.locator("#cockpitAddTest").click();
+await beta.waitForFunction(() =>
+  (document.querySelector("#cockpitAddTestStatus")?.textContent || "").includes("Synthetic save failure")
+);
+if (await beta.locator("#radiologyCards .test-card").count() !== radiologyCountBeforeFailure) {
+  throw new Error("Failed Add test left an unsaved investigation card in the UI");
+}
+await beta.locator('[data-cockpit-tab="clinical"]').click();
+
 const caseRow = beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" });
 await beta.waitForFunction(() =>
   Boolean(document.querySelector("#patientTbody tr[data-id] .cockpit-test-summary"))

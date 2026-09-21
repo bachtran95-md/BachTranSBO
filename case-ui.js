@@ -496,6 +496,14 @@
     if (tds[3]) tds[3].textContent = document.getElementById("fMainComplaint")?.value || tds[3].textContent || "";
     const subtitle = document.getElementById("recordSubtitle");
     if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
+
+    const header = document.getElementById("recordHeader");
+    if (header) {
+      header.classList.remove("sex-female", "sex-male", "sex-other");
+      if (sex === "F") header.classList.add("sex-female");
+      else if (sex === "M") header.classList.add("sex-male");
+      else if (sex === "O") header.classList.add("sex-other");
+    }
   }
 
   function mirrorPatientIntoInline(patient) {

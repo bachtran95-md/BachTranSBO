@@ -81,6 +81,26 @@ jobs:
             echo "recovery.html must remain on the pre-promotion UI."
             exit 1
           fi
+          if grep -E -q 'installBackendPayloadBridge|__inlineCaseDetailsBridge|patchedSavePatient|patchedFinalizePatient' case-ui.js; then
+            echo "case-ui.js must not monkey-patch backend persistence; app.js owns canonical patient state."
+            exit 1
+          fi
+          if grep -E -q '^function (addLab|addRadiology|addConsult)\(' app.js; then
+            echo "Investigation creation must use the single addInvestigation path."
+            exit 1
+          fi
+          if ! grep -q 'addLabBtn").onclick = () => addInvestigation("lab")' app.js; then
+            echo "Legacy Lab button must delegate to addInvestigation."
+            exit 1
+          fi
+          if ! grep -q 'addRadiologyBtn").onclick = () => addInvestigation("imaging")' app.js; then
+            echo "Legacy Radiology button must delegate to addInvestigation."
+            exit 1
+          fi
+          if ! grep -q 'addConsultBtn").onclick = () => addInvestigation("consultation")' app.js; then
+            echo "Legacy Consultation button must delegate to addInvestigation."
+            exit 1
+          fi
           if ! grep -q 'action: "delete_case"' backend.js; then
             echo "backend.js is missing the secure delete_case bridge."
             exit 1

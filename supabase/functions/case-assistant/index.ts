@@ -90,6 +90,7 @@ async function modelCall(
   input: string,
   extra: any = {},
   modelOverride = "",
+  promptCacheKey = "",
 ) {
   const model =
     modelOverride ||
@@ -110,6 +111,7 @@ async function modelCall(
       instructions,
       input,
       max_output_tokens: 6500,
+      ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
       ...extra,
     }),
   });
@@ -750,6 +752,8 @@ export async function handler(req: Request) {
             },
           },
         },
+        Deno.env.get("ASSISTANT_EXTRACTION_MODEL") || "gpt-5.6-luna",
+        "bachtransbo-case-extraction-v1",
       );
 
       stage = "response_validation";
@@ -788,6 +792,8 @@ export async function handler(req: Request) {
         ],
         tool_choice: "required",
       },
+      "",
+      "bachtransbo-case-clinical-v1",
     );
 
     const evidence = flattenCitations(result, domains);
@@ -818,7 +824,8 @@ export async function handler(req: Request) {
           },
         },
       },
-      Deno.env.get("ASSISTANT_STRUCTURER_MODEL") || model,
+      Deno.env.get("ASSISTANT_STRUCTURER_MODEL") || "gpt-5.6-luna",
+      "bachtransbo-case-structuring-v1",
     );
 
     const suggestions = validateStructuredSuggestions(

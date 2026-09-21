@@ -540,8 +540,9 @@ if (JSON.stringify(sexOptionState) !== JSON.stringify(expectedSexOptions)) {
   throw new Error("Unexpected Klinikum sex option order: " + JSON.stringify(sexOptionState));
 }
 
+await beta.locator("#iceSex").focus();
 await beta.locator("#iceSex").selectOption("O");
-await beta.waitForTimeout(250);
+await beta.waitForTimeout(350);
 if ((await beta.locator("#iceSex").inputValue()) !== "O") {
   throw new Error("Klinikum sex selection reverted after choosing Egyéb");
 }

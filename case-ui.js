@@ -277,10 +277,7 @@
   }
 
   // Demographics are never reconstructed from rendered table text or subtitle.
-  // patient state in app.js is the only authority; loadSelected() renders from it.
-  function mirrorSelectedDisplayIntoInline() {
-    return;
-  }
+  // Patient state in app.js is the only authority; loadSelected() only renders it.
 
   function dischargeConditionTextFromStored(value) {
     const text = String(value || "").trim();
@@ -744,7 +741,6 @@
       window.__iceRefresh = setTimeout(() => {
         ensureUi();
         enhanceSexUi();
-        mirrorSelectedDisplayIntoInline({ force: false });
         loadSelected();
       }, 120);
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
@@ -754,7 +750,6 @@
       if (event.target?.closest?.("#patientTbody tr[data-id]")) return;
 
       setTimeout(() => {
-        mirrorSelectedDisplayIntoInline({ force: false });
         loadSelected({ force: false });
         enhanceSexUi();
       }, 100);
@@ -766,13 +761,11 @@
     setInterval(() => {
       ensureUi();
       enhanceSexUi();
-      mirrorSelectedDisplayIntoInline({ force: false });
       loadSelected();
     }, 1200);
     setTimeout(() => {
       loadSelected({ force: true });
       enhanceSexUi();
-      mirrorSelectedDisplayIntoInline({ force: true });
     }, 600);
   }
 

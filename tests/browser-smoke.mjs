@@ -417,7 +417,10 @@ const addPatientDiag = await page.evaluate(() => {
     tableText: document.querySelector("#patientTbody")?.textContent || "",
     sex: document.querySelector("#newSex")?.value || "",
     yob: document.querySelector("#newYob")?.value || "",
-    complaint: document.querySelector("#newComplaint")?.value || ""
+    complaint: document.querySelector("#newComplaint")?.value || "",
+    addDisabled: Boolean(document.querySelector("#addPatientBtn")?.disabled),
+    addOnclickType: typeof document.querySelector("#addPatientBtn")?.onclick,
+    addOnclickSource: String(document.querySelector("#addPatientBtn")?.onclick || "").slice(0, 120)
   };
 });
 if (addPatientDiag.rowCount !== 2) {

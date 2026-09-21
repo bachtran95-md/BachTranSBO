@@ -521,42 +521,38 @@ if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
   throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
 
-// Regression from screen recording: sex options must be Férfi -> Nő -> Egyéb,
-// and changing the native select must not rebuild its option nodes mid-interaction.
-const sexOptionState = await beta.locator("#iceSex").evaluate((select) => {
-  window.__BACH_E2E_SEX_M_OPTION = select.querySelector('option[value="M"]');
-  return [...select.options].map((option) => ({
-    value: option.value,
-    text: option.textContent
-  }));
-});
-const expectedSexOptions = [
-  { value: "", text: "—" },
+// Regression from screen recording: Klinikum Sex uses three exclusive tick
+// choices rather than a native dropdown.
+if (await beta.locator('#iceSexChoices select').count()) {
+  throw new Error("Klinikum sex still contains a dropdown");
+}
+const sexChoiceState = await beta.locator('#iceSexChoices input[name="iceSexChoice"]').evaluateAll((nodes) =>
+  nodes.map((node) => ({
+    value: node.value,
+    text: node.closest("label")?.querySelector("[data-sex-choice-label]")?.textContent || ""
+  }))
+);
+const expectedSexChoices = [
   { value: "M", text: "Férfi" },
   { value: "F", text: "Nő" },
   { value: "O", text: "Egyéb" }
 ];
-if (JSON.stringify(sexOptionState) !== JSON.stringify(expectedSexOptions)) {
-  throw new Error("Unexpected Klinikum sex option order: " + JSON.stringify(sexOptionState));
+if (JSON.stringify(sexChoiceState) !== JSON.stringify(expectedSexChoices)) {
+  throw new Error("Unexpected Klinikum sex tick order: " + JSON.stringify(sexChoiceState));
 }
 
-await beta.locator("#iceSex").focus();
-await beta.locator("#iceSex").selectOption("O");
-await beta.waitForTimeout(350);
-if ((await beta.locator("#iceSex").inputValue()) !== "O") {
-  throw new Error("Klinikum sex selection reverted after choosing Egyéb");
-}
-const sexOptionNodeStable = await beta.locator("#iceSex").evaluate((select) =>
-  window.__BACH_E2E_SEX_M_OPTION === select.querySelector('option[value="M"]')
-);
-if (!sexOptionNodeStable) {
-  throw new Error("Klinikum sex select rebuilt option nodes during interaction");
-}
-
-await beta.locator("#iceSex").selectOption("F");
-await beta.waitForTimeout(250);
-if ((await beta.locator("#iceSex").inputValue()) !== "F") {
-  throw new Error("Klinikum sex selection reverted after choosing Nő");
+for (const value of ["F", "O", "M", "F"]) {
+  await beta.locator(`#iceSexChoices input[value="${value}"]`).check();
+  await beta.waitForTimeout(180);
+  if ((await beta.locator("#iceSex").inputValue()) !== value) {
+    throw new Error(`Klinikum sex hidden value did not follow tick ${value}`);
+  }
+  const checked = await beta.locator('#iceSexChoices input[name="iceSexChoice"]:checked').evaluateAll((nodes) =>
+    nodes.map((node) => node.value)
+  );
+  if (JSON.stringify(checked) !== JSON.stringify([value])) {
+    throw new Error("Klinikum sex ticks are not exclusive: " + JSON.stringify(checked));
+  }
 }
 
 const expectedYob = String(new Date().getFullYear() - 44);

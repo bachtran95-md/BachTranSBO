@@ -2112,115 +2112,172 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.com
 
 
 /* AI-assisted data entry: patient-header entry point + review dialog. */
-.cockpit-data-entry-overlay,
-.cockpit-extract-confirm-overlay{
+.cockpit-data-entry-backdrop{
   position:fixed;
   inset:0;
-  z-index:240;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:24px;
-  background:rgba(15,23,42,.48);
-  backdrop-filter:blur(2px);
+  z-index:239;
+  background:rgba(15,23,42,.46);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease;
+  backdrop-filter:blur(1px);
 }
-.cockpit-data-entry-dialog{
-  width:min(820px,96vw);
-  max-height:min(820px,92vh);
+.cockpit-data-entry-backdrop.open{
+  opacity:1;
+  pointer-events:auto;
+}
+.cockpit-data-entry-drawer{
+  position:fixed;
+  top:0;
+  right:0;
+  z-index:240;
+  width:min(600px,94vw);
+  height:100dvh;
   display:flex;
   flex-direction:column;
   overflow:hidden;
   background:#fff;
-  border:1px solid #d0d5dd;
-  border-radius:14px;
-  box-shadow:0 24px 70px rgba(15,23,42,.24);
+  border-left:1px solid #d0d5dd;
+  box-shadow:-18px 0 44px rgba(15,23,42,.20);
+  transform:translateX(104%);
+  transition:transform .2s ease;
+}
+.cockpit-data-entry-drawer.open{
+  transform:translateX(0);
 }
 .cockpit-data-entry-head{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
-  padding:13px 15px;
+  gap:14px;
+  padding:18px;
   border-bottom:1px solid #e4e7ec;
   background:#f8fafc;
 }
 .cockpit-data-entry-head strong{
-  font-size:15px;
+  display:block;
+  margin-top:2px;
+  font-size:19px;
   color:#101828;
 }
 .cockpit-data-entry-sub{
-  margin-top:3px;
+  margin-top:4px;
   color:#667085;
-  font-size:11px;
+  font-size:13px;
+  line-height:1.4;
 }
 .cockpit-data-entry-body{
   min-height:0;
   overflow:auto;
-  padding:14px 15px 18px;
+  flex:1;
+  padding:18px;
 }
 .cockpit-data-entry-safety{
   display:flex;
   flex-direction:column;
-  gap:3px;
-  margin-bottom:10px;
-  padding:9px 10px;
+  gap:4px;
+  margin-bottom:14px;
+  padding:11px 12px;
   border:1px solid #b2ccff;
-  border-radius:8px;
+  border-radius:10px;
   background:#eff8ff;
   color:#1849a9;
-  font-size:10px;
-  line-height:1.35;
+  font-size:13px;
+  line-height:1.45;
 }
 .cockpit-data-entry-text{
-  min-height:150px!important;
-  max-height:280px!important;
+  min-height:190px!important;
+  max-height:38vh!important;
   resize:vertical;
-  font-size:12px!important;
-  line-height:1.4;
+  font-size:16px!important;
+  line-height:1.5;
 }
-.cockpit-data-entry-dialog .cockpit-extract-item{
-  padding:9px;
-  margin-top:8px;
+.cockpit-data-entry-drawer #cockpitExtractText{
+  min-height:44px;
+  margin-top:10px;
+  font-size:14px;
 }
-.cockpit-data-entry-dialog .cockpit-extract-head{
-  font-size:10px;
+.cockpit-data-entry-drawer .cockpit-status{
+  margin:10px 0;
+  font-size:13px;
 }
-.cockpit-data-entry-dialog .cockpit-extract-target{
+.cockpit-data-entry-drawer .cockpit-extract-item{
+  padding:14px;
+  margin-top:12px;
+  border-radius:12px;
+}
+.cockpit-data-entry-drawer .cockpit-extract-head{
   display:flex;
   align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-size:13px;
+}
+.cockpit-data-entry-drawer .cockpit-extract-head strong{
+  font-size:15px;
+}
+.cockpit-data-entry-drawer .cockpit-extract-target,
+.cockpit-data-entry-drawer .cockpit-extract-edit-wrap,
+.cockpit-data-entry-drawer .cockpit-apply-mode-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
   gap:6px;
-  margin:4px 0 6px;
+  margin:12px 0;
   color:#475467;
-  font-size:10px;
+  font-size:12px;
+  font-weight:700;
 }
-.cockpit-data-entry-dialog .cockpit-extract-target span{
-  color:#667085;
+.cockpit-data-entry-drawer .cockpit-target-select,
+.cockpit-data-entry-drawer .cockpit-apply-mode{
+  width:100%;
+  min-height:42px;
+  padding:8px 10px;
+  font-size:14px;
 }
-.cockpit-data-entry-dialog .cockpit-extract-target strong{
-  display:inline-flex;
-  align-items:center;
-  padding:2px 6px;
-  border:1px solid #b2ccff;
-  border-radius:999px;
-  background:#eff8ff;
-  color:#1849a9;
-  font-size:10px;
+.cockpit-data-entry-drawer .cockpit-extract-edit{
+  width:100%;
+  min-height:120px;
+  resize:vertical;
+  padding:10px 11px;
+  font-size:15px;
+  line-height:1.5;
+  background:#fff;
 }
-.cockpit-data-entry-dialog .cockpit-extract-text{
-  font-size:11px;
+.cockpit-data-entry-drawer .cockpit-decision-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
 }
-.cockpit-data-entry-dialog .cockpit-extract-apply-bar{
+.cockpit-data-entry-drawer .cockpit-decision{
+  min-height:40px;
+  font-size:12px;
+}
+.cockpit-data-entry-drawer .cockpit-extract-apply-bar{
   position:sticky;
   bottom:-18px;
   z-index:2;
-  margin:12px -15px -18px;
-  padding:10px 15px 14px;
+  margin:16px -18px -18px;
+  padding:12px 18px 16px;
   border-top:1px solid #e4e7ec;
-  background:rgba(255,255,255,.97);
+  background:rgba(255,255,255,.98);
+}
+.cockpit-data-entry-drawer .cockpit-extract-apply-note{
+  margin-top:7px;
+  font-size:11px;
+  line-height:1.4;
 }
 .cockpit-extract-confirm-overlay{
+  position:fixed;
+  inset:0;
   z-index:260;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
   background:rgba(15,23,42,.58);
+  backdrop-filter:blur(2px);
 }
 .cockpit-extract-confirm-dialog{
   width:min(460px,94vw);
@@ -2253,15 +2310,26 @@ body.cockpit-data-entry-open{
 }
 
 @media (max-width:700px){
-  .cockpit-data-entry-overlay{
-    padding:8px;
-    align-items:stretch;
+  .cockpit-data-entry-drawer{
+    width:100vw;
   }
-  .cockpit-data-entry-dialog{
-    width:100%;
-    max-height:none;
-    height:100%;
-    border-radius:10px;
+  .cockpit-data-entry-head,
+  .cockpit-data-entry-body{
+    padding:14px;
+  }
+  .cockpit-data-entry-head strong{
+    font-size:18px;
+  }
+  .cockpit-data-entry-text{
+    min-height:180px!important;
+    font-size:16px!important;
+  }
+  .cockpit-data-entry-drawer .cockpit-extract-item{
+    padding:12px;
+  }
+  .cockpit-data-entry-drawer .cockpit-extract-apply-bar{
+    margin:14px -14px -14px;
+    padding:12px 14px 14px;
   }
 }
 

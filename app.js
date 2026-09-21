@@ -694,7 +694,7 @@ function commitFilledTestResults(patient) {
   if (changed) touchPatient(patient);
 }
 
-function cockpitInvestigationItems(patient) {
+function investigationItems(patient) {
   const tests = patient?.tests || {};
   const radiologyName = (entry, index) => {
     const body = String(entry?.bodyPart || "").trim();
@@ -751,7 +751,7 @@ function patientProgress(patient) {
     name,
     complete: Boolean(patient[skippedKey] || String(patient[valueKey] || "").trim())
   }));
-  const tests = cockpitInvestigationItems(patient);
+  const tests = investigationItems(patient);
 
   return {
     clinical,
@@ -805,36 +805,9 @@ function refreshSummaryControls(patient) {
 }
 
 function waitingLabels(patient) {
-  const out = [];
-
-  patient.tests.labs.forEach((entry, i) => {
-    if (entryStatus(entry) === "waiting") out.push(`Lab ${i + 1}`);
-  });
-
-  (patient.tests.ekgs || []).forEach((entry, i) => {
-    if (entryStatus(entry) === "waiting") out.push(`EKG ${i + 1}`);
-  });
-
-  (patient.tests.gases || []).forEach((entry, i) => {
-    if (entryStatus(entry) === "waiting") {
-      const base = /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG";
-      out.push(`${base} ${i + 1}`);
-    }
-  });
-
-  patient.tests.radiology.forEach((entry, i) => {
-    if (entryStatus(entry) === "waiting") {
-      out.push(radiologyType(entry) || `${t("radiology")} ${i + 1}`);
-    }
-  });
-
-  patient.tests.consultations.forEach((entry, i) => {
-    if (entryStatus(entry) === "waiting") {
-      out.push(entry.type?.trim() || `${uiLang === "hu" ? "Konzílium" : "Consultation"} ${i + 1}`);
-    }
-  });
-
-  return out;
+  return investigationItems(patient)
+    .filter((item) => item.status === "waiting")
+    .map((item) => item.name);
 }
 
 function renderHeader() {

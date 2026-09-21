@@ -1512,36 +1512,6 @@ function wireCard(card, entry, key) {
   };
 }
 
-function addLab() {
-  const patient = patientById(selectedPatientId);
-  if (!patient || patient.tests.labs.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
-
-  patient.tests.labs.push(newEntry());
-  persist();
-  renderAllTests(patient);
-  updateStatusCell(patient);
-}
-
-function addRadiology() {
-  const patient = patientById(selectedPatientId);
-  if (!patient || patient.tests.radiology.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
-
-  patient.tests.radiology.push(radiologyEntry());
-  persist();
-  renderAllTests(patient);
-  updateStatusCell(patient);
-}
-
-function addConsult() {
-  const patient = patientById(selectedPatientId);
-  if (!patient || patient.tests.consultations.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
-
-  patient.tests.consultations.push(newEntry(""));
-  persist();
-  renderAllTests(patient);
-  updateStatusCell(patient);
-}
-
 function addInvestigation(kind, options = {}) {
   const patient = patientById(selectedPatientId);
   if (!patient || isCompleted(patient)) return false;
@@ -1639,17 +1609,8 @@ function collectForm() {
   // propagated to the patient object yet.
   collectTestDraftsFromDom(patient);
 
-  const sexEl = document.getElementById("iceSex");
-  const yobEl = document.getElementById("iceYob");
-  const arrivalEl = document.getElementById("iceArrival");
-  const arrivalOtherEl = document.getElementById("iceArrivalOther");
-
-  if (sexEl) patient.sex = normalizeSex(sexEl.value);
-  if (yobEl) patient.yob = normalizeYob(yobEl.value);
-  if (arrivalEl) patient.arrivalMode = normalizeArrivalMode(arrivalEl.value);
-  if (arrivalOtherEl) {
-    patient.arrivalOther = patient.arrivalMode === "other" ? arrivalOtherEl.value || "" : "";
-  }
+  // Demographics/arrival are canonical in patient state. case-ui.js updates
+  // them through applyCaseMetadata(); never scrape a second copy back from DOM.
 
   patient.mainComplaint = document.getElementById("fMainComplaint").value;
   patient.complaint = document.getElementById("fComplaint").value;
@@ -2653,9 +2614,9 @@ document.getElementById("savePatientBtn").onclick = savePatient;
 document.getElementById("reopenCaseBtn").onclick = reopenCase;
 document.getElementById("fDisposition").onchange = updateDispositionVisibility;
 document.getElementById("addRecBtn").onclick = addRecommendation;
-document.getElementById("addLabBtn").onclick = addLab;
-document.getElementById("addRadiologyBtn").onclick = addRadiology;
-document.getElementById("addConsultBtn").onclick = addConsult;
+document.getElementById("addLabBtn").onclick = () => addInvestigation("lab");
+document.getElementById("addRadiologyBtn").onclick = () => addInvestigation("imaging");
+document.getElementById("addConsultBtn").onclick = () => addInvestigation("consultation");
 document.getElementById("generateSummaryBtn").onclick = generateSummary;
 document.getElementById("finalizeSummaryBtn").onclick = finalizeSummary;
 

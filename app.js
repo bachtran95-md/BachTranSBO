@@ -1161,11 +1161,17 @@ async function saveRawTransferData() {
 
   try {
     const record = await window.BachSBOBackend.saveCaseRawData(caseId, textarea.value);
+    textarea.value = record?.content || textarea.value;
     rawTransferDirty = false;
+    const privacySuffix = Number(record?.removed || 0) > 0
+      ? (uiLang === "hu"
+        ? ` • Privacy filter: ${record.removed} azonosító eltávolítva`
+        : ` • Privacy filter: ${record.removed} identifier(s) removed`)
+      : "";
     if (status) {
       status.textContent = uiLang === "hu"
-        ? `✓ Raw data elküldve • ${rawDataUpdatedLabel(record.updatedAt)}`
-        : `✓ Raw data sent • ${rawDataUpdatedLabel(record.updatedAt)}`;
+        ? `✓ Raw data elküldve • ${rawDataUpdatedLabel(record.updatedAt)}${privacySuffix}`
+        : `✓ Raw data sent • ${rawDataUpdatedLabel(record.updatedAt)}${privacySuffix}`;
     }
     flash(uiLang === "hu" ? "Raw data elküldve." : "Raw data sent.");
   } catch (error) {

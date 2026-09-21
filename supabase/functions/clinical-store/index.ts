@@ -274,18 +274,26 @@ function corpusSnapshot(patient: any) {
     clinical_course: patient.course || "",
     clinical_course_status: patient.courseSkipped ? "none" : "provided",
     disposition: patient.disposition || "",
-    discharge_condition: patient.dischargeCondition || "",
-    recommendations: patient.recommendations || [],
-    admission: {
-      hospital: patient.hospital || "",
-      ward: patient.ward || "",
-      accepting_physician: patient.physician || "",
-      note: patient.admissionNote || "",
-    },
-    other_outcome: {
-      outcome: patient.otherOutcome || "",
-      details: patient.otherDetails || "",
-    },
+    discharge_condition: patient.disposition === "discharged"
+      ? patient.dischargeCondition || ""
+      : "",
+    recommendations: patient.disposition === "discharged"
+      ? patient.recommendations || []
+      : [],
+    admission: patient.disposition === "admitted"
+      ? {
+          hospital: patient.hospital || "",
+          ward: patient.ward || "",
+          accepting_physician: patient.physician || "",
+          note: patient.admissionNote || "",
+        }
+      : null,
+    other_outcome: patient.disposition === "other"
+      ? {
+          outcome: patient.otherOutcome || "",
+          details: patient.otherDetails || "",
+        }
+      : null,
   };
 }
 
@@ -365,14 +373,14 @@ async function saveState(db: any, ownerId: string, inputState: any) {
       clinical_course: p.course || "",
       clinical_course_skipped: Boolean(p.courseSkipped),
       disposition: p.disposition || "",
-      discharge_condition: p.dischargeCondition || "",
-      recommendations: p.recommendations || [""],
-      hospital: p.hospital || "",
-      ward: p.ward || "",
-      accepting_physician: p.physician || "",
-      admission_note: p.admissionNote || "",
-      other_outcome: p.otherOutcome || "",
-      other_details: p.otherDetails || "",
+      discharge_condition: p.disposition === "discharged" ? p.dischargeCondition || "" : "",
+      recommendations: p.disposition === "discharged" ? p.recommendations || [""] : [],
+      hospital: p.disposition === "admitted" ? p.hospital || "" : "",
+      ward: p.disposition === "admitted" ? p.ward || "" : "",
+      accepting_physician: p.disposition === "admitted" ? p.physician || "" : "",
+      admission_note: p.disposition === "admitted" ? p.admissionNote || "" : "",
+      other_outcome: p.disposition === "other" ? p.otherOutcome || "" : "",
+      other_details: p.disposition === "other" ? p.otherDetails || "" : "",
       status: p.summaryFinalizedAt ? "completed" : "active",
       completed_at: p.summaryFinalizedAt || null,
       created_at: p.createdAt || now,
@@ -469,14 +477,14 @@ async function savePatient(
       clinical_course: patient.course || "",
       clinical_course_skipped: Boolean(patient.courseSkipped),
       disposition: patient.disposition || "",
-      discharge_condition: patient.dischargeCondition || "",
-      recommendations: patient.recommendations || [""],
-      hospital: patient.hospital || "",
-      ward: patient.ward || "",
-      accepting_physician: patient.physician || "",
-      admission_note: patient.admissionNote || "",
-      other_outcome: patient.otherOutcome || "",
-      other_details: patient.otherDetails || "",
+      discharge_condition: patient.disposition === "discharged" ? patient.dischargeCondition || "" : "",
+      recommendations: patient.disposition === "discharged" ? patient.recommendations || [""] : [],
+      hospital: patient.disposition === "admitted" ? patient.hospital || "" : "",
+      ward: patient.disposition === "admitted" ? patient.ward || "" : "",
+      accepting_physician: patient.disposition === "admitted" ? patient.physician || "" : "",
+      admission_note: patient.disposition === "admitted" ? patient.admissionNote || "" : "",
+      other_outcome: patient.disposition === "other" ? patient.otherOutcome || "" : "",
+      other_details: patient.disposition === "other" ? patient.otherDetails || "" : "",
       status: patient.summaryFinalizedAt ? "completed" : "active",
       completed_at: patient.summaryFinalizedAt || null,
       created_at: patient.createdAt || now,
@@ -588,6 +596,23 @@ async function updateCaseMetadata(
     discharge_condition: disposition === "discharged"
       ? patient.dischargeCondition || ""
       : "",
+    ...(disposition !== "discharged"
+      ? { recommendations: [] }
+      : {}),
+    ...(disposition !== "admitted"
+      ? {
+          hospital: "",
+          ward: "",
+          accepting_physician: "",
+          admission_note: "",
+        }
+      : {}),
+    ...(disposition !== "other"
+      ? {
+          other_outcome: "",
+          other_details: "",
+        }
+      : {}),
     updated_at: new Date().toISOString(),
     deidentified_at: new Date().toISOString(),
     deidentification_version: "v1",
@@ -663,14 +688,14 @@ async function finalizePatient(
     clinical_course: patient.course || "",
     clinical_course_skipped: Boolean(patient.courseSkipped),
     disposition: patient.disposition || "",
-    discharge_condition: patient.dischargeCondition || "",
-    recommendations: patient.recommendations || [""],
-    hospital: patient.hospital || "",
-    ward: patient.ward || "",
-    accepting_physician: patient.physician || "",
-    admission_note: patient.admissionNote || "",
-    other_outcome: patient.otherOutcome || "",
-    other_details: patient.otherDetails || "",
+    discharge_condition: patient.disposition === "discharged" ? patient.dischargeCondition || "" : "",
+    recommendations: patient.disposition === "discharged" ? patient.recommendations || [""] : [],
+    hospital: patient.disposition === "admitted" ? patient.hospital || "" : "",
+    ward: patient.disposition === "admitted" ? patient.ward || "" : "",
+    accepting_physician: patient.disposition === "admitted" ? patient.physician || "" : "",
+    admission_note: patient.disposition === "admitted" ? patient.admissionNote || "" : "",
+    other_outcome: patient.disposition === "other" ? patient.otherOutcome || "" : "",
+    other_details: patient.disposition === "other" ? patient.otherDetails || "" : "",
     status: "completed",
     completed_at: patient.summaryFinalizedAt,
     created_at: patient.createdAt || now,

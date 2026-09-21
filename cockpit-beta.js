@@ -85,9 +85,9 @@
   }
 
   function testEntryStatus(entry) {
-    if (entry?.mode === "notordered") return "notordered";
-    if (String(entry?.text || "").trim()) return "complete";
-    return "waiting";
+    const canonical = window.BachSBOClinicalUi?.testEntryStatus?.(entry);
+    if (canonical === "result") return "complete";
+    return canonical === "notordered" ? "notordered" : "waiting";
   }
 
   function radiologyLabel(entry, index) {
@@ -155,14 +155,8 @@
       name: field.querySelector("label")?.textContent?.trim() || label("Clinical field", "Klinikai mező"),
       complete: field.classList.contains("result") || field.classList.contains("none")
     }));
-    const tests = [...form.querySelectorAll(".test-card")].map((card, index) => ({
-      name: card.querySelector(".test-name")?.textContent?.trim() || `${label("Test", "Vizsgálat")} ${index + 1}`,
-      status: card.classList.contains("result")
-        ? "complete"
-        : card.classList.contains("notordered")
-        ? "notordered"
-        : "waiting"
-    }));
+    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+    const tests = patient ? patientTestItems(patient) : [];
     return {
       clinical,
       tests,
@@ -209,8 +203,10 @@
     const metadata = clinicalMetadata();
     const arrival = window.BachSBOClinicalUi?.normalizeArrivalMode?.(metadata.arrival_mode) || "";
     const disposition = document.getElementById("fDisposition")?.value || "";
-    const testsPending = [...document.querySelectorAll('[data-cockpit-panel="tests"] .test-card')]
-      .some((card) => !card.classList.contains("result") && !card.classList.contains("notordered"));
+    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+    const testsPending = patient
+      ? patientTestItems(patient).some((item) => item.status === "waiting")
+      : true;
 
     const clinical =
       !hasValue("fMainComplaint") ||

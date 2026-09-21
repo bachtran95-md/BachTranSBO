@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center — Cockpit Beta</title>
-  <link rel="stylesheet" href="styles.css?v=pending-tests-orange-20260921-1" />
+  <link rel="stylesheet" href="styles.css?v=clinical-stack-discharge-footer-20260921-1" />
 </head>
 <body>
   <header class="topbar">
@@ -401,7 +401,7 @@
                     <label data-i18n="summaryEditable">Summary — editable</label>
                     <textarea id="fSummary" class="summary-box" placeholder="A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető."></textarea>
                   </div>
-                  <div class="field fixed-summary-footer-field">
+                  <div class="field fixed-summary-footer-field hidden" id="fixedSummaryFooterField">
                     <label data-i18n="summaryFixedFooter">Állandó záró szöveg — nem szerkeszthető</label>
                     <textarea id="summaryFixedFooter" class="summary-fixed-footer" readonly aria-readonly="true"></textarea>
                   </div>
@@ -585,7 +585,7 @@
   <script src="case-ui.js?beta=chrome-arrival-select-20260921-1"></script>
   <script src="backend.js?v=multi-ekg-avg-20260921-2"></script>
   <script src="assistant-core.js?beta=validation-core-recovery-20260921-1"></script>
-  <script src="app.js?v=ai-apply-targets-20260921-1"></script>
+  <script src="app.js?v=clinical-stack-discharge-footer-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit-beta.js?beta=ai-apply-targets-20260921-1"></script>
 </body>

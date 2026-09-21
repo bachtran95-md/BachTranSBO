@@ -612,6 +612,25 @@ body.cockpit-ui .cockpit-clinical-primary > #cockpitDemographicsMount{
   grid-template-columns:115px 100px minmax(130px,1fr) minmax(160px,1fr) 90px;
 }
 .cockpit-case-column .summary-box{min-height:280px}
+.cockpit-case-column .fixed-summary-footer-field{
+  margin-top:10px;
+}
+.cockpit-case-column .summary-fixed-footer{
+  min-height:300px;
+  resize:none;
+  overflow:auto;
+  background:#f8fafc;
+  border-color:#d0d5dd;
+  color:#475467;
+  cursor:default;
+  line-height:1.45;
+  font-size:11px;
+}
+.cockpit-case-column .summary-fixed-footer:focus{
+  outline:none;
+  border-color:#d0d5dd;
+  box-shadow:none;
+}
 .cockpit-case-column .sticky-actions{
   margin-top:8px;
   padding-top:6px;

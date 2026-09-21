@@ -53,6 +53,10 @@ jobs:
             echo "Browser code must not update cases directly; use clinical-store."
             exit 1
           fi
+          if grep -E -q '__BachSBOInlineCaseClient|from\(["'"'"']cases["'"'"']\)' case-ui.js; then
+            echo "case-ui.js must not maintain an independent cases data path; demographics must use BachSBOClinicalUi/app state."
+            exit 1
+          fi
           if ! grep -q 'action: "update_case_metadata"' backend.js; then
             echo "backend.js is missing the secure update_case_metadata bridge."
             exit 1

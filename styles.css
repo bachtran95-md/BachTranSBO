@@ -2372,3 +2372,118 @@ body.cockpit-ui .summary-actions{
   }
 }
 
+
+
+/* Mobile workspace drawers: keep the case detail as the primary full-width view. */
+.cockpit-case-toggle,
+.cockpit-mobile-backdrop{
+  display:none;
+}
+
+@media (max-width:820px){
+  body.cockpit-ui .main{
+    padding:6px;
+  }
+
+  body.cockpit-ui #patientsView > .grid2{
+    display:block;
+    height:auto;
+  }
+
+  body.cockpit-ui .cockpit-case-column{
+    width:100%;
+    min-width:0;
+  }
+
+  body.cockpit-ui .cockpit-board-column{
+    position:fixed;
+    top:0;
+    left:0;
+    bottom:0;
+    z-index:82;
+    width:min(360px,92vw);
+    max-width:92vw;
+    height:100dvh;
+    padding:10px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    background:#f5f7fa;
+    border-right:1px solid var(--line);
+    box-shadow:12px 0 28px rgba(15,23,42,.18);
+    transform:translateX(-105%);
+    transition:transform .18s ease;
+  }
+
+  body.cockpit-ui.cockpit-case-list-open .cockpit-board-column{
+    transform:translateX(0);
+  }
+
+  body.cockpit-ui .cockpit-case-list{
+    max-height:none;
+    flex:1 1 auto;
+  }
+
+  body.cockpit-ui .cockpit-ai-rail{
+    top:0;
+    bottom:0;
+    z-index:82;
+    width:min(370px,92vw);
+    max-width:92vw;
+    height:100dvh;
+    padding:10px;
+  }
+
+  body.cockpit-ui .cockpit-case-toggle,
+  body.cockpit-ui .cockpit-ai-toggle{
+    display:inline-flex!important;
+    align-items:center;
+    justify-content:center;
+    min-height:32px;
+    padding:5px 9px;
+    font-size:11px;
+    white-space:nowrap;
+  }
+
+  body.cockpit-ui .cockpit-mobile-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:81;
+    border:0;
+    padding:0;
+    margin:0;
+    background:rgba(15,23,42,.34);
+    cursor:pointer;
+  }
+
+  body.cockpit-ui .cockpit-mobile-backdrop.open{
+    display:block;
+  }
+
+  body.cockpit-ui.cockpit-mobile-drawer-open{
+    overflow:hidden;
+  }
+
+  body.cockpit-ui #recordHeader{
+    position:sticky;
+    top:0;
+    z-index:12;
+  }
+}
+
+@media (max-width:520px){
+  body.cockpit-ui .topbar{
+    gap:6px;
+  }
+
+  body.cockpit-ui .topbar-tools{
+    gap:4px;
+  }
+
+  body.cockpit-ui .cockpit-case-toggle,
+  body.cockpit-ui .cockpit-ai-toggle,
+  body.cockpit-ui .lang-btn{
+    min-height:30px;
+    padding:4px 7px;
+    font-size:10.5px;
+  }
+}

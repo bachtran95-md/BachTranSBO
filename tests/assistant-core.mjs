@@ -27,8 +27,8 @@ const patient = {
     labs: [
       { id: "lab-1", type: "", mode: "waiting", text: "", savedText: "" }
     ],
-    ekg: { id: "ekg-1", type: "EKG", mode: "waiting", text: "", savedText: "" },
-    gas: { id: "gas-1", type: "AVG", mode: "waiting", text: "", savedText: "" },
+    ekgs: [{ id: "ekg-1", type: "EKG", mode: "waiting", text: "", savedText: "" }],
+    gases: [{ id: "gas-1", type: "AVG", mode: "waiting", text: "", savedText: "" }],
     radiology: [],
     consultations: []
   }
@@ -63,35 +63,40 @@ const replaced = core.applyItems(patient, [{
 }], () => "uuid-2");
 assert.equal(replaced.complaint, "Replacement");
 
-assert.throws(() => core.applyItems({
+const appendedEkg = core.applyItems({
   ...patient,
   tests: {
     ...patient.tests,
-    ekg: { id: "ekg-1", type: "EKG", mode: "waiting", text: "Existing result", savedText: "Existing result" }
+    ekgs: [{ id: "ekg-1", type: "EKG", mode: "waiting", text: "Existing result", savedText: "Existing result" }]
   }
 }, [{
   target: "ekg",
   status: "result",
   text: "New EKG result",
   label: "EKG"
-}], () => "uuid-3"), /already has a result/);
+}], () => "uuid-3");
+assert.equal(appendedEkg.tests.ekgs.length, 2);
+assert.equal(appendedEkg.tests.ekgs[0].text, "Existing result");
+assert.equal(appendedEkg.tests.ekgs[1].text, "New EKG result");
 
 assert.throws(() => core.applyItems({
   ...patient,
   tests: {
     ...patient.tests,
-    labs: [
-      { id: "1", type: "A", text: "1", savedText: "1", mode: "waiting" },
-      { id: "2", type: "B", text: "2", savedText: "2", mode: "waiting" },
-      { id: "3", type: "C", text: "3", savedText: "3", mode: "waiting" }
-    ]
+    labs: Array.from({ length: 999 }, (_, i) => ({
+      id: String(i + 1),
+      type: "Lab",
+      text: String(i + 1),
+      savedText: String(i + 1),
+      mode: "waiting"
+    }))
   }
 }, [{
   target: "lab",
   status: "result",
-  text: "Fourth result",
+  text: "Entry 1000",
   label: "Lab"
-}], () => "uuid-4"), /three lab cards are occupied/);
+}], () => "uuid-4"), /maximum of 999 entries/);
 
 assert.throws(() => core.validateProposal({
   items: [{

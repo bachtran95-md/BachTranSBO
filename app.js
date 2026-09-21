@@ -866,6 +866,8 @@ function caseMetadataFromPatient(patient) {
     main_complaint: patient.mainComplaint || "",
     arrival_mode: arrivalMode,
     arrival_other: arrivalMode === "other" ? patient.arrivalOther || "" : "",
+    disposition: patient.disposition || "",
+    discharge_condition: patient.dischargeCondition || "",
     other_details: patient.otherDetails || ""
   };
 }
@@ -912,6 +914,12 @@ function applyCaseMetadata(caseId, metadata = {}) {
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "arrival_other")) {
     patient.arrivalOther = patient.arrivalMode === "other" ? metadata.arrival_other || "" : "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "disposition")) {
+    patient.disposition = metadata.disposition || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(metadata, "discharge_condition")) {
+    patient.dischargeCondition = metadata.discharge_condition || "";
   }
   if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
     patient.otherDetails = metadata.other_details || "";

@@ -88,71 +88,21 @@
       : null;
   }
 
-  function narrativeResolved(key) {
-    const field = document.querySelector(`[data-narrative-field="${key}"]`);
-    if (!field) return false;
-
-    // Prefer the semantic state, but also trust the live value/None toggle.
-    // This prevents a stale CSS class from keeping a workflow tab orange after
-    // AI fill, paste, reload, or another synchronous form update.
-    if (field.classList.contains("result") || field.classList.contains("none")) return true;
-    const input = field.querySelector("textarea, input:not([type='button'])");
-    if (String(input?.value || "").trim()) return true;
-    return Boolean(field.querySelector(`[data-none-toggle="${key}"].active`));
-  }
-
-  function hasValue(id) {
-    return Boolean(String(document.getElementById(id)?.value || "").trim());
-  }
-
-  function clinicalMetadata() {
-    return window.BachSBOClinicalUi?.getCaseMetadata?.() || {};
-  }
-
-  function validClinicalYob(metadata = clinicalMetadata()) {
-    const yob = window.BachSBOClinicalUi?.normalizeYob?.(metadata.year_of_birth);
-    return Boolean(yob);
-  }
-
-  function validClinicalSex(metadata = clinicalMetadata()) {
-    return ["M", "F", "O"].includes(
-      window.BachSBOClinicalUi?.normalizeSex?.(metadata.sex) || ""
-    );
+  function currentWorkflowStatus(caseId = selectedCaseId()) {
+    return caseId
+      ? window.BachSBOClinicalUi?.getWorkflowStatus?.(caseId) || null
+      : null;
   }
 
   function tabSummaryGaps() {
-    const metadata = clinicalMetadata();
-    const arrival = window.BachSBOClinicalUi?.normalizeArrivalMode?.(metadata.arrival_mode) || "";
-    const disposition = document.getElementById("fDisposition")?.value || "";
-    const progress = currentPatientProgress();
-    const testsPending = progress
-      ? progress.waitingTests.length > 0
-      : true;
-
-    const clinical =
-      !hasValue("fMainComplaint") ||
-      !validClinicalSex(metadata) ||
-      !validClinicalYob(metadata) ||
-      !arrival ||
-      (arrival === "other" && !String(metadata.arrival_other || "").trim()) ||
-      !narrativeResolved("complaint") ||
-      !narrativeResolved("history");
-
-    const tests = !narrativeResolved("physical") || testsPending;
-    const course = !narrativeResolved("therapy") || !narrativeResolved("course");
-
-    let decision = !narrativeResolved("diagnoses") || !disposition;
-    if (disposition === "discharged") {
-      const recommendation = [...document.querySelectorAll("[data-rec]")]
-        .some((input) => String(input.value || "").trim());
-      decision = decision || !hasValue("fDischargeCondition") || !recommendation;
-    } else if (disposition === "admitted") {
-      decision = decision || !hasValue("fWard");
-    } else if (disposition === "other") {
-      decision = decision || !hasValue("fOtherOutcome");
-    }
-
-    return { clinical, tests, course, disposition: decision };
+    const workflow = currentWorkflowStatus();
+    const sections = workflow?.sections || {};
+    return {
+      clinical: !sections.clinical?.complete,
+      tests: !sections.tests?.complete,
+      course: !sections.course?.complete,
+      disposition: !sections.disposition?.complete
+    };
   }
 
   function syncTabWarnings() {

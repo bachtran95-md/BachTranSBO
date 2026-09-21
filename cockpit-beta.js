@@ -1482,6 +1482,9 @@
         !event.target.readOnly &&
         event.target.type !== "button"
       ) {
+        // Keep the in-memory draft current immediately; only the network write
+        // remains debounced.
+        window.BachSBOClinicalUi?.commitCurrentDraft?.();
         scheduleCaseAutosave(700);
       }
 

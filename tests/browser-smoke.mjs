@@ -865,6 +865,9 @@ if (await beta.locator('[data-card="ekg-0"] .test-save').isVisible()) {
   throw new Error("Beta still shows the redundant Save Result button");
 }
 await beta.locator('[data-card="ekg-0"] textarea[data-text="ekg-0"]').fill("temporary EKG text");
+await beta.waitForFunction(() =>
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.ekgs?.[0]?.text === "temporary EKG text"
+);
 let testClasses = await beta.locator('[data-card="ekg-0"]').getAttribute("class");
 if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`EKG card lost compact layout while typing: ${testClasses}`);
@@ -872,6 +875,9 @@ if (!String(testClasses).includes("cockpit-test-row")) {
 await beta.locator('[data-card="ekg-0"] textarea[data-text="ekg-0"]').fill("");
 await beta.locator('[data-card="radiology-0"].cockpit-test-row').waitFor();
 await beta.locator('[data-card="radiology-0"] textarea[data-text="radiology-0"]').fill("temporary radiology text");
+await beta.waitForFunction(() =>
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.radiology?.[0]?.text === "temporary radiology text"
+);
 testClasses = await beta.locator('[data-card="radiology-0"]').getAttribute("class");
 if (!String(testClasses).includes("cockpit-test-row")) {
   throw new Error(`Radiology card lost compact layout while typing: ${testClasses}`);

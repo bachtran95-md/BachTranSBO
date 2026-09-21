@@ -37,7 +37,7 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 - Lab capacity produces a visible message instead of a silent no-op.
 - Consultation and Other cards show both their category and specific name. `Other` is stored in the existing backend-supported consultation category with an explicit `Egyéb —` subtype; no database schema change was made.
 - Browser smoke now covers immediate Consultation persistence and a synthetic failed Imaging save with rollback.
-- The branch was reconciled with `origin/main` at `8753d66`. The newer Hungarian-first UI, autosave protections, diagnoses-none state, finalized-summary footer, and closed-case styling were retained.
+- The branch was reconciled with `origin/main` through `c8c6d5e`. The newer Hungarian-first UI, autosave protections, diagnoses-none state, finalized-summary footer, closed-case styling, and header AI data-entry dialog were retained.
 - Cross-language consultation matching now treats common Hungarian/English specialty names (for example `Kardiológia` / `Cardiology`) as the same waiting consultation.
 
 ## Decisions
@@ -76,7 +76,7 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 ## Repository position
 
 - Branch: `codex/beta-heidi-incremental-20260921`
-- Integrated with: `origin/main` at `8753d66`
+- Integrated with: `origin/main` at `c8c6d5e`
 - Worktree: `BachTranSBO-beta-heidi`
 - Remote feature commits before integration: `f93371b`, `cbd651f`, `72c3fbf`, `088856a`, `64d6024`, `3b1e346`.
 

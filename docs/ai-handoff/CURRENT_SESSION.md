@@ -37,6 +37,8 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 - Lab capacity produces a visible message instead of a silent no-op.
 - Consultation and Other cards show both their category and specific name. `Other` is stored in the existing backend-supported consultation category with an explicit `Egyéb —` subtype; no database schema change was made.
 - Browser smoke now covers immediate Consultation persistence and a synthetic failed Imaging save with rollback.
+- The branch was reconciled with `origin/main` at `8753d66`. The newer Hungarian-first UI, autosave protections, diagnoses-none state, finalized-summary footer, and closed-case styling were retained.
+- Cross-language consultation matching now treats common Hungarian/English specialty names (for example `Kardiológia` / `Cardiology`) as the same waiting consultation.
 
 ## Decisions
 
@@ -49,7 +51,7 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 
 ## Work in progress
 
-- Run GitHub checks, review the branch diff, merge to `main`, and verify the live Beta deployment.
+- Upload the post-merge integration commit, open the PR, run GitHub checks, merge to `main`, and verify the live Beta deployment.
 - Production `case-assistant` was intentionally not redeployed yet. Its extraction contract is unchanged; the reconciliation logic is applied in the Beta browser after extraction.
 
 ## Verification so far
@@ -59,7 +61,7 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 - Pages local-script artifact verification passes locally.
 - `assistant-core.js` syntax check and `tests/assistant-core.mjs` pass locally after reconciliation changes.
 - Full Chromium browser smoke passes locally, including waiting Lab completion without a duplicate card, repeated-result suppression, named Cardiology consultation matching, later history append, and failed-save rollback.
-- Full Chromium browser smoke also passes for the segmented Add-test control, immediate backend persistence, category/name rendering, and failed-add rollback.
+- Full Chromium browser smoke also passes after integration with `main` for the segmented Add-test control, immediate backend persistence, category/name rendering, failed-add rollback, Hungarian-first UI, and Hungarian/English consultation matching.
 
 ## Beta UI behavior implemented
 
@@ -74,15 +76,14 @@ Stable `/` must remain unchanged. Work is isolated to `/beta.html`, Beta cockpit
 ## Repository position
 
 - Branch: `codex/beta-heidi-incremental-20260921`
-- Based on: `origin/main` at `b2e3166`
+- Integrated with: `origin/main` at `8753d66`
 - Worktree: `BachTranSBO-beta-heidi`
-- Commits so far: `2f307ac`, `96b35d2`; UI/test/doc completion is the next commit.
+- Remote feature commits before integration: `f93371b`, `cbd651f`, `72c3fbf`, `088856a`, `64d6024`, `3b1e346`.
 
 ## Resume here
 
-1. Commit and upload the Investigation Add-test follow-up to the existing remote branch.
-2. Ensure the three handoff files missing from the remote branch are uploaded.
-3. Open/merge a PR, wait for both GitHub checks, then verify `/beta.html` live. Do not promote Beta to stable `/`.
+1. Upload the post-merge integration commit to the existing remote branch.
+2. Open/merge a PR, wait for both GitHub checks, then verify `/beta.html` live. Do not promote Beta to stable `/`.
 
 ## Safety reminders
 

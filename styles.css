@@ -1869,3 +1869,158 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.com
   box-shadow:inset 3px 0 0 #aeb7c1!important;
 }
 
+
+/* AI-assisted data entry: patient-header entry point + review dialog. */
+body.cockpit-ui #recordHeader .cockpit-data-entry-btn{
+  flex:0 0 auto;
+  padding:4px 8px;
+  border:1px solid #b2ccff;
+  border-radius:999px;
+  background:#eff8ff;
+  color:#175cd3;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+body.cockpit-ui #recordHeader .cockpit-data-entry-btn:hover:not(:disabled){
+  background:#dbeafe;
+  border-color:#84adff;
+}
+body.cockpit-ui #recordHeader .cockpit-data-entry-btn:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+}
+
+.cockpit-data-entry-overlay,
+.cockpit-extract-confirm-overlay{
+  position:fixed;
+  inset:0;
+  z-index:240;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(15,23,42,.48);
+  backdrop-filter:blur(2px);
+}
+.cockpit-data-entry-dialog{
+  width:min(820px,96vw);
+  max-height:min(820px,92vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #d0d5dd;
+  border-radius:14px;
+  box-shadow:0 24px 70px rgba(15,23,42,.24);
+}
+.cockpit-data-entry-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 15px;
+  border-bottom:1px solid #e4e7ec;
+  background:#f8fafc;
+}
+.cockpit-data-entry-head strong{
+  font-size:15px;
+  color:#101828;
+}
+.cockpit-data-entry-sub{
+  margin-top:3px;
+  color:#667085;
+  font-size:11px;
+}
+.cockpit-data-entry-body{
+  min-height:0;
+  overflow:auto;
+  padding:14px 15px 18px;
+}
+.cockpit-data-entry-safety{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  margin-bottom:10px;
+  padding:9px 10px;
+  border:1px solid #b2ccff;
+  border-radius:8px;
+  background:#eff8ff;
+  color:#1849a9;
+  font-size:10px;
+  line-height:1.35;
+}
+.cockpit-data-entry-text{
+  min-height:150px!important;
+  max-height:280px!important;
+  resize:vertical;
+  font-size:12px!important;
+  line-height:1.4;
+}
+.cockpit-data-entry-dialog .cockpit-extract-item{
+  padding:9px;
+  margin-top:8px;
+}
+.cockpit-data-entry-dialog .cockpit-extract-head{
+  font-size:10px;
+}
+.cockpit-data-entry-dialog .cockpit-extract-text{
+  font-size:11px;
+}
+.cockpit-data-entry-dialog .cockpit-extract-apply-bar{
+  position:sticky;
+  bottom:-18px;
+  z-index:2;
+  margin:12px -15px -18px;
+  padding:10px 15px 14px;
+  border-top:1px solid #e4e7ec;
+  background:rgba(255,255,255,.97);
+}
+.cockpit-extract-confirm-overlay{
+  z-index:260;
+  background:rgba(15,23,42,.58);
+}
+.cockpit-extract-confirm-dialog{
+  width:min(460px,94vw);
+  padding:18px;
+  border:1px solid #d0d5dd;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 20px 60px rgba(15,23,42,.28);
+}
+.cockpit-extract-confirm-dialog strong{
+  display:block;
+  margin-bottom:7px;
+  color:#101828;
+  font-size:14px;
+}
+.cockpit-extract-confirm-dialog p{
+  margin:0;
+  color:#475467;
+  font-size:12px;
+  line-height:1.45;
+}
+.cockpit-extract-confirm-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:15px;
+}
+body.cockpit-data-entry-open{
+  overflow:hidden;
+}
+
+@media (max-width:700px){
+  .cockpit-data-entry-overlay{
+    padding:8px;
+    align-items:stretch;
+  }
+  .cockpit-data-entry-dialog{
+    width:100%;
+    max-height:none;
+    height:100%;
+    border-radius:10px;
+  }
+}
+

@@ -1625,6 +1625,22 @@ function collectForm() {
   patient.recommendations = [...document.querySelectorAll("[data-rec]")].map(
     (x) => x.value
   );
+
+  // Döntés is mutually exclusive. Never keep hidden data from another branch.
+  if (patient.disposition !== "discharged") {
+    patient.dischargeCondition = "";
+    patient.recommendations = [];
+  }
+  if (patient.disposition !== "admitted") {
+    patient.hospital = "";
+    patient.ward = "";
+    patient.physician = "";
+    patient.admissionNote = "";
+  }
+  if (patient.disposition !== "other") {
+    patient.otherOutcome = "";
+    patient.otherDetails = "";
+  }
   patient.updatedAt = nowIso();
 
   return patient;
@@ -1666,6 +1682,27 @@ async function savePatient() {
 
 function updateDispositionVisibility() {
   const value = document.getElementById("fDisposition").value;
+
+  // Clear inactive decision branches immediately, not just visually hide them.
+  if (value !== "discharged") {
+    const dischargeCondition = document.getElementById("fDischargeCondition");
+    if (dischargeCondition) dischargeCondition.value = "";
+    document.querySelectorAll("[data-rec]").forEach((input) => {
+      input.value = "";
+    });
+  }
+  if (value !== "admitted") {
+    ["fHospital", "fWard", "fPhysician", "fAdmissionNote"].forEach((id) => {
+      const field = document.getElementById(id);
+      if (field) field.value = "";
+    });
+  }
+  if (value !== "other") {
+    ["fOtherOutcome", "fOtherDetails"].forEach((id) => {
+      const field = document.getElementById(id);
+      if (field) field.value = "";
+    });
+  }
 
   document
     .getElementById("dischargedFields")

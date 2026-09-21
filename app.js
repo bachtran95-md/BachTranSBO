@@ -8,6 +8,7 @@ const patientSaveQueues = new Map();
 let caseCounterRefreshPromise = null;
 let caseCounterLastCheckedAt = 0;
 let passwordReauthTimer = null;
+let passwordReauthCountdownInterval = null;
 let passwordReauthInProgress = false;
 const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
@@ -883,6 +884,23 @@ function waitingLabels(patient) {
     .map((item) => item.name);
 }
 
+function sessionSecurityHtml() {
+  const hu = uiLang === "hu";
+  return `
+    <div class="session-reauth-card" title="${hu ? "Jelszavas újrahitelesítésig hátralévő idő" : "Time remaining until password reauthentication"}">
+      <span class="session-lock" aria-hidden="true">🔒</span>
+      <span class="session-countdown" id="passwordReauthCountdown">--:--</span>
+      <button class="session-reset-btn" id="passwordReauthResetBtn" type="button">${hu ? "RESET" : "RESET"}</button>
+    </div>
+  `;
+}
+
+function bindSessionSecurityControls() {
+  const reset = document.getElementById("passwordReauthResetBtn");
+  if (reset) reset.onclick = showPasswordReauthReset;
+  updatePasswordReauthCountdown();
+}
+
 function renderHeader() {
   const meta = document.getElementById("shiftMeta");
   const actions = document.getElementById("topActions");
@@ -892,8 +910,11 @@ function renderHeader() {
   const hu = uiLang === "hu";
   if (!state.shift) {
     meta.innerHTML = `<span class="metric">${hu ? "Nincs aktív műszak" : "No active shift"}</span>`;
-    actions.innerHTML = `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
+    actions.innerHTML =
+      sessionSecurityHtml() +
+      `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
     document.getElementById("signOutBtn").onclick = signOut;
+    bindSessionSecurityControls();
     return;
   }
 
@@ -909,10 +930,12 @@ function renderHeader() {
   `;
 
   actions.innerHTML =
+    sessionSecurityHtml() +
     `<button class="btn danger" id="endShiftBtn">${hu ? "MŰSZAK LEZÁRÁSA" : "END SHIFT"}</button>` +
     `<button class="btn" id="signOutBtn">${hu ? "KIJELENTKEZÉS" : "SIGN OUT"}</button>`;
   document.getElementById("endShiftBtn").onclick = endShiftStep1;
   document.getElementById("signOutBtn").onclick = signOut;
+  bindSessionSecurityControls();
 }
 
 function renderApp() {
@@ -2616,6 +2639,33 @@ function clearPasswordReauthTimer() {
     clearTimeout(passwordReauthTimer);
     passwordReauthTimer = null;
   }
+  if (passwordReauthCountdownInterval) {
+    clearInterval(passwordReauthCountdownInterval);
+    passwordReauthCountdownInterval = null;
+  }
+}
+
+function updatePasswordReauthCountdown() {
+  const node = document.getElementById("passwordReauthCountdown");
+  if (!backendReady || !currentUser?.id) {
+    if (node) node.textContent = "--:--";
+    return;
+  }
+
+  const status = window.BachSBOBackend.getPasswordReauthStatus(currentUser.id);
+  const totalSeconds = Math.max(0, Math.ceil(Number(status.remainingMs || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (node) {
+    node.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    node.classList.toggle("warning", totalSeconds > 120 && totalSeconds <= 600);
+    node.classList.toggle("critical", totalSeconds <= 120);
+  }
+
+  if (status.required && !passwordReauthInProgress) {
+    queueMicrotask(() => void enforcePasswordReauth());
+  }
 }
 
 function schedulePasswordReauth() {
@@ -2623,6 +2673,7 @@ function schedulePasswordReauth() {
   if (!backendReady || !currentUser?.id) return;
 
   const status = window.BachSBOBackend.getPasswordReauthStatus(currentUser.id);
+  updatePasswordReauthCountdown();
   if (status.required) {
     queueMicrotask(() => void enforcePasswordReauth());
     return;
@@ -2632,6 +2683,65 @@ function schedulePasswordReauth() {
   // have completed a fresh password authentication in the meantime.
   const delay = Math.max(250, Number(status.remainingMs || 0) + 25);
   passwordReauthTimer = setTimeout(() => void enforcePasswordReauth(), delay);
+  passwordReauthCountdownInterval = setInterval(updatePasswordReauthCountdown, 1000);
+}
+
+function showPasswordReauthReset() {
+  if (!backendReady || !currentUser?.id) return;
+  const hu = uiLang === "hu";
+
+  modal(`
+    <h3>${hu ? "Munkamenet meghosszabbítása" : "Extend session"}</h3>
+    <p class="subtle">${hu
+      ? "Adja meg a jelszavát. Sikeres hitelesítés után az időzítő ismét 60:00-ról indul."
+      : "Enter your password. After successful authentication, the timer restarts from 60:00."}</p>
+    <div class="field">
+      <label>${hu ? "Jelszó" : "Password"}</label>
+      <input id="reauthResetPassword" type="password" autocomplete="current-password" minlength="6" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="reauthResetCancel" type="button">${hu ? "MÉGSE" : "CANCEL"}</button>
+      <button class="btn primary" id="reauthResetConfirm" type="button">${hu ? "IDŐZÍTŐ RESET" : "RESET TIMER"}</button>
+    </div>
+    <div id="reauthResetMessage" class="subtle"></div>
+  `);
+
+  const password = document.getElementById("reauthResetPassword");
+  const confirm = document.getElementById("reauthResetConfirm");
+  const cancel = document.getElementById("reauthResetCancel");
+  const message = document.getElementById("reauthResetMessage");
+
+  const submit = async () => {
+    if (password.value.length < 6) {
+      message.textContent = hu ? "Adja meg a jelszavát." : "Enter your password.";
+      return;
+    }
+
+    confirm.disabled = true;
+    cancel.disabled = true;
+    message.textContent = hu ? "Hitelesítés…" : "Authenticating…";
+
+    try {
+      const session = await window.BachSBOBackend.signInWithPassword(password.value);
+      currentUser = session.user;
+      closeModal();
+      renderHeader();
+      schedulePasswordReauth();
+    } catch (error) {
+      message.textContent = error?.message || (hu ? "Sikertelen hitelesítés." : "Authentication failed.");
+      password.value = "";
+      password.focus();
+      confirm.disabled = false;
+      cancel.disabled = false;
+    }
+  };
+
+  confirm.onclick = submit;
+  cancel.onclick = closeModal;
+  password.onkeydown = (event) => {
+    if (event.key === "Enter") submit();
+  };
+  password.focus();
 }
 
 async function enforcePasswordReauth() {

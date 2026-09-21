@@ -154,6 +154,22 @@
     return data;
   }
 
+  async function getShiftCaseCounter(shiftId) {
+    if (!shiftId) throw new Error("Missing shift ID.");
+
+    const shift = await getActiveShift();
+    if (!shift || shift.id !== shiftId) {
+      throw new Error("Active shift changed.");
+    }
+
+    const nextCaseNumber = Number(shift.next_case_number || 1);
+    return {
+      shiftId: shift.id,
+      nextCaseNumber,
+      localId: String(nextCaseNumber).padStart(2, "0")
+    };
+  }
+
   async function startShift() {
     const db = requireClient();
     const user = await getUser();
@@ -638,6 +654,7 @@
     changeAdminPassword,
     signOut,
     startShift,
+    getShiftCaseCounter,
     closeShift,
     loadState,
     saveState,

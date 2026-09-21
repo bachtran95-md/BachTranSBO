@@ -1117,24 +1117,25 @@
   function syncUnifiedTestLabels() {
     const title = document.getElementById("cockpitInvestigationsTitle");
     const add = document.getElementById("cockpitAddTest");
-    const type = document.getElementById("cockpitTestType");
     const other = document.getElementById("cockpitOtherTestName");
     if (title) title.textContent = label("Investigations", "Vizsgálatok");
     if (add) add.textContent = label("+ Add test", "+ Vizsgálat hozzáadása");
     if (other) other.placeholder = label("Test name", "Vizsgálat neve");
-    if (type) {
-      const optionLabels = {
-        lab: label("Lab", "Labor"),
-        ekg: "EKG",
-        gas: "AVG",
-        imaging: label("Radiology", "Radiológia"),
-        consultation: label("Consultation", "Konzílium"),
-        other: label("Other", "Egyéb")
-      };
-      [...type.options].forEach((option) => {
-        option.textContent = optionLabels[option.value] || option.textContent;
-      });
-    }
+
+    const optionLabels = {
+      lab: label("Lab", "Labor"),
+      ekg: "EKG",
+      gas: "AVG",
+      imaging: label("Radiology", "Radiológia"),
+      consultation: label("Consultation", "Konzílium"),
+      other: label("Other", "Egyéb")
+    };
+    document.querySelectorAll("[data-add-test-type]").forEach((button) => {
+      button.textContent = optionLabels[button.dataset.addTestType] || button.textContent;
+    });
+
+    const otherConfirm = document.getElementById("cockpitOtherTestConfirm");
+    if (otherConfirm) otherConfirm.textContent = label("ADD", "HOZZÁADÁS");
   }
 
   function decorateTestCard(card, context = {}) {
@@ -1215,30 +1216,67 @@
     });
   }
 
-  function addUnifiedTest() {
-    const typeControl = document.getElementById("cockpitTestType");
-    const addButton = document.getElementById("cockpitAddTest");
-    const other = document.getElementById("cockpitOtherTestName");
-    const type = typeControl?.value || "lab";
+  function closeUnifiedTestMenu() {
+    const menu = document.getElementById("cockpitAddTestMenu");
+    const trigger = document.getElementById("cockpitAddTest");
+    const otherRow = document.getElementById("cockpitOtherTestRow");
+    if (menu) menu.classList.add("hidden");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+    if (otherRow) otherRow.classList.add("hidden");
+  }
+
+  function toggleUnifiedTestMenu() {
+    const trigger = document.getElementById("cockpitAddTest");
+    const menu = document.getElementById("cockpitAddTestMenu");
+    if (!trigger || !menu || trigger.disabled) return;
+
+    const opening = menu.classList.contains("hidden");
+    closeUnifiedTestMenu();
+    if (!opening) return;
+
+    menu.classList.remove("hidden");
+    trigger.setAttribute("aria-expanded", "true");
+    menu.querySelector("[data-add-test-type]")?.focus();
+  }
+
+  function addUnifiedTest(type, options = {}) {
     const add = window.BachSBOClinicalUi?.addInvestigation;
-    if (typeof add !== "function" || addButton?.disabled) return;
+    const trigger = document.getElementById("cockpitAddTest");
+    if (typeof add !== "function" || trigger?.disabled) return false;
 
-    // Disable only for the synchronous mutation itself. This prevents
-    // accidental double-adds without making the control feel locked.
-    if (addButton) addButton.disabled = true;
-    try {
-      add(type, { name: other?.value.trim() || "" });
-      if (other) other.value = "";
-      if (typeControl) typeControl.focus();
-    } finally {
-      if (addButton) addButton.disabled = false;
-    }
+    const added = add(type, options);
+    if (!added) return false;
 
+    closeUnifiedTestMenu();
     setTimeout(() => {
       enhanceTestsUi();
       window.BachSBOClinicalUi?.commitCurrentDraft?.();
       scheduleCaseAutosave(350);
     }, 0);
+    return true;
+  }
+
+  function handleUnifiedTestChoice(type) {
+    if (type === "other") {
+      const row = document.getElementById("cockpitOtherTestRow");
+      const input = document.getElementById("cockpitOtherTestName");
+      row?.classList.remove("hidden");
+      input?.focus();
+      return;
+    }
+    addUnifiedTest(type);
+  }
+
+  function addOtherUnifiedTest() {
+    const input = document.getElementById("cockpitOtherTestName");
+    const name = String(input?.value || "").trim();
+    if (!name) {
+      input?.focus();
+      input?.classList.add("invalid");
+      return;
+    }
+    input.classList.remove("invalid");
+    if (addUnifiedTest("other", { name })) input.value = "";
   }
 
   function enhanceTestsUi() {
@@ -1271,24 +1309,49 @@
       header.innerHTML = `
         <strong id="cockpitInvestigationsTitle"></strong>
         <div class="cockpit-add-test-controls">
-          <select id="cockpitTestType" aria-label="${label("Test type", "Vizsgálat típusa")}">
-            <option value="lab">Lab</option>
-            <option value="ekg">EKG</option>
-            <option value="gas">AVG</option>
-            <option value="imaging">Radiology</option>
-            <option value="consultation">Consultation</option>
-            <option value="other">Other</option>
-          </select>
-          <input id="cockpitOtherTestName" class="hidden" />
-          <button class="btn small" id="cockpitAddTest" type="button"></button>
+          <div class="cockpit-add-test-wrap">
+            <button class="btn small cockpit-add-test-trigger" id="cockpitAddTest" type="button"
+              aria-haspopup="menu" aria-expanded="false"></button>
+            <div class="cockpit-add-test-menu hidden" id="cockpitAddTestMenu" role="menu">
+              <button type="button" role="menuitem" data-add-test-type="lab">Labor</button>
+              <button type="button" role="menuitem" data-add-test-type="ekg">EKG</button>
+              <button type="button" role="menuitem" data-add-test-type="gas">AVG</button>
+              <button type="button" role="menuitem" data-add-test-type="imaging">Radiológia</button>
+              <button type="button" role="menuitem" data-add-test-type="consultation">Konzílium</button>
+              <button type="button" role="menuitem" data-add-test-type="other">Egyéb</button>
+              <div class="cockpit-add-test-other hidden" id="cockpitOtherTestRow">
+                <input id="cockpitOtherTestName" autocomplete="off" />
+                <button class="btn small" id="cockpitOtherTestConfirm" type="button">HOZZÁADÁS</button>
+              </div>
+            </div>
+          </div>
         </div>`;
       const firstToolbar = panel.querySelector(".test-group-toolbar");
       firstToolbar?.insertAdjacentElement("beforebegin", header);
-      const type = header.querySelector("#cockpitTestType");
-      type.addEventListener("change", () => {
-        header.querySelector("#cockpitOtherTestName")?.classList.toggle("hidden", type.value !== "other");
+
+      header.querySelector("#cockpitAddTest")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleUnifiedTestMenu();
       });
-      header.querySelector("#cockpitAddTest")?.addEventListener("click", addUnifiedTest);
+      header.querySelectorAll("[data-add-test-type]").forEach((button) => {
+        button.addEventListener("click", () => handleUnifiedTestChoice(button.dataset.addTestType || ""));
+      });
+      header.querySelector("#cockpitOtherTestConfirm")?.addEventListener("click", addOtherUnifiedTest);
+      header.querySelector("#cockpitOtherTestName")?.addEventListener("input", (event) => {
+        event.target.classList.remove("invalid");
+      });
+      header.querySelector("#cockpitOtherTestName")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addOtherUnifiedTest();
+        }
+        if (event.key === "Escape") closeUnifiedTestMenu();
+      });
+
+      document.addEventListener("click", (event) => {
+        const wrap = document.querySelector("#cockpitInvestigationsHeader .cockpit-add-test-wrap");
+        if (wrap && !wrap.contains(event.target)) closeUnifiedTestMenu();
+      }, true);
     }
 
     let list = document.getElementById("cockpitInvestigationsList");
@@ -1542,6 +1605,10 @@
   function installSync() {
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+      if (!document.getElementById("cockpitAddTestMenu")?.classList.contains("hidden")) {
+        closeUnifiedTestMenu();
+        return;
+      }
       if (!document.getElementById("cockpitExtractConfirmOverlay")?.classList.contains("hidden")) {
         closeExtractionConfirmation();
         return;

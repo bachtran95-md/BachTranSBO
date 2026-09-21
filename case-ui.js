@@ -21,7 +21,7 @@
     ["other", "Other", "Egyéb"]
   ];
 
-  const SEX_VALUES = ["F", "M", "O"];
+  const SEX_VALUES = ["M", "F", "O"];
   const SEX_COLORS = {
     F: { background: "#fff1f2", border: "#fbcfe8", color: "#9d174d" },
     M: { background: "#e0f2fe", border: "#7dd3fc", color: "#075985" },
@@ -94,17 +94,42 @@
     return `<span data-sex-badge="${normalized}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${c.border};background:${c.background};color:${c.color};border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;line-height:1.4;white-space:nowrap">${sexLabel(normalized)}</span>`;
   }
 
-  function paintSexSelect(select) {
+  function styleSexSelect(select, normalized = normalizeSex(select?.value)) {
     if (!select) return;
-    const normalized = normalizeSex(select.value);
-    select.innerHTML = sexOptionsHtml(normalized);
-    select.value = normalized;
-    select.dataset.sexEnhanced = "true";
     const c = sexStyle(normalized);
     select.style.borderColor = c?.border || "";
     select.style.background = c?.background || "";
     select.style.color = c?.color || "";
     select.style.fontWeight = normalized ? "700" : "";
+  }
+
+  function sexOptionsAreCurrent(select) {
+    if (!select) return false;
+    const expected = ["", ...SEX_VALUES];
+    const options = [...select.options];
+    if (options.length !== expected.length) return false;
+
+    return options.every((option, index) => {
+      const value = expected[index];
+      const expectedText = value ? sexLabel(value) : "—";
+      return option.value === value && option.textContent === expectedText;
+    });
+  }
+
+  function paintSexSelect(select, { forceOptions = false } = {}) {
+    if (!select) return;
+    const normalized = normalizeSex(select.value);
+
+    // Replacing <option> nodes while the native select menu is open causes
+    // Chrome/macOS to get stuck or jump back to the previous selection.
+    // Rebuild only for initialisation/language/order changes.
+    if (forceOptions || !sexOptionsAreCurrent(select)) {
+      select.innerHTML = sexOptionsHtml(normalized);
+      select.value = normalized;
+    }
+
+    select.dataset.sexEnhanced = "true";
+    styleSexSelect(select, normalized);
   }
 
   function selectedId() {
@@ -366,6 +391,10 @@
     }
     const del = document.getElementById("iceDeleteCase");
     if (del) del.textContent = label("DELETE CASE", "ESET TÖRLÉSE");
+
+    [document.getElementById("iceSex"), document.getElementById("newSex")].forEach((select) => {
+      if (select) paintSexSelect(select, { forceOptions: true });
+    });
   }
 
   function enhanceSexUi() {
@@ -716,7 +745,7 @@
         const age = document.getElementById("iceAge");
         const arrival = document.getElementById("iceArrival");
         if (id === "iceYob" && age && yob) age.value = ageFromYob(yob.value);
-        if (id === "iceSex") paintSexSelect(el);
+        if (id === "iceSex") styleSexSelect(el);
         document.getElementById("iceArrivalOtherWrap")?.classList.toggle("hidden", (arrival?.value || "") !== "other");
         syncDraftIntoPatientState();
         scheduleSave(id === "iceYob" || id === "fMainComplaint" ? SAVE_DELAY_MS : 100);
@@ -775,7 +804,7 @@
       }, 100);
     }, true);
     document.addEventListener("change", (event) => {
-      if (event.target?.id === "newSex") paintSexSelect(event.target);
+      if (event.target?.id === "newSex") styleSexSelect(event.target);
       if (event.target?.id === "fDisposition") ensureDischargeConditionUi();
     }, true);
     setInterval(() => {

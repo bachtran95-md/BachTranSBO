@@ -564,115 +564,6 @@ async function savePatient(
   };
 }
 
-async function updateCaseMetadata(
-  db: any,
-  ownerId: string,
-  caseId: string,
-  metadataInput: any,
-) {
-  if (!caseId || !/^[0-9a-f-]{36}$/i.test(caseId)) {
-    throw new Error("Case metadata payload is incomplete.");
-  }
-
-  const input = metadataInput && typeof metadataInput === "object"
-    ? metadataInput
-    : {};
-  const sex = String(input.sex || "").trim().toUpperCase();
-  if (sex && !["F", "M", "O"].includes(sex)) {
-    throw new Error("Invalid sex value.");
-  }
-
-  const yearOfBirth = input.yearOfBirth === null || input.yearOfBirth === ""
-    ? null
-    : Number(input.yearOfBirth);
-  const currentYear = new Date().getUTCFullYear();
-  if (
-    yearOfBirth !== null &&
-    (!Number.isInteger(yearOfBirth) || yearOfBirth < 1900 || yearOfBirth > currentYear)
-  ) {
-    throw new Error("Invalid year of birth.");
-  }
-
-  const arrivalMode = String(input.arrivalMode || "").trim();
-  if (
-    arrivalMode &&
-    !["omsz", "esetkocsi", "walk_in", "gp_referral", "other"].includes(arrivalMode)
-  ) {
-    throw new Error("Invalid arrival mode.");
-  }
-
-  const disposition = String(input.disposition || "").trim();
-  if (
-    disposition &&
-    !["discharged", "admitted", "other"].includes(disposition)
-  ) {
-    throw new Error("Invalid disposition.");
-  }
-
-  const { patient, report } = await deidentifyPatient({
-    mainComplaint: String(input.mainComplaint || ""),
-    arrivalOther: arrivalMode === "other" ? String(input.arrivalOther || "") : "",
-    dischargeCondition: disposition === "discharged"
-      ? String(input.dischargeCondition || "")
-      : "",
-    otherDetails: Object.prototype.hasOwnProperty.call(input, "otherDetails")
-      ? String(input.otherDetails || "")
-      : "",
-  });
-
-  const update: Record<string, unknown> = {
-    sex: sex || null,
-    year_of_birth: yearOfBirth,
-    main_complaint: patient.mainComplaint || "",
-    arrival_mode: arrivalMode,
-    arrival_other: arrivalMode === "other" ? patient.arrivalOther || "" : "",
-    disposition,
-    discharge_condition: disposition === "discharged"
-      ? patient.dischargeCondition || ""
-      : "",
-    ...(disposition !== "discharged"
-      ? { recommendations: [] }
-      : {}),
-    ...(disposition !== "admitted"
-      ? {
-          hospital: "",
-          ward: "",
-          accepting_physician: "",
-          admission_note: "",
-        }
-      : {}),
-    ...(disposition !== "other"
-      ? {
-          other_outcome: "",
-          other_details: "",
-        }
-      : {}),
-    updated_at: new Date().toISOString(),
-    deidentified_at: new Date().toISOString(),
-    deidentification_version: "v1",
-  };
-  if (Object.prototype.hasOwnProperty.call(input, "otherDetails")) {
-    update.other_details = patient.otherDetails || "";
-  }
-
-  const { data, error } = await db
-    .from("cases")
-    .update(update)
-    .eq("id", caseId)
-    .eq("owner_id", ownerId)
-    .select("id, sex, year_of_birth, main_complaint, arrival_mode, arrival_other, disposition, discharge_condition, other_details")
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) throw new Error("Case does not belong to authenticated user.");
-
-  return {
-    caseId,
-    metadata: data,
-    report,
-    removed: reportTotal(report),
-  };
-}
 
 async function finalizePatient(
   db: any,
@@ -990,17 +881,6 @@ Deno.serve(async (req) => {
     if (body?.action === "save_patient") {
       return json(
         await savePatient(db, user.id, String(body.shiftId || ""), body.patient),
-      );
-    }
-
-    if (body?.action === "update_case_metadata") {
-      return json(
-        await updateCaseMetadata(
-          db,
-          user.id,
-          String(body.caseId || ""),
-          body.metadata,
-        ),
       );
     }
 

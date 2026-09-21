@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center — Cockpit Beta</title>
-  <link rel="stylesheet" href="styles.css?v=justify-summary-20260921-1" />
+  <link rel="stylesheet" href="styles.css?v=unified-ai-buttons-20260921-1" />
 </head>
 <body>
   <header class="topbar">
@@ -112,10 +112,22 @@
             <div class="card-h" id="recordHeader">
               <div class="record-patient-heading">
                 <h3 id="recordTitle">Eset részletei</h3>
-                <button class="btn small cockpit-data-entry-btn" id="cockpitDataEntryBtn" type="button" disabled>
-                  ✨ AI DATA ENTRY
-                </button>
                 <div class="subtle" id="recordSubtitle" data-i18n="selectCasePrompt">Válasszon egy esetet a listából.</div>
+              </div>
+              <div class="record-header-ai">
+                <button class="btn cockpit-ai-action cockpit-ai-action-data" id="cockpitDataEntryBtn" type="button" disabled>
+                  <svg class="cockpit-ai-logo" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+  </g>
+</svg>
+                  <span id="cockpitDataEntryLabel">AI ADATBEVITEL</span>
+                </button>
               </div>
               <div class="record-actions">
                 <span id="patientStatusBadge"></span>
@@ -354,7 +366,19 @@
                     Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.
                   </div>
                   <div class="summary-actions">
-                    <button class="btn primary" id="generateSummaryBtn" type="button" data-i18n="generateSummary">✨ GENERATE SUMMARY</button>
+                    <button class="btn cockpit-ai-action cockpit-ai-action-summary" id="generateSummaryBtn" type="button">
+                      <svg class="cockpit-ai-logo" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+  </g>
+</svg>
+                      <span id="generateSummaryLabel" data-i18n="generateSummary">ÖSSZEFOGLALÓ GENERÁLÁSA</span>
+                    </button>
                   </div>
                   <div class="summary-gate blocked" id="summaryGate">
                     Summary locked until every orange test is resolved or marked Not ordered.
@@ -548,8 +572,8 @@
   <script src="case-ui.js?beta=patient-header-20260921-2"></script>
   <script src="backend.js?v=diagnoses-none-20260921-1"></script>
   <script src="assistant-core.js?beta=20260920-12"></script>
-  <script src="app.js?v=fixed-summary-footer-20260921-1"></script>
+  <script src="app.js?v=unified-ai-buttons-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=ai-data-entry-modal-20260921-2"></script>
+  <script src="cockpit-beta.js?beta=unified-ai-buttons-20260921-1"></script>
 </body>
 </html>

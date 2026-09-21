@@ -702,44 +702,28 @@
     if (!text.trim()) throw new Error("Raw data is empty.");
     if (text.length > 100000) throw new Error("Raw data is too long.");
 
-    const user = await getUser();
-    const now = new Date().toISOString();
-    const { data, error } = await requireClient()
-      .from("case_raw_data")
-      .upsert(
-        {
-          case_id: caseId,
-          owner_id: user.id,
-          content: text,
-          source: "heidi",
-          updated_at: now
-        },
-        { onConflict: "case_id" }
-      )
-      .select("case_id, content, source, created_at, updated_at")
-      .single();
-
-    assertOk(error, "Save raw data");
-
-    return {
-      caseId: data.case_id,
-      content: data.content || "",
-      source: data.source || "heidi",
-      createdAt: data.created_at,
-      updatedAt: data.updated_at
-    };
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "save_raw_data",
+        caseId,
+        content: text
+      },
+      "Raw data privacy service"
+    );
   }
 
   async function deleteCaseRawData(caseId) {
     if (!caseId) throw new Error("Missing case ID.");
 
-    const { error } = await requireClient()
-      .from("case_raw_data")
-      .delete()
-      .eq("case_id", caseId);
-
-    assertOk(error, "Delete raw data");
-    return { deleted: true, caseId };
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "delete_raw_data",
+        caseId
+      },
+      "Raw data privacy service"
+    );
   }
 
   function subscribeCaseRawData(caseId, onChange) {

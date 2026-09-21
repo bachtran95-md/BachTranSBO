@@ -1875,27 +1875,6 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.com
 
 
 /* AI-assisted data entry: patient-header entry point + review dialog. */
-body.cockpit-ui #recordHeader .cockpit-data-entry-btn{
-  flex:0 0 auto;
-  padding:4px 8px;
-  border:1px solid #b2ccff;
-  border-radius:999px;
-  background:#eff8ff;
-  color:#175cd3;
-  font-size:9px;
-  font-weight:850;
-  letter-spacing:.02em;
-  white-space:nowrap;
-}
-body.cockpit-ui #recordHeader .cockpit-data-entry-btn:hover:not(:disabled){
-  background:#dbeafe;
-  border-color:#84adff;
-}
-body.cockpit-ui #recordHeader .cockpit-data-entry-btn:disabled{
-  opacity:.42;
-  cursor:not-allowed;
-}
-
 .cockpit-data-entry-overlay,
 .cockpit-extract-confirm-overlay{
   position:fixed;
@@ -2025,6 +2004,132 @@ body.cockpit-data-entry-open{
     max-height:none;
     height:100%;
     border-radius:10px;
+  }
+}
+
+
+/* Unified AI actions — indigo/violet gradient + small vector knot icon. */
+body.cockpit-ui .cockpit-ai-action{
+  width:auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:10px;
+  background:linear-gradient(135deg,#4338ca 0%,#4f46e5 42%,#7c3aed 100%);
+  color:#fff;
+  font-weight:850;
+  letter-spacing:.015em;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:
+    0 5px 13px rgba(79,70,229,.22),
+    inset 0 1px 0 rgba(255,255,255,.16);
+  transition:
+    transform .14s ease,
+    box-shadow .14s ease,
+    filter .14s ease;
+}
+body.cockpit-ui .cockpit-ai-action:hover:not(:disabled){
+  transform:translateY(-1px);
+  filter:saturate(1.08) brightness(1.03);
+  box-shadow:
+    0 7px 17px rgba(79,70,229,.28),
+    inset 0 1px 0 rgba(255,255,255,.18);
+}
+body.cockpit-ui .cockpit-ai-action:active:not(:disabled){
+  transform:translateY(0);
+}
+body.cockpit-ui .cockpit-ai-action:disabled{
+  opacity:.44;
+  filter:saturate(.55);
+  transform:none;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+body.cockpit-ui .cockpit-ai-logo{
+  flex:0 0 auto;
+  width:18px;
+  height:18px;
+  color:#fff;
+  overflow:visible;
+}
+
+/* Header: patient identity -> AI Data Entry -> current status. */
+body.cockpit-ui #recordHeader{
+  gap:10px;
+}
+body.cockpit-ui #recordHeader .record-patient-heading{
+  flex:1 1 auto;
+  min-width:0;
+  flex-wrap:nowrap;
+}
+body.cockpit-ui #recordHeader #recordSubtitle{
+  flex:1 1 auto;
+  min-width:120px;
+  white-space:nowrap;
+}
+body.cockpit-ui #recordHeader .record-header-ai{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+body.cockpit-ui #recordHeader .record-actions{
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+}
+
+/* Smallest AI action: header data entry. */
+body.cockpit-ui .cockpit-ai-action-data{
+  min-height:40px;
+  padding:0 13px;
+  border-radius:10px;
+  font-size:10.5px;
+}
+body.cockpit-ui .cockpit-ai-action-data .cockpit-ai-logo{
+  width:17px;
+  height:17px;
+}
+
+/* Medium AI action: current-case analysis in the assistant rail. */
+body.cockpit-ui .cockpit-ai-action-analysis{
+  width:100%;
+  min-height:44px;
+  padding:0 13px!important;
+  border-radius:10px;
+  font-size:11.5px!important;
+}
+body.cockpit-ui .cockpit-ai-action-analysis .cockpit-ai-logo{
+  width:18px;
+  height:18px;
+}
+
+/* Largest AI action: summary generation. */
+body.cockpit-ui .cockpit-ai-action-summary{
+  min-height:48px;
+  padding:0 18px;
+  border-radius:11px;
+  font-size:12.5px;
+}
+body.cockpit-ui .cockpit-ai-action-summary .cockpit-ai-logo{
+  width:20px;
+  height:20px;
+}
+body.cockpit-ui .summary-actions{
+  align-items:center;
+}
+
+@media (max-width:1050px){
+  body.cockpit-ui #recordHeader{
+    flex-wrap:wrap;
+  }
+  body.cockpit-ui #recordHeader .record-patient-heading{
+    flex:1 1 100%;
+  }
+  body.cockpit-ui #recordHeader .record-header-ai{
+    margin-left:auto;
   }
 }
 

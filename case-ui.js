@@ -518,6 +518,41 @@
     return { payload, partialYob, normalizedYob };
   }
 
+  function rowUpdate(payload) {
+    const row = selectedRow();
+    if (!row) return;
+
+    const cells = row.querySelectorAll("td");
+    const hasYob = Object.prototype.hasOwnProperty.call(payload, "year_of_birth");
+    const displayAge = hasYob
+      ? ageFromYob(payload.year_of_birth)
+      : (document.getElementById("iceAge")?.value || "");
+    const sex = normalizeSex(payload.sex);
+
+    if (cells[1]) cells[1].innerHTML = sexBadge(sex) || "";
+    if (cells[2] && hasYob) cells[2].textContent = displayAge || "";
+    if (cells[3]) {
+      cells[3].textContent =
+        document.getElementById("fMainComplaint")?.value ||
+        cells[3].textContent ||
+        "";
+    }
+
+    const subtitle = document.getElementById("recordSubtitle");
+    if (subtitle) {
+      subtitle.textContent =
+        `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
+    }
+
+    const header = document.getElementById("recordHeader");
+    if (header) {
+      header.classList.remove("sex-female", "sex-male", "sex-other");
+      if (sex === "F") header.classList.add("sex-female");
+      else if (sex === "M") header.classList.add("sex-male");
+      else if (sex === "O") header.classList.add("sex-other");
+    }
+  }
+
   function syncDraftIntoPatientState() {
     const id = selectedId();
     if (!id) return;

@@ -495,7 +495,7 @@
     if (tds[2] && hasYob) tds[2].textContent = displayAge || "";
     if (tds[3]) tds[3].textContent = document.getElementById("fMainComplaint")?.value || tds[3].textContent || "";
     const subtitle = document.getElementById("recordSubtitle");
-    if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} y • ${document.getElementById("fMainComplaint")?.value || ""}`;
+    if (subtitle) subtitle.textContent = `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
   }
 
   function mirrorPatientIntoInline(patient) {

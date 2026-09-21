@@ -262,6 +262,7 @@ export function clinicalTextItems(patient: any): Array<{ key: string; text: stri
   add("therapy", patient.therapy);
   add("course", patient.course);
   add("diagnoses", patient.diagnoses);
+  add("dischargeCondition", patient.dischargeCondition);
   add("hospital", patient.hospital);
   add("ward", patient.ward);
   add("physician", patient.physician);

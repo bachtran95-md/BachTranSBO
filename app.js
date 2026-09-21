@@ -1132,24 +1132,6 @@ function getCaseMetadata(caseId = selectedPatientId) {
   return caseMetadataFromPatient(patientById(caseId));
 }
 
-async function saveCaseMetadata(caseId, metadata = {}) {
-  const patient = patientById(caseId);
-  if (!patient) throw new Error("Selected case was not found.");
-
-  const result = await window.BachSBOBackend.updateCaseMetadata(caseId, metadata);
-  const authoritative = result?.metadata || {};
-  applyCaseMetadata(caseId, authoritative);
-
-  if (selectedPatientId === caseId) {
-    const age = ageFromYob(patient.yob);
-    const subtitle = document.getElementById("recordSubtitle");
-    if (subtitle) {
-      subtitle.textContent = `${patient.sex || "—"} • ${age || "—"} y • ${patient.mainComplaint || ""}`;
-    }
-  }
-
-  return result;
-}
 
 function applyCaseMetadata(caseId, metadata = {}) {
   const patient = patientById(caseId);
@@ -2808,7 +2790,6 @@ window.BachSBOClinicalUi = Object.freeze({
   commitCurrentDraft,
   addInvestigation,
   getCaseMetadata,
-  saveCaseMetadata,
   normalizeYob,
   ageFromYob,
   normalizeSex,

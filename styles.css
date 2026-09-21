@@ -386,6 +386,41 @@ body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
   white-space:normal;
 }
 
+/* Closed cases stay visible but visually recede in the active case list. */
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed{
+  background:#f8fafc;
+  color:#98a2b3;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed td{
+  color:#98a2b3;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-main-complaint,
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-next-action,
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-test-summary{
+  color:#98a2b3!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed .badge.done{
+  background:#f2f4f7;
+  color:#667085;
+  border:1px solid #e4e7ec;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed [data-sex-badge],
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-test-chip{
+  opacity:.58;
+  filter:saturate(.55);
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed:hover{
+  background:#f2f4f7;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected{
+  background:#eef2f6;
+  color:#667085;
+  box-shadow:inset 3px 0 0 #98a2b3;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected td{
+  color:#667085;
+}
+
 .cockpit-case-column{
   height:100%;
   min-height:0;

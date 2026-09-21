@@ -11,6 +11,7 @@ let rawTransferDirty = false;
 let rawTransferRefreshTimer = null;
 let normalRawSubscriptionStop = null;
 let normalRawCaseId = null;
+const APP_MODE_STORAGE_KEY = "bach_sbo_app_mode_v1";
 const patientSaveQueues = new Map();
 let caseCounterRefreshPromise = null;
 let caseCounterLastCheckedAt = 0;
@@ -3144,6 +3145,7 @@ async function signOut() {
   stopRawTransferRefreshTimer();
   disconnectNormalRawData();
   appMode = null;
+  sessionStorage.removeItem(APP_MODE_STORAGE_KEY);
   try {
     await window.BachSBOBackend.signOut();
     state = defaultState();
@@ -3221,6 +3223,7 @@ function showModeChooser() {
 async function enterAppMode(mode) {
   if (!["normal", "raw"].includes(mode)) throw new Error("Invalid app mode.");
 
+  sessionStorage.setItem(APP_MODE_STORAGE_KEY, mode);
   stopRawTransferRefreshTimer();
   disconnectNormalRawData();
   appMode = mode;
@@ -3331,7 +3334,13 @@ async function bootstrap() {
     currentUser = result.session.user;
     backendReady = true;
     closeModal();
-    showModeChooser();
+
+    const savedMode = sessionStorage.getItem(APP_MODE_STORAGE_KEY);
+    if (savedMode === "normal" || savedMode === "raw") {
+      await enterAppMode(savedMode);
+    } else {
+      showModeChooser();
+    }
   } catch (error) {
     console.error(error);
     modal(`

@@ -194,22 +194,22 @@
             <div class="card-b">
               <div id="noPatientSelected" class="subtle" data-i18n="noCaseSelected">No case selected.</div>
 
-              <form id="patientForm" class="hidden">
-                <div class="section raw-data-inbox-section">
-                  <div class="section-title" data-i18n="rawDataInbox">Raw data inbox</div>
-                  <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
-                  <div class="field">
-                    <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
-                      placeholder="Még nincs raw data ehhez az esethez."></textarea>
-                  </div>
-                  <div class="toolbar raw-data-inbox-actions">
-                    <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
-                    <button class="btn primary small" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
-                    <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
-                  </div>
-                  <div class="subtle" id="normalRawDataMeta"></div>
+              <div id="normalRawDataInbox" class="raw-data-inbox-section hidden">
+                <div class="section-title" data-i18n="rawDataInbox">Raw data inbox</div>
+                <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
+                <div class="field">
+                  <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
+                    placeholder="Még nincs raw data ehhez az esethez."></textarea>
                 </div>
+                <div class="toolbar raw-data-inbox-actions">
+                  <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+                  <button class="btn primary small" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
+                  <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
+                </div>
+                <div class="subtle" id="normalRawDataMeta"></div>
+              </div>
 
+              <form id="patientForm" class="hidden">
                 <div class="section">
                   <div class="section-title" data-i18n="sectionClinical">1. Clinical</div>
                   <div class="field">

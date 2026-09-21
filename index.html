@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=raw-transfer-mode-20260921-1" />
+  <link rel="stylesheet" href="styles.css?v=raw-inbox-drawer-20260921-1" />
 </head>
 <body>
   <header class="topbar">
@@ -187,27 +187,16 @@
                 </button>
               </div>
               <div class="record-actions">
+                <button class="raw-data-badge hidden" id="normalRawBadge" type="button" aria-haspopup="dialog" aria-controls="normalRawDrawer">
+                  <span aria-hidden="true">📥</span>
+                  <span id="normalRawBadgeLabel">RAW DATA</span>
+                </button>
                 <span id="patientStatusBadge"></span>
                 <button class="btn small hidden" id="reopenCaseBtn" type="button" data-i18n="reopenCase">REOPEN CASE</button>
               </div>
             </div>
             <div class="card-b">
               <div id="noPatientSelected" class="subtle" data-i18n="noCaseSelected">No case selected.</div>
-
-              <div id="normalRawDataInbox" class="raw-data-inbox-section hidden">
-                <div class="section-title" data-i18n="rawDataInbox">Raw data inbox</div>
-                <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
-                <div class="field">
-                  <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
-                    placeholder="Még nincs raw data ehhez az esethez."></textarea>
-                </div>
-                <div class="toolbar raw-data-inbox-actions">
-                  <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
-                  <button class="btn primary small" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
-                  <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
-                </div>
-                <div class="subtle" id="normalRawDataMeta"></div>
-              </div>
 
               <form id="patientForm" class="hidden">
                 <div class="section">
@@ -617,6 +606,28 @@
       </section>
   </main>
 
+  <div class="raw-data-drawer-backdrop" id="normalRawDrawerBackdrop" aria-hidden="true"></div>
+  <aside class="raw-data-drawer" id="normalRawDrawer" role="dialog" aria-modal="true" aria-labelledby="normalRawDrawerTitle" aria-hidden="true">
+    <div class="raw-data-drawer-head">
+      <div>
+        <div class="raw-data-drawer-kicker">HEIDI → BACHTRANSBO</div>
+        <strong id="normalRawDrawerTitle" data-i18n="rawDataInbox">Raw data inbox</strong>
+        <div class="subtle" id="normalRawDataMeta"></div>
+      </div>
+      <button class="btn small raw-data-drawer-close" id="normalRawDrawerClose" type="button" aria-label="Bezárás">×</button>
+    </div>
+    <div class="raw-data-drawer-body">
+      <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
+      <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
+        placeholder="Még nincs raw data ehhez az esethez."></textarea>
+    </div>
+    <div class="raw-data-drawer-actions">
+      <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+      <button class="btn primary" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
+      <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
+    </div>
+  </aside>
+
   <div class="cockpit-data-entry-overlay hidden" id="cockpitDataEntryOverlay" aria-hidden="true">
     <section class="cockpit-data-entry-dialog" role="dialog" aria-modal="true" aria-labelledby="cockpitPasteTitle">
       <div class="cockpit-data-entry-head">
@@ -656,7 +667,7 @@
   <script src="case-ui.js?beta=discharge-db-persistence-20260921-1"></script>
   <script src="backend.js?v=raw-transfer-mode-20260921-1"></script>
   <script src="assistant-core.js?beta=validation-core-recovery-20260921-1"></script>
-  <script src="app.js?v=raw-transfer-mode-20260921-1"></script>
+  <script src="app.js?v=raw-inbox-drawer-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit-beta.js?v=mobile-side-drawers-20260921-1"></script>
 </body>

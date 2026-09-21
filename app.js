@@ -714,8 +714,27 @@ function renderPatients() {
       <td data-status-cell="${patient.id}">${statusHtml}</td>
     `;
 
-    tr.onclick = () => {
-      selectedPatientId = patient.id;
+    tr.onclick = async () => {
+      const nextPatientId = patient.id;
+      if (nextPatientId === selectedPatientId) return;
+
+      const previousPatientId = selectedPatientId;
+      if (previousPatientId) {
+        const currentDraft = commitCurrentDraft();
+        if (currentDraft) {
+          try {
+            // Wait for the old patient's latest snapshot to reach the backend
+            // before changing selectedPatientId.
+            await persistNow({ reloadForm: false, silentAutosave: true });
+          } catch (error) {
+            // Keep the in-memory draft even if the network save fails.
+            // Switching patients must never discard the doctor's text.
+            handleBackendError(error);
+          }
+        }
+      }
+
+      selectedPatientId = nextPatientId;
       renderPatients();
       loadPatientForm();
     };
@@ -1402,9 +1421,56 @@ function addConsult() {
   updateStatusCell(patient);
 }
 
+function patientTestEntryByKey(patient, key) {
+  if (!patient?.tests || !key) return null;
+  if (key === "ekg") return patient.tests.ekg || null;
+  if (key === "gas") return patient.tests.gas || null;
+
+  let match = String(key).match(/^lab-(\d+)$/);
+  if (match) return patient.tests.labs?.[Number(match[1])] || null;
+
+  match = String(key).match(/^radiology-(\d+)$/);
+  if (match) return patient.tests.radiology?.[Number(match[1])] || null;
+
+  match = String(key).match(/^consultations-(\d+)$/);
+  if (match) return patient.tests.consultations?.[Number(match[1])] || null;
+
+  return null;
+}
+
+function collectTestDraftsFromDom(patient) {
+  if (!patient?.tests) return;
+
+  document.querySelectorAll("#patientForm [data-text]").forEach((control) => {
+    const key = control.dataset.text || "";
+    const entry = patientTestEntryByKey(patient, key);
+    if (entry) entry.text = control.value || "";
+  });
+
+  document.querySelectorAll('#patientForm [data-type^="consultations-"]').forEach((control) => {
+    const key = control.dataset.type || "";
+    const entry = patientTestEntryByKey(patient, key);
+    if (entry) entry.type = control.value || "";
+  });
+
+  document.querySelectorAll('#patientForm .test-card[data-card^="radiology-"]').forEach((card) => {
+    const entry = patientTestEntryByKey(patient, card.dataset.card || "");
+    if (!entry) return;
+    entry.bodyPart = card.querySelector("[data-body]")?.value || "";
+    entry.modality = card.querySelector("[data-modality]")?.value || "";
+    entry.otherTest = card.querySelector("[data-other]")?.value || "";
+    entry.type = radiologyType(entry);
+  });
+}
+
 function collectForm() {
   const patient = patientById(selectedPatientId);
   if (!patient) return null;
+
+  // DOM is the final authority for any in-progress test text. This prevents
+  // patient/tab switches from losing a result if an input handler has not
+  // propagated to the patient object yet.
+  collectTestDraftsFromDom(patient);
 
   const sexEl = document.getElementById("iceSex");
   const yobEl = document.getElementById("iceYob");

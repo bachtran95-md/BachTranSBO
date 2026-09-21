@@ -386,39 +386,45 @@ body.cockpit-ui #patientsView > .grid2 > *{min-width:0;min-height:0}
   white-space:normal;
 }
 
-/* Closed cases stay visible but visually recede in the active case list. */
+/* Closed cases stay visible but clearly recede in the active case list. */
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed{
-  background:#f8fafc;
-  color:#98a2b3;
+  background:#f2f4f7;
+  color:#a8b0bc;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed td{
-  color:#98a2b3;
+  color:#a8b0bc;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-main-complaint,
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-next-action,
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-test-summary{
-  color:#98a2b3!important;
+  color:#a8b0bc!important;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed .badge.done{
-  background:#f2f4f7;
-  color:#667085;
-  border:1px solid #e4e7ec;
+  background:#e4e7ec;
+  color:#98a2b3;
+  border:1px solid #d0d5dd;
+  box-shadow:none;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed [data-sex-badge],
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed .cockpit-test-chip{
-  opacity:.58;
-  filter:saturate(.55);
+  opacity:.46;
+  filter:saturate(.35);
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed:hover{
-  background:#f2f4f7;
+  background:#eceff3;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected{
-  background:#eef2f6;
-  color:#667085;
-  box-shadow:inset 3px 0 0 #98a2b3;
+  background:#e9edf2;
+  color:#7f8997;
+  box-shadow:inset 3px 0 0 #b8c0cc;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected td{
-  color:#667085;
+  color:#7f8997;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected .badge.done{
+  background:#dfe3e8;
+  color:#7f8997;
+  border-color:#c8ced6;
 }
 
 .cockpit-case-column{

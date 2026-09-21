@@ -385,6 +385,12 @@ const NARRATIVE_FIELDS = {
     valueProp: "course",
     skipProp: "courseSkipped",
     labelKey: "clinicalCourse"
+  },
+  diagnoses: {
+    inputId: "fDiagnoses",
+    valueProp: "diagnoses",
+    skipProp: "diagnosesSkipped",
+    labelKey: "diagnoses"
   }
 };
 
@@ -904,6 +910,7 @@ async function addPatient() {
     course: "",
     courseSkipped: false,
     diagnoses: "",
+    diagnosesSkipped: false,
     disposition: "",
     recommendations: ["", "", "", "", ""],
     hospital: "",
@@ -1523,6 +1530,7 @@ function collectForm() {
   if (patient.course.trim()) patient.courseSkipped = false;
 
   patient.diagnoses = document.getElementById("fDiagnoses").value;
+  if (patient.diagnoses.trim()) patient.diagnosesSkipped = false;
   patient.disposition = document.getElementById("fDisposition").value;
   patient.hospital = document.getElementById("fHospital").value;
   patient.ward = document.getElementById("fWard").value;

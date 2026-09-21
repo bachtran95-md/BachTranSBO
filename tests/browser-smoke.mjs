@@ -374,7 +374,7 @@ await context.route(/\/backend\.js(?:\?.*)?$/, async (route) => {
 });
 
 const page = await context.newPage();
-page.on("dialog", async (dialog) => dialog.accept());
+page.on("dialog", async (dialog) => { console.error("[browser dialog]", dialog.message()); await dialog.accept(); });
 
 await page.goto(baseUrl + "/", { waitUntil: "domcontentloaded" });
 await page.locator("#authPassword").waitFor();
@@ -407,7 +407,22 @@ await page.locator("#newSex").selectOption("F");
 await page.locator("#newYob").fill("1988");
 await page.locator("#newComplaint").fill("E2E synthetic complaint");
 await page.locator("#addPatientBtn").click();
-await page.waitForFunction(() => document.querySelectorAll("#patientTbody tr[data-id]").length === 2);
+await page.waitForTimeout(500);
+const addPatientDiag = await page.evaluate(() => {
+  const raw = localStorage.getItem("__bach_sbo_e2e_state");
+  const stored = raw ? JSON.parse(raw) : null;
+  return {
+    rowCount: document.querySelectorAll("#patientTbody tr[data-id]").length,
+    storedPatients: stored?.patients?.length ?? null,
+    tableText: document.querySelector("#patientTbody")?.textContent || "",
+    sex: document.querySelector("#newSex")?.value || "",
+    yob: document.querySelector("#newYob")?.value || "",
+    complaint: document.querySelector("#newComplaint")?.value || ""
+  };
+});
+if (addPatientDiag.rowCount !== 2) {
+  throw new Error("Add patient diagnostic: " + JSON.stringify(addPatientDiag));
+}
 
 const syntheticRow = page.locator("#patientTbody tr[data-id]", { hasText: "E2E synthetic complaint" });
 await syntheticRow.click();

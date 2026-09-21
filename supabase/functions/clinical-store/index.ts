@@ -559,9 +559,20 @@ async function updateCaseMetadata(
     throw new Error("Invalid arrival mode.");
   }
 
+  const disposition = String(input.disposition || "").trim();
+  if (
+    disposition &&
+    !["discharged", "admitted", "other"].includes(disposition)
+  ) {
+    throw new Error("Invalid disposition.");
+  }
+
   const { patient, report } = await deidentifyPatient({
     mainComplaint: String(input.mainComplaint || ""),
     arrivalOther: arrivalMode === "other" ? String(input.arrivalOther || "") : "",
+    dischargeCondition: disposition === "discharged"
+      ? String(input.dischargeCondition || "")
+      : "",
     otherDetails: Object.prototype.hasOwnProperty.call(input, "otherDetails")
       ? String(input.otherDetails || "")
       : "",
@@ -573,6 +584,10 @@ async function updateCaseMetadata(
     main_complaint: patient.mainComplaint || "",
     arrival_mode: arrivalMode,
     arrival_other: arrivalMode === "other" ? patient.arrivalOther || "" : "",
+    disposition,
+    discharge_condition: disposition === "discharged"
+      ? patient.dischargeCondition || ""
+      : "",
     updated_at: new Date().toISOString(),
     deidentified_at: new Date().toISOString(),
     deidentification_version: "v1",
@@ -586,7 +601,7 @@ async function updateCaseMetadata(
     .update(update)
     .eq("id", caseId)
     .eq("owner_id", ownerId)
-    .select("id, sex, year_of_birth, main_complaint, arrival_mode, arrival_other, other_details")
+    .select("id, sex, year_of_birth, main_complaint, arrival_mode, arrival_other, disposition, discharge_condition, other_details")
     .maybeSingle();
 
   if (error) throw error;

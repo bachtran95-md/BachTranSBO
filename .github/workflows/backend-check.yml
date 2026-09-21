@@ -113,6 +113,22 @@ jobs:
             echo "app.js must expose canonical patient snapshots for cockpit reads."
             exit 1
           fi
+          if ! grep -q 'getPatientProgress' app.js; then
+            echo "app.js must expose canonical patient progress for cockpit reads."
+            exit 1
+          fi
+          if grep -E -q 'BachSBOBackend\?*\.?loadState|BachSBOBackend\.loadState' cockpit-beta.js; then
+            echo "cockpit-beta.js must read live patients from BachSBOClinicalUi, not reload backend state."
+            exit 1
+          fi
+          if grep -E -q 'function (patientTestItems|patientProgress|progressFromVisibleForm|testEntryStatus)\(' cockpit-beta.js; then
+            echo "cockpit-beta.js must not duplicate canonical investigation/progress logic."
+            exit 1
+          fi
+          if grep -q 'Object.assign(current, result.patient)' app.js; then
+            echo "Autosave must preserve canonical patient/test object identity."
+            exit 1
+          fi
           if grep -q 'querySelectorAll('"'"'\[data-cockpit-panel="tests"\] \.test-card'"'"')' cockpit-beta.js; then
             echo "Cockpit must not derive investigation completion from rendered test-card classes."
             exit 1

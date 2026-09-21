@@ -5,6 +5,7 @@ let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
 const patientSaveQueues = new Map();
+const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
 const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
 Hirtelen vagy súlyos állapotromlás esetén haladéktalanul jelentkezzen a területileg illetékes Sürgősségi Betegellátó Osztályon / SBO-n!
@@ -493,8 +494,8 @@ function patientTestEntries(patient) {
   if (!patient?.tests) return [];
   return [
     ...(patient.tests.labs || []),
-    patient.tests.ekg,
-    patient.tests.gas,
+    ...(patient.tests.ekgs || []),
+    ...(patient.tests.gases || []),
     ...(patient.tests.radiology || []),
     ...(patient.tests.consultations || [])
   ].filter(Boolean);
@@ -551,11 +552,16 @@ function waitingLabels(patient) {
     if (entryStatus(entry) === "waiting") out.push(`Lab ${i + 1}`);
   });
 
-  if (entryStatus(patient.tests.ekg) === "waiting") out.push("EKG");
+  (patient.tests.ekgs || []).forEach((entry, i) => {
+    if (entryStatus(entry) === "waiting") out.push(`EKG ${i + 1}`);
+  });
 
-  if (entryStatus(patient.tests.gas) === "waiting") {
-    out.push(/\bVVG\b/i.test(patient.tests.gas.text || "") ? "VVG" : "AVG");
-  }
+  (patient.tests.gases || []).forEach((entry, i) => {
+    if (entryStatus(entry) === "waiting") {
+      const base = /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG";
+      out.push(`${base} ${i + 1}`);
+    }
+  });
 
   patient.tests.radiology.forEach((entry, i) => {
     if (entryStatus(entry) === "waiting") {
@@ -907,8 +913,8 @@ async function addPatient() {
     physicalSkipped: false,
     tests: {
       labs: [newEntry()],
-      ekg: newEntry(),
-      gas: newEntry(),
+      ekgs: [newEntry()],
+      gases: [newEntry()],
       radiology: [radiologyEntry()],
       consultations: [newEntry("")]
     },
@@ -1069,13 +1075,14 @@ async function reopenCase() {
 }
 
 function renderAllTests(patient) {
-  renderGroupCards("labCards", patient.tests.labs, "Lab", "lab");
-  renderSingleCard("ekgCard", patient.tests.ekg, "EKG", "ekg");
-  renderSingleCard(
+  renderGroupCards("labCards", patient.tests.labs, () => "Lab", "lab");
+  renderGroupCards("ekgCard", patient.tests.ekgs || [], () => "EKG", "ekg");
+  renderGroupCards(
     "gasCard",
-    patient.tests.gas,
-    /\bVVG\b/i.test(patient.tests.gas.text || "") ? "VVG" : "AVG",
-    "gas"
+    patient.tests.gases || [],
+    (entry) => /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG",
+    "gas",
+    { gas: true }
   );
   renderRadiologyCards(patient);
   renderDynamicCards(
@@ -1121,28 +1128,36 @@ function statusBadge(status) {
     : waiting}</span>`;
 }
 
-function renderGroupCards(hostId, entries, label, prefix) {
+function simpleTestGroup(patient, prefix) {
+  if (prefix === "lab") return patient?.tests?.labs || [];
+  if (prefix === "ekg") return patient?.tests?.ekgs || [];
+  if (prefix === "gas") return patient?.tests?.gases || [];
+  return [];
+}
+
+function renderGroupCards(hostId, entries, labelForEntry, prefix, options = {}) {
   const host = document.getElementById(hostId);
   host.innerHTML = "";
 
   entries.forEach((entry, i) => {
-    host.appendChild(makeSimpleCard(`${label} ${i + 1}`, entry, `${prefix}-${i}`));
+    const baseLabel = typeof labelForEntry === "function"
+      ? labelForEntry(entry, i)
+      : String(labelForEntry || "");
+    const displayLabel = entries.length > 1 ? `${baseLabel} ${i + 1}` : baseLabel;
+    host.appendChild(makeSimpleCard(displayLabel, entry, `${prefix}-${i}`, Boolean(options.gas)));
   });
 
-  document.getElementById("addLabBtn").disabled = entries.length >= 3;
-}
-
-function renderSingleCard(hostId, entry, label, key) {
-  const host = document.getElementById(hostId);
-  host.innerHTML = "";
-  host.appendChild(makeSimpleCard(label, entry, key, key === "gas"));
+  if (prefix === "lab") {
+    document.getElementById("addLabBtn").disabled = entries.length >= MAX_TEST_ENTRIES_PER_TYPE;
+  }
 }
 
 function makeSimpleCard(label, entry, key, isGas = false) {
   const status = entryStatus(entry);
   const card = document.createElement("div");
-  const canDelete = key.startsWith("lab-") &&
-    (patientById(selectedPatientId)?.tests?.labs?.length || 0) > 1;
+  const prefix = String(key).split("-")[0];
+  const group = simpleTestGroup(patientById(selectedPatientId), prefix);
+  const canDelete = group.length > 1;
 
   card.className =
     `test-card ${status === "result" ? "result" : status === "notordered" ? "notordered" : ""}`;
@@ -1180,7 +1195,8 @@ function makeSimpleCard(label, entry, key, isGas = false) {
       if (!patient) return;
       const [prefix, rawIndex] = key.split("-");
       const index = Number(rawIndex);
-      if (prefix === "lab" && patient.tests.labs.length > 1) patient.tests.labs.splice(index, 1);
+      const group = simpleTestGroup(patient, prefix);
+      if (group.length > 1) group.splice(index, 1);
       persist();
       renderAllTests(patient);
       updateStatusCell(patient);
@@ -1395,7 +1411,7 @@ function wireCard(card, entry, key) {
     persist();
     refreshVisual();
 
-    if (key === "gas") {
+    if (key.startsWith("gas-")) {
       const label = /\bVVG\b/i.test(entry.text || "") ? "VVG" : "AVG";
       card.querySelector(".test-name").textContent = label;
       card.querySelector(".gas-type").textContent = label;
@@ -1428,7 +1444,7 @@ function wireCard(card, entry, key) {
 
 function addLab() {
   const patient = patientById(selectedPatientId);
-  if (!patient || patient.tests.labs.length >= 3) return;
+  if (!patient || patient.tests.labs.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
 
   patient.tests.labs.push(newEntry());
   persist();
@@ -1438,7 +1454,7 @@ function addLab() {
 
 function addRadiology() {
   const patient = patientById(selectedPatientId);
-  if (!patient) return;
+  if (!patient || patient.tests.radiology.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
 
   patient.tests.radiology.push(radiologyEntry());
   persist();
@@ -1448,7 +1464,7 @@ function addRadiology() {
 
 function addConsult() {
   const patient = patientById(selectedPatientId);
-  if (!patient) return;
+  if (!patient || patient.tests.consultations.length >= MAX_TEST_ENTRIES_PER_TYPE) return;
 
   patient.tests.consultations.push(newEntry(""));
   persist();
@@ -1461,11 +1477,21 @@ function addInvestigation(kind, options = {}) {
   if (!patient || isCompleted(patient)) return false;
 
   if (kind === "lab") {
-    if (patient.tests.labs.length >= 3) return false;
+    if (patient.tests.labs.length >= MAX_TEST_ENTRIES_PER_TYPE) return false;
     patient.tests.labs.push(newEntry());
+  } else if (kind === "ekg") {
+    patient.tests.ekgs ||= [];
+    if (patient.tests.ekgs.length >= MAX_TEST_ENTRIES_PER_TYPE) return false;
+    patient.tests.ekgs.push(newEntry());
+  } else if (kind === "gas") {
+    patient.tests.gases ||= [];
+    if (patient.tests.gases.length >= MAX_TEST_ENTRIES_PER_TYPE) return false;
+    patient.tests.gases.push(newEntry());
   } else if (kind === "imaging") {
+    if (patient.tests.radiology.length >= MAX_TEST_ENTRIES_PER_TYPE) return false;
     patient.tests.radiology.push(radiologyEntry());
   } else if (kind === "consultation" || kind === "other") {
+    if (patient.tests.consultations.length >= MAX_TEST_ENTRIES_PER_TYPE) return false;
     const entry = newEntry("");
     if (kind === "other") entry.type = String(options.name || "").trim() || (uiLang === "hu" ? "Egyéb" : "Other");
     patient.tests.consultations.push(entry);
@@ -1482,11 +1508,14 @@ function addInvestigation(kind, options = {}) {
 
 function patientTestEntryByKey(patient, key) {
   if (!patient?.tests || !key) return null;
-  if (key === "ekg") return patient.tests.ekg || null;
-  if (key === "gas") return patient.tests.gas || null;
-
   let match = String(key).match(/^lab-(\d+)$/);
   if (match) return patient.tests.labs?.[Number(match[1])] || null;
+
+  match = String(key).match(/^ekg-(\d+)$/);
+  if (match) return patient.tests.ekgs?.[Number(match[1])] || null;
+
+  match = String(key).match(/^gas-(\d+)$/);
+  if (match) return patient.tests.gases?.[Number(match[1])] || null;
 
   match = String(key).match(/^radiology-(\d+)$/);
   if (match) return patient.tests.radiology?.[Number(match[1])] || null;

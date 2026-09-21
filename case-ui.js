@@ -329,9 +329,6 @@
     const discharge = getDischargeCondition();
     patient.disposition = disposition;
     patient.dischargeCondition = discharge;
-    if (disposition === "discharged") {
-      patient.otherDetails = discharge ? `${DISCHARGE_PREFIX}${discharge}` : "";
-    }
   }
 
   function commitDischargeDraft() {
@@ -507,7 +504,9 @@
     if ((document.getElementById("fDisposition")?.value || "") === "discharged") {
       const discharge = document.getElementById("fDischargeCondition");
       if (discharge && !discharge.value) {
-        discharge.value = dischargeConditionTextFromStored(data.other_details);
+        discharge.value =
+          String(data.discharge_condition || "").trim() ||
+          dischargeConditionTextFromStored(data.other_details);
       }
     }
 
@@ -535,11 +534,10 @@
       main_complaint: document.getElementById("fMainComplaint")?.value || "",
       arrival_mode: arrival,
       arrival_other: arrival === "other" ? document.getElementById("iceArrivalOther")?.value || "" : "",
+      disposition,
+      discharge_condition: disposition === "discharged" ? discharge : "",
       updated_at: new Date().toISOString()
     };
-    if (disposition === "discharged") {
-      payload.other_details = discharge ? `${DISCHARGE_PREFIX}${discharge}` : "";
-    }
     if (!yobText || validYob) payload.year_of_birth = validYob ? Number(normalizedYob) : null;
     return { payload, partialYob, normalizedYob };
   }
@@ -710,11 +708,10 @@
           : null,
         mainComplaint: payload.main_complaint || "",
         arrivalMode: payload.arrival_mode || "",
-        arrivalOther: payload.arrival_other || ""
+        arrivalOther: payload.arrival_other || "",
+        disposition: payload.disposition || "",
+        dischargeCondition: payload.discharge_condition || ""
       };
-      if (Object.prototype.hasOwnProperty.call(payload, "other_details")) {
-        metadata.otherDetails = payload.other_details || "";
-      }
       const result = await clinicalUi.saveCaseMetadata(id, metadata);
       const saved = result?.metadata || {};
       if (Object.prototype.hasOwnProperty.call(saved, "main_complaint")) {
@@ -822,7 +819,10 @@
       disposition.dataset.dischargeWired = "true";
       disposition.addEventListener("change", () => {
         ensureDischargeConditionUi();
+        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
         commitDischargeDraft();
+        syncDraftIntoPatientState();
+        scheduleSave(100);
         scheduleDischargeAutosave(100);
       });
     }
@@ -831,10 +831,16 @@
       discharge.dataset.dischargeWired = "true";
       discharge.addEventListener("input", () => {
         ensureDischargeConditionUi();
+        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
         commitDischargeDraft();
+        syncDraftIntoPatientState();
+        scheduleSave(SAVE_DELAY_MS);
         scheduleDischargeAutosave(SAVE_DELAY_MS);
       });
-      discharge.addEventListener("blur", () => scheduleDischargeAutosave(50));
+      discharge.addEventListener("blur", () => {
+        scheduleSave(50);
+        scheduleDischargeAutosave(50);
+      });
     }
   }
 

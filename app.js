@@ -169,6 +169,13 @@ function persist() {
   stateDirty = true;
 }
 
+function touchPatient(patient) {
+  if (!patient) return null;
+  patient.updatedAt = nowIso();
+  persist();
+  return patient;
+}
+
 async function persistNow({
   reloadForm = true,
   silentAutosave = false,
@@ -595,11 +602,18 @@ function patientTestEntries(patient) {
 }
 
 function commitFilledTestResults(patient) {
+  let changed = false;
   patientTestEntries(patient).forEach((entry) => {
-    if (entry.mode !== "notordered" && (entry.text || "").trim()) {
+    if (
+      entry.mode !== "notordered" &&
+      (entry.text || "").trim() &&
+      entry.savedText !== entry.text
+    ) {
       entry.savedText = entry.text;
+      changed = true;
     }
   });
+  if (changed) touchPatient(patient);
 }
 
 function cockpitInvestigationItems(patient) {
@@ -1376,7 +1390,7 @@ function makeSimpleCard(label, entry, key, isGas = false) {
       const index = Number(rawIndex);
       const group = simpleTestGroup(patient, prefix);
       if (group.length > 1) group.splice(index, 1);
-      persist();
+      touchPatient(patient);
       renderAllTests(patient);
       updateStatusCell(patient);
     };
@@ -1429,17 +1443,19 @@ function renderDynamicCards(hostId, entries, label, prefix, placeholder) {
     const typeInput = card.querySelector(`[data-type="${key}"]`);
     typeInput.oninput = () => {
       entry.type = typeInput.value;
-      persist();
-      updateStatusCell(patientById(selectedPatientId));
+      const patient = patientById(selectedPatientId);
+      touchPatient(patient);
+      updateStatusCell(patient);
     };
 
     const deleteButton = card.querySelector("[data-delete-test]");
     if (deleteButton) {
       deleteButton.onclick = () => {
         entries.splice(i, 1);
-        persist();
-        renderAllTests(patientById(selectedPatientId));
-        updateStatusCell(patientById(selectedPatientId));
+        const patient = patientById(selectedPatientId);
+        touchPatient(patient);
+        renderAllTests(patient);
+        updateStatusCell(patient);
       };
     }
 
@@ -1514,7 +1530,7 @@ function renderRadiologyCards(patient) {
       other.classList.toggle("hidden", entry.modality !== "other");
       card.querySelector(".radiology-grid").classList.toggle("has-other", entry.modality === "other");
       card.querySelector("[data-rad-label]").textContent = entry.type;
-      persist();
+      touchPatient(patient);
       updateStatusCell(patient);
     };
     body.onchange = updateType;
@@ -1525,7 +1541,7 @@ function renderRadiologyCards(patient) {
     if (deleteButton) {
       deleteButton.onclick = () => {
         patient.tests.radiology.splice(i, 1);
-        persist();
+        touchPatient(patient);
         renderRadiologyCards(patient);
         updateStatusCell(patient);
         refreshSummaryControls(patient);
@@ -1583,14 +1599,14 @@ function wireCard(card, entry, key) {
 
       entry.mode = nextMode;
       if (nextMode === "notordered") entry.savedText = "";
-      persist();
+      touchPatient(patientById(selectedPatientId));
       refreshVisual();
     };
   });
 
   text.oninput = () => {
     entry.text = text.value;
-    persist();
+    touchPatient(patientById(selectedPatientId));
     refreshVisual();
 
     if (key.startsWith("gas-")) {
@@ -1616,6 +1632,7 @@ function wireCard(card, entry, key) {
 
     entry.savedText = entry.text;
     entry.mode = "waiting";
+    touchPatient(patientById(selectedPatientId));
     refreshVisual();
 
     try {
@@ -1654,7 +1671,7 @@ function addInvestigation(kind, options = {}) {
     return false;
   }
 
-  persist();
+  touchPatient(patient);
   renderAllTests(patient);
   updateStatusCell(patient);
   refreshSummaryControls(patient);

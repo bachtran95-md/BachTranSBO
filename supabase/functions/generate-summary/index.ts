@@ -271,6 +271,8 @@ async function callOpenAI(prompt: string) {
     },
     body: JSON.stringify({
       model,
+      store: false,
+      prompt_cache_key: "bachtransbo-summary-v1",
       input: prompt,
     }),
   });

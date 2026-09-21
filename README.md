@@ -99,7 +99,7 @@ docs/
 2. Apply migrations `001_backend_v1.sql` through `012_required_field_states.sql` in order.
 3. Put the project URL and **publishable key** in `config.js`.
 4. Configure Auth/GitHub Pages redirect, create the owner account, then disable public signup.
-5. Set the model/API secrets plus `APP_ORIGIN` and `APP_OWNER_USER_ID` in Supabase.
+5. Set the model/API secrets plus `APP_ORIGIN` and `APP_OWNER_USER_ID` in Supabase. Recommended model routing: `ASSISTANT_EXTRACTION_MODEL=gpt-5.6-luna`, `ASSISTANT_MODEL=gpt-5.6-terra`, `ASSISTANT_STRUCTURER_MODEL=gpt-5.6-luna`, `SUMMARY_MODEL=gpt-5.6-terra`, `SKILL_ANALYSIS_MODEL=gpt-5.6-luna`, and `STYLE_COACH_MODEL=gpt-5.6-luna`.
 6. Deploy `clinical-store`, `generate-summary`, `analyze-style`, `analyze-skill`, and `learning-admin`.
 7. Insert the exact approved SBO Documentation Skill text as active Skill version 1.
 

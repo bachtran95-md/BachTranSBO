@@ -521,6 +521,25 @@ if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
   throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
 
+// Jelen panaszok and Anamnézis should be full-width stacked rows, not side-by-side.
+const clinicalNarrativeLayout = await beta.evaluate(() => {
+  const complaint = document.querySelector('[data-narrative-field="complaint"]')?.getBoundingClientRect();
+  const history = document.querySelector('[data-narrative-field="history"]')?.getBoundingClientRect();
+  return {
+    complaint: complaint ? { left: complaint.left, top: complaint.top, width: complaint.width, bottom: complaint.bottom } : null,
+    history: history ? { left: history.left, top: history.top, width: history.width, bottom: history.bottom } : null
+  };
+});
+if (
+  !clinicalNarrativeLayout.complaint ||
+  !clinicalNarrativeLayout.history ||
+  clinicalNarrativeLayout.history.top < clinicalNarrativeLayout.complaint.bottom - 1 ||
+  Math.abs(clinicalNarrativeLayout.complaint.left - clinicalNarrativeLayout.history.left) > 2 ||
+  Math.abs(clinicalNarrativeLayout.complaint.width - clinicalNarrativeLayout.history.width) > 2
+) {
+  throw new Error("Klinikum complaint/history are not stacked full-width rows: " + JSON.stringify(clinicalNarrativeLayout));
+}
+
 // Regression from screen recording: Klinikum Sex uses three exclusive radio
 // choices rather than a native dropdown.
 if (await beta.locator('#iceSexChoices select').count()) {
@@ -716,10 +735,20 @@ if (await beta.locator('[data-cockpit-panel="tests"]:not(.cockpit-panel-hidden)'
   throw new Error("Tests panel remained visible while Therapy/Course tab was active");
 }
 
-// Regression: discharged disposition + discharge condition must survive both
-// draft autosave/manual save and a full page reload.
+// Regression: the fixed summary footer is only relevant for discharge and
+// discharged disposition + discharge condition must survive save/reload.
+await beta.locator('[data-cockpit-tab="summary"]').click();
+if (!(await beta.locator("#fixedSummaryFooterField").evaluate((el) => el.classList.contains("hidden")))) {
+  throw new Error("Fixed summary footer must be hidden before discharge is selected");
+}
+
 await beta.locator('[data-cockpit-tab="disposition"]').click();
 await beta.locator("#fDisposition").selectOption("discharged");
+await beta.locator('[data-cockpit-tab="summary"]').click();
+if (await beta.locator("#fixedSummaryFooterField").evaluate((el) => el.classList.contains("hidden"))) {
+  throw new Error("Fixed summary footer must be visible for discharged cases");
+}
+await beta.locator('[data-cockpit-tab="disposition"]').click();
 await beta.locator("#fDischargeCondition").fill("Panaszmentes, jó általános állapotú.");
 await beta.locator("#savePatientBtn").click();
 await beta.waitForTimeout(250);

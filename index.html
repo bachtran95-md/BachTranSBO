@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
-  <title>ER Command Center — Cockpit Beta</title>
+  <title>ER Command Center</title>
   <link rel="stylesheet" href="styles.css?v=klinikum-narrative-height-20260921-1" />
 </head>
 <body>
@@ -17,8 +17,8 @@
     </div>
     <div class="toolbar topbar-tools">
       <div class="lang-toggle" role="group" aria-label="Language">
-        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
         <button class="lang-btn active" id="langHuBtn" type="button">HU</button>
+        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
       </div>
       <div class="toolbar" id="topActions"></div>
     </div>
@@ -27,7 +27,7 @@
   <nav class="workspace-nav" aria-label="Workspace">
     <div class="workspace-nav-main">
       <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
-      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span><span>β</span></button>
+      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
       <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
     </div>
     <div class="workspace-nav-future">
@@ -587,6 +587,6 @@
   <script src="assistant-core.js?beta=validation-core-recovery-20260921-1"></script>
   <script src="app.js?v=discharge-db-persistence-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=arrival-required-orange-20260921-1"></script>
+  <script src="cockpit-beta.js?v=stable-branding-hu-default-20260921-1"></script>
 </body>
 </html>

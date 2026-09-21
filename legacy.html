@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <title>ER Command Center</title>
+  <link rel="stylesheet" href="styles.css?v=klinikum-narrative-height-20260921-1" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">ER COMMAND CENTER</div>
+      <div class="shift-meta" id="shiftMeta"></div>
+    </div>
+    <div class="toolbar topbar-tools">
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button class="lang-btn active" id="langEnBtn" type="button">EN</button>
+        <button class="lang-btn" id="langHuBtn" type="button">HU</button>
+      </div>
+      <div class="toolbar" id="topActions"></div>
+    </div>
+  </header>
+
+  <nav class="workspace-nav" aria-label="Workspace">
+    <div class="workspace-nav-main">
+      <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
+      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span><span>β</span></button>
+      <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
+    </div>
+    <div class="workspace-nav-future">
+      <span class="nav-future-label" data-i18n="futureModules">Future modules</span>
+      <button class="nav-item disabled"><span data-i18n="analytics">Analytics</span> <small data-i18n="planned">PLANNED</small></button>
+      <button class="nav-item disabled"><span data-i18n="archive">Archive</span> <small data-i18n="planned">PLANNED</small></button>
+      <button class="nav-item disabled"><span data-i18n="integrations">Integrations</span> <small data-i18n="planned">PLANNED</small></button>
+    </div>
+  </nav>
+
+  <main class="main">
+      <section id="noShiftView" class="empty hidden">
+        <div class="empty-card">
+          <h1 data-i18n="noActiveShift">No active shift</h1>
+          <p data-i18n="oneShiftOnly">Only one shift can be active at a time.</p>
+          <button class="btn primary" id="startShiftBtn" data-i18n="startShift">START SHIFT</button>
+        </div>
+      </section>
+
+      <section id="patientsView" class="hidden">
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="importCase">Import new case</h3>
+                  <div class="subtle" data-i18n="autoId">ID automatically starts from 01 in each shift.</div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div class="inline3">
+                  <div class="field">
+                    <label>ID</label>
+                    <input id="newId" disabled />
+                  </div>
+                  <div class="field">
+                    <label data-i18n="sex">Sex</label>
+                    <select id="newSex">
+                      <option value="">—</option>
+                      <option>M</option>
+                      <option>F</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label data-i18n="yob">Year of birth</label>
+                    <input id="newYob" inputmode="numeric" maxlength="4" placeholder="1955 or 55" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label data-i18n="mainComplaint">Main complaint</label>
+                  <input id="newComplaint" placeholder="Chest pain" />
+                </div>
+                <button class="btn primary" id="addPatientBtn" data-i18n="addCase">ADD CASE</button>
+              </div>
+            </div>
+
+            <div class="card mt16">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="caseRecord">Case list</h3>
+                  <div class="subtle" data-i18n="caseStatusHint">Status shows unresolved items for each case.</div>
+                </div>
+              </div>
+              <div class="card-b table-wrap">
+                <table class="patient-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th data-i18n="sex">Sex</th>
+                      <th data-i18n="age">Age</th>
+                      <th data-i18n="mainComplaint">Main complaint</th>
+                      <th data-i18n="status">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="patientTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <div>
+                <h3 id="recordTitle">Case detail</h3>
+                <div class="subtle" id="recordSubtitle" data-i18n="selectCasePrompt">Select a case from the list.</div>
+              </div>
+              <div class="record-actions">
+                <span id="patientStatusBadge"></span>
+                <button class="btn small hidden" id="reopenCaseBtn" type="button" data-i18n="reopenCase">REOPEN CASE</button>
+              </div>
+            </div>
+            <div class="card-b">
+              <div id="noPatientSelected" class="subtle" data-i18n="noCaseSelected">No case selected.</div>
+
+              <form id="patientForm" class="hidden">
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionClinical">1. Clinical</div>
+                  <div class="field">
+                    <label data-i18n="mainComplaint">Main complaint</label>
+                    <input id="fMainComplaint" />
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="complaint">
+                    <div class="narrative-head">
+                      <label data-i18n="complaint">Complaint</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="complaint">REQUIRED</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="complaint" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fComplaint" placeholder="Manual input or paste from clipboard..."></textarea>
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="history">
+                    <div class="narrative-head">
+                      <label data-i18n="patientHistory">Medical history</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="history">REQUIRED</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fHistory" placeholder="Manual input or paste from clipboard..."></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionTests">2. Tests and examination</div>
+                  <div class="info-bar" data-i18n="testLegend">
+                    Orange = unresolved. Enter a result to turn green, or mark Not ordered to turn grey.
+                  </div>
+
+                  <div class="field narrative-field waiting" data-narrative-field="physical">
+                    <div class="narrative-head">
+                      <label data-i18n="physicalExam">Physical examination — main points / status</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="physical">REQUIRED</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fPhysical"></textarea>
+                  </div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="lab">Lab</div>
+                    <button class="btn small" type="button" id="addLabBtn" data-i18n="addLab">+ ADD LAB</button>
+                  </div>
+                  <div id="labCards"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="ekg">EKG</div>
+                  </div>
+                  <div id="ekgCard"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="bloodGas">AVG / VVG</div>
+                  </div>
+                  <div id="gasCard"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="radiology">Radiology</div>
+                    <button class="btn small" type="button" id="addRadiologyBtn" data-i18n="addRadiology">+ ADD RADIOLOGY</button>
+                  </div>
+                  <div id="radiologyCards"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="consultations">Consultations</div>
+                    <button class="btn small" type="button" id="addConsultBtn" data-i18n="addConsultation">+ ADD CONSULTATION</button>
+                  </div>
+                  <div id="consultCards"></div>
+
+                  <div class="field">
+                    <label data-i18n="others">Others</label>
+                    <textarea id="fOthers"></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionCourse">3. Treatment and course</div>
+                  <div class="field narrative-field waiting" data-narrative-field="therapy">
+                    <div class="narrative-head">
+                      <label data-i18n="therapy">Therapy</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="therapy">REQUIRED</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="therapy" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fTherapy"></textarea>
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="course">
+                    <div class="narrative-head">
+                      <label data-i18n="clinicalCourse">Clinical course / case status change</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="course">REQUIRED</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="course" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fCourse"></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="finalDecision">4. Final decision / disposition</div>
+                  <div class="info-bar" data-i18n="finalDecisionInfo">
+                    Disposition records the clinical decision. The case closes only after the Summary is finalized.
+                  </div>
+                  <div class="field">
+                    <label data-i18n="diagnoses">Diagnoses</label>
+                    <textarea id="fDiagnoses" placeholder="One diagnosis per line or separated by semicolons. Hungarian or Latin terms."></textarea>
+                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
+                  </div>
+                  <div class="field">
+                    <label data-i18n="disposition">Disposition</label>
+                    <select id="fDisposition">
+                      <option value="">Active / in progress</option>
+                      <option value="discharged">Discharged</option>
+                      <option value="admitted">Admitted / transferred</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div id="dischargedFields" class="hidden">
+                    <div class="field">
+                      <label data-i18n="homePlan">Recommendation and plan at home</label>
+                      <div class="recs" id="recList"></div>
+                      <button class="btn small" id="addRecBtn" type="button" data-i18n="addRecommendation">+ Add recommendation</button>
+                    </div>
+                  </div>
+
+                  <div id="admittedFields" class="hidden">
+                    <div class="inline">
+                      <div class="field">
+                        <label data-i18n="hospital">Hospital</label>
+                        <input id="fHospital" />
+                      </div>
+                      <div class="field">
+                        <label data-i18n="ward">Ward / department</label>
+                        <input id="fWard" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label data-i18n="acceptingPhysician">Accepting physician</label>
+                      <input id="fPhysician" />
+                    </div>
+                    <div class="field">
+                      <label data-i18n="additionalNote">Additional note</label>
+                      <textarea id="fAdmissionNote"></textarea>
+                    </div>
+                  </div>
+
+                  <div id="otherFields" class="hidden">
+                    <div class="field">
+                      <label data-i18n="outcome">Outcome</label>
+                      <input id="fOtherOutcome" placeholder="Death, transfer, left against medical advice..." />
+                    </div>
+                    <div class="field">
+                      <label data-i18n="details">Details</label>
+                      <textarea id="fOtherDetails"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="caseSummary">5. Case summary</div>
+                  <div class="info-bar" data-i18n="summaryInfo">
+                    Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.
+                  </div>
+                  <div class="summary-actions">
+                    <button class="btn primary" id="generateSummaryBtn" type="button" data-i18n="generateSummary">✨ GENERATE SUMMARY</button>
+                  </div>
+                  <div class="summary-gate blocked" id="summaryGate">
+                    Summary locked until every orange test is resolved or marked Not ordered.
+                  </div>
+                  <div class="summary-status" id="summaryStatus"></div>
+                  <div class="field">
+                    <label data-i18n="summaryEditable">Summary — editable</label>
+                    <textarea id="fSummary" class="summary-box" placeholder="Generated summary will appear here. You can edit it before Finalize."></textarea>
+                  </div>
+                  <div class="toolbar">
+                    <button class="btn success" id="finalizeSummaryBtn" type="button" data-i18n="finalizeSummary">FINALIZE SUMMARY</button>
+                  </div>
+                </div>
+
+                <div class="sticky-actions">
+                  <button class="btn" id="savePatientBtn" type="button" data-i18n="saveCase">SAVE CASE</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="aiLearningView" class="hidden">
+        <div class="learning-head">
+          <div>
+            <h1 data-i18n="aiLearningNav">AI Learning</h1>
+            <div class="subtle" data-i18n="learningDesc">Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.</div>
+          </div>
+          <button class="btn" id="refreshLearningBtn" type="button" data-i18n="refresh">REFRESH</button>
+        </div>
+
+        <div class="learning-metrics">
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="finalizedCorpus">Finalized corpus</div>
+            <div class="learning-number" id="learningFinalizedCount">—</div>
+          </div>
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="activeSkill">Active Skill</div>
+            <div class="learning-number small" id="learningActiveSkill">—</div>
+          </div>
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="activeStyle">Active style</div>
+            <div class="learning-number small" id="learningActiveStyle">—</div>
+          </div>
+        </div>
+
+        <div id="learningMessage" class="info-bar hidden"></div>
+
+        <div class="card learning-corpus-card">
+          <div class="card-h">
+            <div>
+              <h3>Finalized corpus review</h3>
+              <div class="subtle">Approve or exclude finalized revisions from future AI learning. This never edits the clinical record or finalized text.</div>
+            </div>
+          </div>
+          <div class="card-b" id="corpusReviewList">
+            <div class="subtle">Loading…</div>
+          </div>
+        </div>
+
+        <div class="learning-grid">
+          <div class="card">
+            <div class="card-h">
+              <div>
+                <h3 data-i18n="writingStyle">Writing style</h3>
+                <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
+              </div>
+              <button class="btn primary small" id="generateStyleBtn" type="button">
+                <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
+              </button>
+            </div>
+            <div class="card-b" id="styleProfilesList">
+              <div class="subtle">Loading…</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <div>
+                <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
+                <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+              </div>
+              <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
+                <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
+              </button>
+            </div>
+            <div class="card-b" id="skillSuggestionsList">
+              <div class="subtle">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminView" class="hidden">
+        <div class="learning-head">
+          <div>
+            <h1 data-i18n="adminNav">Admin</h1>
+            <div class="subtle" data-i18n="adminDesc">Single-owner account security settings.</div>
+          </div>
+        </div>
+
+        <div class="card admin-card">
+          <div class="card-h">
+            <div>
+              <h3 data-i18n="account">Account</h3>
+              <div class="subtle" data-i18n="accountDesc">Only the configured owner account can use this app.</div>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="field">
+              <label>Email</label>
+              <input id="adminEmailDisplay" disabled />
+            </div>
+
+            <div class="section">
+              <div class="section-title" data-i18n="changePassword">Change password</div>
+              <div class="info-bar">
+                <span data-i18n="passwordRule">Minimum 6 characters. No special complexity rule is required by this app.</span>
+              </div>
+
+              <div class="field">
+                <label data-i18n="currentPassword">Current password</label>
+                <input id="currentAdminPassword" type="password" autocomplete="current-password" />
+              </div>
+              <div class="field">
+                <label data-i18n="newPassword">New password</label>
+                <input id="newAdminPassword" type="password" autocomplete="new-password" minlength="6" />
+              </div>
+              <div class="field">
+                <label data-i18n="confirmPassword">Confirm new password</label>
+                <input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="6" />
+              </div>
+
+              <div class="toolbar">
+                <button class="btn primary" id="changeAdminPasswordBtn" type="button">
+                  <span data-i18n="changePasswordButton">CHANGE PASSWORD</span>
+                </button>
+                <button class="btn" id="adminSignOutBtn" type="button">
+                  <span data-i18n="signOut">SIGN OUT</span>
+                </button>
+              </div>
+              <div id="adminPasswordMessage" class="subtle mt16"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+  </main>
+
+  <div id="modalHost"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+  <script src="config.js?v=config-only-20260920-1"></script>
+  <script src="case-ui.js?v=discharge-db-persistence-20260921-1"></script>
+  <script src="backend.js?v=learning-20260920-1"></script>
+  <script src="app.js?v=discharge-db-persistence-20260921-1"></script>
+  <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
+</body>
+</html>

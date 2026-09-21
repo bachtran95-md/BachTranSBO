@@ -336,6 +336,11 @@ function patientById(id) {
   return state.patients.find((p) => p.id === id);
 }
 
+function getPatientSnapshot(caseId = selectedPatientId) {
+  const patient = patientById(caseId);
+  return patient ? structuredClone(patient) : null;
+}
+
 function isCompleted(patient) {
   return Boolean(patient.summaryFinalizedAt);
 }
@@ -1582,68 +1587,12 @@ function addInvestigation(kind, options = {}) {
   return true;
 }
 
-function patientTestEntryByKey(patient, key) {
-  if (!patient?.tests || !key) return null;
-  let match = String(key).match(/^lab-(\d+)$/);
-  if (match) return patient.tests.labs?.[Number(match[1])] || null;
-
-  match = String(key).match(/^ekg-(\d+)$/);
-  if (match) return patient.tests.ekgs?.[Number(match[1])] || null;
-
-  match = String(key).match(/^gas-(\d+)$/);
-  if (match) return patient.tests.gases?.[Number(match[1])] || null;
-
-  match = String(key).match(/^radiology-(\d+)$/);
-  if (match) return patient.tests.radiology?.[Number(match[1])] || null;
-
-  match = String(key).match(/^consultations-(\d+)$/);
-  if (match) return patient.tests.consultations?.[Number(match[1])] || null;
-
-  return null;
-}
-
-function collectTestDraftsFromDom(patient) {
-  if (!patient?.tests) return;
-
-  document.querySelectorAll("#patientForm [data-text]").forEach((control) => {
-    const key = control.dataset.text || "";
-    const entry = patientTestEntryByKey(patient, key);
-    if (!entry) return;
-
-    entry.text = control.value || "";
-    entry.savedText =
-      entry.mode === "notordered"
-        ? ""
-        : (String(entry.text || "").trim() ? entry.text : "");
-  });
-
-  document.querySelectorAll('#patientForm [data-type^="consultations-"]').forEach((control) => {
-    const key = control.dataset.type || "";
-    const entry = patientTestEntryByKey(patient, key);
-    if (entry) entry.type = control.value || "";
-  });
-
-  document.querySelectorAll('#patientForm .test-card[data-card^="radiology-"]').forEach((card) => {
-    const entry = patientTestEntryByKey(patient, card.dataset.card || "");
-    if (!entry) return;
-    entry.bodyPart = card.querySelector("[data-body]")?.value || "";
-    entry.modality = card.querySelector("[data-modality]")?.value || "";
-    entry.otherTest = card.querySelector("[data-other]")?.value || "";
-    entry.type =
-        entry.bodyPart || entry.modality || entry.otherTest
-          ? radiologyType(entry)
-          : "";
-  });
-}
-
 function collectForm() {
   const patient = patientById(selectedPatientId);
   if (!patient) return null;
 
-  // DOM is the final authority for any in-progress test text. This prevents
-  // patient/tab switches from losing a result if an input handler has not
-  // propagated to the patient object yet.
-  collectTestDraftsFromDom(patient);
+  // Test entries are canonical in patient.tests. Each rendered control updates
+  // its entry synchronously; collectForm must not scrape a second copy from DOM.
 
   // Demographics/arrival are canonical in patient state. case-ui.js updates
   // them through applyCaseMetadata(); never scrape a second copy back from DOM.
@@ -2590,7 +2539,9 @@ window.BachSBOClinicalUi = Object.freeze({
   normalizeYob,
   ageFromYob,
   normalizeSex,
-  normalizeArrivalMode
+  normalizeArrivalMode,
+  testEntryStatus: entryStatus,
+  getPatientSnapshot
 });
 
 function flash(message) {

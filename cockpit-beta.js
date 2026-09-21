@@ -1510,6 +1510,25 @@
       }
     }, true);
     document.addEventListener("click", (event) => {
+      const autosaveAction = event.target?.closest?.(
+        "#patientForm [data-mode-choice], " +
+        "#patientForm [data-none-toggle], " +
+        "#patientForm [data-delete-test], " +
+        "#patientForm [data-del-rec], " +
+        "#patientForm #addRecBtn, " +
+        "#patientForm #addLabBtn, " +
+        "#patientForm #addRadiologyBtn, " +
+        "#patientForm #addConsultBtn, " +
+        "#patientForm #cockpitAddTest"
+      );
+      if (autosaveAction) {
+        // Let the button's own handler mutate the case first, then capture and save.
+        setTimeout(() => {
+          window.BachSBOClinicalUi?.commitCurrentDraft?.();
+          scheduleCaseAutosave(80);
+        }, 0);
+      }
+
       if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
         setTimeout(updateTabLabels, 0);
       }

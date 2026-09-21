@@ -319,19 +319,6 @@
         </div>
       </div>
 
-      <div class="cockpit-rail-card cockpit-doc-review-card">
-        <div class="cockpit-rail-head">
-          <div>
-            <strong id="cockpitDocumentationTitle">🔎 Documentation review</strong>
-            <div class="cockpit-rail-sub" id="cockpitDocumentationSub"></div>
-          </div>
-          <span id="cockpitDocumentationCount" class="cockpit-summary-badge neutral">0</span>
-        </div>
-        <div class="cockpit-rail-body">
-          <div id="cockpitDocumentationReview" class="cockpit-documentation-review"></div>
-        </div>
-      </div>
-
       <div class="cockpit-rail-card cockpit-paste-card">
         <div class="cockpit-rail-head">
           <div>
@@ -383,14 +370,6 @@
       label(
         "Select an active case, then run the assistant. Suggestions never change the chart automatically.",
         "Válasszon aktív esetet, majd indítsa az asszisztenst. A javaslatok nem módosítják automatikusan a dokumentációt."
-      )
-    );
-    set("cockpitDocumentationTitle", label("🔎 Documentation review", "🔎 Dokumentációs ellenőrzés"));
-    set(
-      "cockpitDocumentationSub",
-      label(
-        "Required, missing, pending and conflicting information. Review only; nothing is written from this panel.",
-        "Kötelező, hiányzó, függő és ellentmondásos információk. Csak ellenőrzés; ez a panel nem ír adatot."
       )
     );
     set("cockpitPasteTitle", label("Paste note / Heidi text", "Jegyzet / Heidi szöveg"));

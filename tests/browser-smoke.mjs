@@ -567,6 +567,13 @@ if (
 ) {
   throw new Error("Klinikum complaint/history are not stacked full-width rows: " + JSON.stringify(clinicalNarrativeLayout));
 }
+const narrativeHeights = await beta.evaluate(() => ({
+  complaint: document.querySelector("#fComplaint")?.getBoundingClientRect().height || 0,
+  history: document.querySelector("#fHistory")?.getBoundingClientRect().height || 0
+}));
+if (narrativeHeights.complaint < 130 || narrativeHeights.history < 130) {
+  throw new Error("Klinikum complaint/history textareas are not approximately 2x default height: " + JSON.stringify(narrativeHeights));
+}
 
 // Regression from screen recording: Klinikum Sex uses three exclusive radio
 // choices rather than a native dropdown.

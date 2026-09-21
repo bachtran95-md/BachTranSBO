@@ -176,6 +176,39 @@ function touchPatient(patient) {
   return patient;
 }
 
+function reconcileEntryArray(liveEntries, savedEntries) {
+  const live = Array.isArray(liveEntries) ? liveEntries : [];
+  const saved = Array.isArray(savedEntries) ? savedEntries : [];
+  const byId = new Map(live.filter(Boolean).map((entry) => [entry.id, entry]));
+  const next = saved.map((savedEntry) => {
+    const existing = byId.get(savedEntry?.id);
+    if (existing) {
+      Object.assign(existing, savedEntry);
+      return existing;
+    }
+    return structuredClone(savedEntry);
+  });
+  live.splice(0, live.length, ...next);
+  return live;
+}
+
+function mergeSavedPatientIntoLive(livePatient, savedPatient) {
+  if (!livePatient || !savedPatient) return livePatient;
+
+  const savedTests = savedPatient.tests || {};
+  const liveTests = livePatient.tests || (livePatient.tests = {});
+
+  Object.entries(savedPatient).forEach(([key, value]) => {
+    if (key !== "tests") livePatient[key] = value;
+  });
+
+  for (const group of ["labs", "ekgs", "gases", "radiology", "consultations"]) {
+    liveTests[group] = reconcileEntryArray(liveTests[group], savedTests[group]);
+  }
+
+  return livePatient;
+}
+
 async function persistNow({
   reloadForm = true,
   silentAutosave = false,
@@ -215,7 +248,9 @@ async function persistNow({
 
       // Never let an older save response overwrite a newer in-browser draft.
       if (result?.patient?.id === caseId && currentIsSameDraft) {
-        Object.assign(current, result.patient);
+        // Preserve live object/array identity so already-wired DOM handlers keep
+        // mutating the canonical test entries after autosave responses arrive.
+        mergeSavedPatientIntoLive(current, result.patient);
         stateDirty = false;
 
         if (

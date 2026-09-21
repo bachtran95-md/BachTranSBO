@@ -258,6 +258,25 @@ function ageFromYob(yob) {
   return year ? new Date().getFullYear() - year : "";
 }
 
+function patientSexLabel(sex) {
+  const value = String(sex || "").trim().toUpperCase();
+  if (value === "F") return uiLang === "hu" ? "Nő" : "Female";
+  if (value === "M") return uiLang === "hu" ? "Férfi" : "Male";
+  if (value === "O") return uiLang === "hu" ? "Egyéb" : "Other";
+  return value || "—";
+}
+
+function paintRecordHeaderSex(sex) {
+  const header = document.getElementById("recordHeader");
+  if (!header) return;
+
+  header.classList.remove("sex-female", "sex-male", "sex-other");
+  const value = String(sex || "").trim().toUpperCase();
+  if (value === "F") header.classList.add("sex-female");
+  else if (value === "M") header.classList.add("sex-male");
+  else if (value === "O") header.classList.add("sex-other");
+}
+
 function activeShiftPatients() {
   return state.shift ? state.patients.filter((p) => p.shiftId === state.shift.id) : [];
 }
@@ -762,6 +781,7 @@ function renderPatients() {
     document.getElementById("recordTitle").textContent = uiLang === "hu" ? "Eset részletei" : "Case detail";
     document.getElementById("recordSubtitle").textContent = t("selectCasePrompt");
     document.getElementById("patientStatusBadge").innerHTML = "";
+    paintRecordHeaderSex("");
   }
 }
 
@@ -944,7 +964,8 @@ function loadPatientForm() {
   document.getElementById("recordTitle").textContent =
     `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId}`;
   document.getElementById("recordSubtitle").textContent =
-    `${patient.sex} • ${ageFromYob(patient.yob)} y • ${patient.mainComplaint}`;
+    `${patientSexLabel(patient.sex)} • ${ageFromYob(patient.yob)} ${uiLang === "hu" ? "év" : "y"} • ${patient.mainComplaint}`;
+  paintRecordHeaderSex(patient.sex);
 
   const statusLabel = isCompleted(patient)
     ? (uiLang === "hu" ? "LEZÁRT" : "COMPLETED / CLOSED")

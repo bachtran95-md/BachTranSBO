@@ -860,6 +860,56 @@ body.cockpit-ui #patientsView > .grid2{
 
 body.cockpit-ui .cockpit-case-column > .card-h h3{font-size:15px}
 body.cockpit-ui .cockpit-case-column > .card-h .subtle{font-size:12px}
+body.cockpit-ui #recordHeader{
+  transition:background-color .15s ease,border-color .15s ease;
+}
+body.cockpit-ui #recordHeader .record-patient-heading{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  min-width:0;
+  flex:1 1 auto;
+  flex-wrap:wrap;
+}
+body.cockpit-ui #recordHeader #recordTitle{
+  flex:0 0 auto;
+  font-size:11px!important;
+  line-height:1.15;
+  font-weight:750;
+  color:#667085;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+body.cockpit-ui #recordHeader #recordSubtitle{
+  min-width:0;
+  font-size:18px!important;
+  line-height:1.2;
+  font-weight:850;
+  color:#101828;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body.cockpit-ui #recordHeader.sex-female{
+  background:#fff1f5;
+  border-bottom-color:#fbcfe8;
+}
+body.cockpit-ui #recordHeader.sex-female #recordSubtitle{
+  color:#9d174d;
+}
+body.cockpit-ui #recordHeader.sex-male{
+  background:#eff8ff;
+  border-bottom-color:#bfdbfe;
+}
+body.cockpit-ui #recordHeader.sex-male #recordSubtitle{
+  color:#175cd3;
+}
+body.cockpit-ui #recordHeader.sex-other{
+  background:#f5f3ff;
+  border-bottom-color:#ddd6fe;
+}
+body.cockpit-ui #recordHeader.sex-other #recordSubtitle{
+  color:#6941c6;
+}
 body.cockpit-ui .cockpit-case-column .section-title{font-size:13px}
 body.cockpit-ui .cockpit-case-column .field label{font-size:11px}
 body.cockpit-ui .cockpit-case-column input,

@@ -306,6 +306,7 @@
         course: row.clinical_course || "",
         courseSkipped: Boolean(row.clinical_course_skipped),
         disposition: row.disposition || "",
+        dischargeCondition: row.discharge_condition || "",
         recommendations: Array.isArray(row.recommendations)
           ? row.recommendations
           : [""],

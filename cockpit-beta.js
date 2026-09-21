@@ -7,6 +7,7 @@
   let lastSelectedCaseId = "";
   let assistantBusy = false;
   let assistantLoadToken = 0;
+  let assistantCoreLoadPromise = null;
   let patientBoardLoad = null;
   let extractionPreviewState = null;
   let caseAutosaveTimer = null;
@@ -29,6 +30,42 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+
+  async function ensureAssistantCore() {
+    if (window.BachAssistantCore?.validateProposal && window.BachAssistantCore?.applyItems) {
+      return window.BachAssistantCore;
+    }
+
+    if (!assistantCoreLoadPromise) {
+      assistantCoreLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "assistant-core.js?v=runtime-recovery-20260921-1";
+        script.async = false;
+        script.dataset.bachAssistantCoreRecovery = "true";
+
+        script.onload = () => {
+          if (window.BachAssistantCore?.validateProposal && window.BachAssistantCore?.applyItems) {
+            resolve(window.BachAssistantCore);
+            return;
+          }
+          reject(new Error(label(
+            "Assistant validation core loaded but did not initialize.",
+            "Az asszisztens validációs modul betöltődött, de nem inicializálódott."
+          )));
+        };
+        script.onerror = () => reject(new Error(label(
+          "Assistant validation core could not be loaded. Refresh the page and try again.",
+          "Az asszisztens validációs modul nem tölthető be. Frissítse az oldalt, majd próbálja újra."
+        )));
+        document.head.appendChild(script);
+      }).catch((error) => {
+        assistantCoreLoadPromise = null;
+        throw error;
+      });
+    }
+
+    return assistantCoreLoadPromise;
+  }
 
   function selectedCaseId() {
     return document.querySelector("#patientTbody tr.selected[data-id]")?.dataset.id || "";
@@ -847,6 +884,10 @@
       if (!window.BachSBOBackend?.caseAssistantExtract) {
         throw new Error(label("Case Assistant extraction bridge is unavailable.", "A Case Assistant szövegkinyerő kapcsolat nem érhető el."));
       }
+      // A mixed/stale browser cache can load cockpit-beta.js without the matching
+      // assistant-core.js. Recover the local validation module before spending an
+      // extraction request, while still failing closed if the module cannot load.
+      await ensureAssistantCore();
       if (status) status.textContent = label("Extracting documented facts…", "Dokumentált tények kinyerése…");
       const response = await window.BachSBOBackend.caseAssistantExtract(id, text);
       renderExtractionPreview(response, text, id);

@@ -1639,24 +1639,7 @@
   }
 
   function addBetaControls() {
-    if (document.getElementById("cockpitBetaBadge")) return;
-    const toolbar = document.querySelector(".topbar-tools");
-    if (!toolbar) return;
-
-    const badge = document.createElement("span");
-    badge.id = "cockpitBetaBadge";
-    badge.textContent = "BETA";
-    badge.style.cssText =
-      "display:inline-flex;align-items:center;height:26px;padding:0 8px;border-radius:999px;" +
-      "background:#fef3c7;color:#92400e;font-size:9px;font-weight:900;border:1px solid #fde68a;";
-    toolbar.appendChild(badge);
-
-    const stableLink = document.createElement("a");
-    stableLink.href = "./";
-    stableLink.textContent = label("STABLE UI", "STABIL UI");
-    stableLink.className = "btn small";
-    stableLink.style.cssText = "text-decoration:none;display:inline-flex;align-items:center;";
-    toolbar.appendChild(stableLink);
+    // Beta has been promoted to Stable. Keep this hook as a no-op for compatibility.
   }
 
   function activateCockpitIfReady() {

@@ -4,6 +4,7 @@ let backendReady = false;
 let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
+const patientSaveQueues = new Map();
 let uiLang = "hu";
 const I18N = {
   en: {
@@ -162,35 +163,67 @@ function persist() {
 async function persistNow({ reloadForm = true, silentAutosave = false } = {}) {
   if (!backendReady || !state.shift) return { removed: 0, report: null };
 
-  const patient = patientById(selectedPatientId);
-  if (!patient) {
+  const livePatient = patientById(selectedPatientId);
+  if (!livePatient) {
     stateDirty = false;
     return { removed: 0, report: null };
   }
 
-  const result = await window.BachSBOBackend.savePatient(
-    state.shift.id,
-    patient,
-    { silentAutosave }
-  );
-  stateDirty = false;
+  const caseId = livePatient.id;
+  const shiftId = state.shift.id;
+  const snapshot = structuredClone(livePatient);
+  const snapshotUpdatedAt = snapshot.updatedAt || "";
 
-  if (result?.patient?.id === patient.id) {
-    Object.assign(patient, result.patient);
+  const previous = patientSaveQueues.get(caseId) || Promise.resolve();
+  const queued = previous
+    .catch(() => {})
+    .then(async () => {
+      const result = await window.BachSBOBackend.savePatient(
+        shiftId,
+        snapshot,
+        { silentAutosave }
+      );
 
-    // The browser form is updated to the same de-identified representation
-    // that was permanently stored. Raw identifiers are not kept as the
-    // operational in-memory version after an explicit save.
-    if (reloadForm && currentView === "patients" && selectedPatientId === patient.id) {
-      loadPatientForm();
+      const current = patientById(caseId);
+      const currentIsSameDraft =
+        current &&
+        String(current.updatedAt || "") === String(snapshotUpdatedAt);
+
+      // Never let an older save response overwrite a newer in-browser draft.
+      if (result?.patient?.id === caseId && currentIsSameDraft) {
+        Object.assign(current, result.patient);
+        stateDirty = false;
+
+        if (
+          reloadForm &&
+          currentView === "patients" &&
+          selectedPatientId === caseId
+        ) {
+          loadPatientForm();
+        }
+      } else if (currentIsSameDraft) {
+        stateDirty = false;
+      }
+
+      if (result?.removed > 0 && !silentAutosave) {
+        flash(
+          uiLang === "hu"
+            ? `Az adatvédelmi szűrő ${result.removed} azonosítót eltávolított.`
+            : `Privacy filter removed ${result.removed} identifier(s).`
+        );
+      }
+
+      return result;
+    });
+
+  patientSaveQueues.set(caseId, queued);
+  try {
+    return await queued;
+  } finally {
+    if (patientSaveQueues.get(caseId) === queued) {
+      patientSaveQueues.delete(caseId);
     }
   }
-
-  if (result?.removed > 0) {
-    flash(`Privacy filter removed ${result.removed} identifier(s).`);
-  }
-
-  return result;
 }
 
 function handleBackendError(error) {
@@ -1416,11 +1449,17 @@ function collectForm() {
   return patient;
 }
 
-async function autosaveCurrentCase() {
+function commitCurrentDraft() {
   const patient = collectForm();
-  if (!patient || isCompleted(patient)) return { skipped: true };
-
+  if (!patient || isCompleted(patient)) return null;
   stateDirty = true;
+  return patient;
+}
+
+async function autosaveCurrentCase() {
+  const patient = commitCurrentDraft();
+  if (!patient) return { skipped: true };
+
   return persistNow({ reloadForm: false, silentAutosave: true });
 }
 
@@ -2283,6 +2322,7 @@ window.BachSBOClinicalUi = Object.freeze({
   applyAcceptedExtraction,
   applyCaseMetadata,
   autosaveCurrentCase,
+  commitCurrentDraft,
   getCaseMetadata,
   saveCaseMetadata
 });

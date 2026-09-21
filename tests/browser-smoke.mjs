@@ -75,6 +75,7 @@ const backendMock = String.raw`
     arrival_mode: p.arrivalMode || "",
     arrival_other: p.arrivalOther || "",
     disposition: p.disposition || "",
+    discharge_condition: p.dischargeCondition || "",
     other_details: p.otherDetails || ""
   });
 
@@ -184,6 +185,9 @@ const backendMock = String.raw`
       p.mainComplaint = metadata.mainComplaint || "";
       p.arrivalMode = metadata.arrivalMode || "";
       p.arrivalOther = p.arrivalMode === "other" ? metadata.arrivalOther || "" : "";
+      p.disposition = metadata.disposition || "";
+      p.dischargeCondition =
+        p.disposition === "discharged" ? metadata.dischargeCondition || "" : "";
       if (Object.prototype.hasOwnProperty.call(metadata, "otherDetails")) {
         p.otherDetails = metadata.otherDetails || "";
       }
@@ -819,8 +823,10 @@ if (await beta.locator("#fixedSummaryFooterField").evaluate((el) => el.classList
 }
 await beta.locator('[data-cockpit-tab="disposition"]').click();
 await beta.locator("#fDischargeCondition").fill("Panaszmentes, jó általános állapotú.");
-await beta.locator("#savePatientBtn").click();
-await beta.waitForTimeout(250);
+
+// Dedicated metadata persistence must save these fields even before manual ESET MENTÉSE.
+await beta.locator("#fDischargeCondition").blur();
+await beta.waitForTimeout(220);
 let dischargePersisted = await beta.evaluate(() => {
   const state = JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}");
   const patient = state?.patients?.[0] || null;
@@ -833,8 +839,12 @@ if (
   dischargePersisted.disposition !== "discharged" ||
   dischargePersisted.dischargeCondition !== "Panaszmentes, jó általános állapotú."
 ) {
-  throw new Error("Decision discharge fields did not persist: " + JSON.stringify(dischargePersisted));
+  throw new Error("Decision discharge metadata did not persist: " + JSON.stringify(dischargePersisted));
 }
+
+// Manual save must keep the same canonical values.
+await beta.locator("#savePatientBtn").click();
+await beta.waitForTimeout(250);
 
 await beta.reload({ waitUntil: "domcontentloaded" });
 await beta.locator("#patientsView:not(.hidden)").waitFor();

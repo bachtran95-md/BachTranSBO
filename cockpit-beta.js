@@ -910,6 +910,25 @@
     }
   }
 
+  function extractionTargetLabel(target) {
+    const labels = {
+      mainComplaint: label("Main complaint", "Fő panasz"),
+      complaint: label("Present complaints", "Jelen panaszok"),
+      history: label("History", "Anamnézis"),
+      physical: label("Physical examination", "Fizikális vizsgálat"),
+      therapy: label("Therapy", "Terápia"),
+      course: label("Clinical course", "Kórlefolyás"),
+      diagnoses: label("Diagnoses", "Diagnózisok"),
+      others: label("Other", "Egyéb"),
+      lab: label("Laboratory", "Labor"),
+      ekg: "EKG",
+      gas: label("Blood gas (AVG / VVG)", "Vérgáz (AVG / VVG)"),
+      radiology: label("Imaging", "Képalkotó"),
+      consultation: label("Consultation", "Konzílium")
+    };
+    return labels[target] || String(target || label("Unknown", "Ismeretlen"));
+  }
+
   function extractionItemModeControl(item, assistantCore = assistantCoreRef || window.BachAssistantCore) {
     if (!assistantCore?.fields?.includes(item.target)) return "";
     return `
@@ -1026,6 +1045,10 @@
         <div class="cockpit-extract-head">
           <strong>${esc(item.label || item.target || label("Fact", "Tény"))}</strong>
           <span>${esc(item.status || label("documented", "dokumentált"))}</span>
+        </div>
+        <div class="cockpit-extract-target">
+          <span>${esc(label("Destination field", "Célmező"))}</span>
+          <strong>→ ${esc(extractionTargetLabel(item.target))}</strong>
         </div>
         <div class="cockpit-extract-text">${esc(item.text || "")}</div>
         <details>

@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center — Cockpit Beta</title>
-  <link rel="stylesheet" href="styles.css?v=closed-case-override-20260921-1" />
+  <link rel="stylesheet" href="styles.css?v=ai-data-entry-modal-20260921-1" />
 </head>
 <body>
   <header class="topbar">
@@ -112,6 +112,9 @@
             <div class="card-h" id="recordHeader">
               <div class="record-patient-heading">
                 <h3 id="recordTitle">Eset részletei</h3>
+                <button class="btn small cockpit-data-entry-btn" id="cockpitDataEntryBtn" type="button" disabled>
+                  ✨ AI DATA ENTRY
+                </button>
                 <div class="subtle" id="recordSubtitle" data-i18n="selectCasePrompt">Válasszon egy esetet a listából.</div>
               </div>
               <div class="record-actions">
@@ -506,6 +509,39 @@
       </section>
   </main>
 
+  <div class="cockpit-data-entry-overlay hidden" id="cockpitDataEntryOverlay" aria-hidden="true">
+    <section class="cockpit-data-entry-dialog" role="dialog" aria-modal="true" aria-labelledby="cockpitPasteTitle">
+      <div class="cockpit-data-entry-head">
+        <div>
+          <strong id="cockpitPasteTitle">✨ AI-assisted data entry</strong>
+          <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Jegyzet / Heidi szöveg feldolgozása</div>
+        </div>
+        <button class="btn small" id="cockpitDataEntryClose" type="button" aria-label="Bezárás">×</button>
+      </div>
+      <div class="cockpit-data-entry-body">
+        <div class="cockpit-data-entry-safety">
+          <strong>AI-assisted data entry</strong>
+          <span>Az AI csak dokumentált tényeket javasol. Semmi nem kerül automatikusan a beteg dokumentációjába.</span>
+        </div>
+        <textarea id="cockpitPasteText" class="cockpit-paste-text cockpit-data-entry-text" maxlength="30000"></textarea>
+        <button class="btn primary cockpit-wide-btn" id="cockpitExtractText" type="button">TÉNYEK KINYERÉSE</button>
+        <div id="cockpitExtractStatus" class="cockpit-status"></div>
+        <div id="cockpitExtractPreview"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="cockpit-extract-confirm-overlay hidden" id="cockpitExtractConfirmOverlay" aria-hidden="true">
+    <section class="cockpit-extract-confirm-dialog" role="alertdialog" aria-modal="true">
+      <strong id="cockpitExtractConfirmTitle">Beírás megerősítése</strong>
+      <p id="cockpitExtractConfirmText"></p>
+      <div class="cockpit-extract-confirm-actions">
+        <button class="btn" id="cockpitExtractConfirmCancel" type="button">MÉGSE</button>
+        <button class="btn primary" id="cockpitExtractConfirmApply" type="button">MEGERŐSÍTÉS ÉS BEÍRÁS</button>
+      </div>
+    </section>
+  </div>
+
   <div id="modalHost"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
@@ -514,6 +550,6 @@
   <script src="assistant-core.js?beta=20260920-12"></script>
   <script src="app.js?v=fixed-summary-footer-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=diagnoses-none-20260921-1"></script>
+  <script src="cockpit-beta.js?beta=ai-data-entry-modal-20260921-1"></script>
 </body>
 </html>

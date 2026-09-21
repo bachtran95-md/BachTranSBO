@@ -272,8 +272,8 @@
       const labs = byCategory("lab").map((x) => rowToEntry(x));
       const radiology = byCategory("radiology").map((x) => rowToEntry(x));
       const consultations = byCategory("consultation").map((x) => rowToEntry(x));
-      const ekg = byCategory("ekg")[0];
-      const gas = byCategory("gas")[0];
+      const ekgs = byCategory("ekg").map((x) => rowToEntry(x));
+      const gases = byCategory("gas").map((x) => rowToEntry(x));
       const summary = summariesByCase.get(row.id);
 
       return {
@@ -295,8 +295,8 @@
         diagnosesSkipped: Boolean(row.diagnoses_skipped),
         tests: {
           labs: labs.length ? labs : [blankEntry()],
-          ekg: rowToEntry(ekg),
-          gas: rowToEntry(gas),
+          ekgs: ekgs.length ? ekgs : [blankEntry("EKG")],
+          gases: gases.length ? gases : [blankEntry("AVG")],
           radiology: radiology.length ? radiology : [blankEntry("")],
           consultations: consultations.length ? consultations : [blankEntry("")]
         },

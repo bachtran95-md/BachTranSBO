@@ -603,7 +603,8 @@
       backend.savePatient = function patchedSavePatient(shiftId, patient, options = {}) {
         mergeInlineDetailsIntoPatient(patient);
         const silentAutosave = Boolean(options?.silentAutosave);
-        if (!silentAutosave && !validateDischargeCondition(patient)) {
+        const allowIncompleteWorkflow = Boolean(options?.allowIncompleteWorkflow);
+        if (!silentAutosave && !allowIncompleteWorkflow && !validateDischargeCondition(patient)) {
           return Promise.reject(new Error(label("Discharge condition / symptoms is required.", "Otthonába bocsátás esetén kötelező: Milyen állapotban, panasz?")));
         }
         return Promise.resolve(originalSavePatient.call(this, shiftId, patient)).then((result) => {

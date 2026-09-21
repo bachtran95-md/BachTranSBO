@@ -4,7 +4,7 @@ let backendReady = false;
 let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
-let uiLang = navigator.language?.toLowerCase().startsWith("hu") ? "hu" : "en";
+let uiLang = "hu";
 const I18N = {
   en: {
     casesNav:"Cases", aiLearningNav:"AI Learning", adminNav:"Admin",
@@ -46,11 +46,17 @@ const I18N = {
     account:"Account", accountDesc:"Only the configured owner account can use this app.",
     changePassword:"Change password", passwordRule:"Minimum 6 characters. No special complexity rule is required by this app.",
     currentPassword:"Current password", newPassword:"New password", confirmPassword:"Confirm new password",
-    changePasswordButton:"CHANGE PASSWORD", signOut:"SIGN OUT"
+    changePasswordButton:"CHANGE PASSWORD", signOut:"SIGN OUT",
+    phMainComplaint:"Chest pain", phManualPaste:"Manual input or paste from clipboard…",
+    phDiagnoses:"One diagnosis per line or separated by semicolons. Hungarian or Latin terms.",
+    phDischargeCondition:"e.g. symptom-free, good general condition; no recurrent chest pain…",
+    phOtherOutcome:"Death, transfer, left against medical advice…",
+    phSummary:"Generated summary will appear here. You can edit it before Finalize.",
+    phArrivalOther:"Describe arrival…"
   },
   hu: {
     casesNav:"Esetek", aiLearningNav:"AI tanulás", adminNav:"Admin",
-    futureModules:"Későbbi modulok", analytics:"Analitika", archive:"Archívum",
+    futureModules:"Tervezett modulok", analytics:"Analitika", archive:"Archívum",
     integrations:"Integrációk", planned:"TERVEZETT",
     noActiveShift:"Nincs aktív műszak", oneShiftOnly:"Egyszerre csak egy aktív műszak lehet.",
     startShift:"MŰSZAK INDÍTÁSA", importCase:"Új eset felvétele",
@@ -58,7 +64,7 @@ const I18N = {
     mainComplaint:"Fő panasz", addCase:"ESET HOZZÁADÁSA", caseRecord:"Esetlista",
     caseStatusHint:"A státusz az eset még rendezetlen tételeit mutatja.",
     selectCasePrompt:"Válasszon egy esetet a listából.", noCaseSelected:"Nincs kiválasztott eset.",
-    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikai adatok", complaint:"Jelen panaszok",
+    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikum", complaint:"Jelen panaszok",
     patientHistory:"Anamnézis", markNone:"NINCS", required:"KÖTELEZŐ", complete:"KÉSZ", none:"NINCS",
     sectionTests:"2. Fizikális státusz és vizsgálatok",
     testLegend:"Narancs = rendezetlen. Eredmény megadásakor zöldre vált; ha nem történt vizsgálat, jelölje „Nem történt” állapotra.",
@@ -69,12 +75,12 @@ const I18N = {
     sectionCourse:"3. Terápia és kórlefolyás", therapy:"Terápia",
     clinicalCourse:"Kórlefolyás / állapotváltozás",
     diagnoses:"Diagnózisok", disposition:"Diszpozíció",
-    finalDecision:"4. Végső döntés / diszpozíció",
+    finalDecision:"4. Döntés",
     finalDecisionInfo:"A diszpozíció a végső ellátási döntést rögzíti. Az eset csak az összefoglaló véglegesítésekor zárul le.",
     homePlan:"Otthoni javaslat és további terv", addRecommendation:"+ Javaslat hozzáadása",
     hospital:"Kórház", ward:"Osztály / részleg", acceptingPhysician:"Átvevő orvos",
     additionalNote:"Kiegészítő megjegyzés", outcome:"Kimenetel", details:"Részletek",
-    caseSummary:"5. Epikrízis",
+    caseSummary:"5. Összefoglaló",
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
     generateSummary:"✨ ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
     finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE",
@@ -88,7 +94,13 @@ const I18N = {
     account:"Fiók", accountDesc:"Az alkalmazást csak a beállított tulajdonosi fiók használhatja.",
     changePassword:"Jelszó módosítása", passwordRule:"Legalább 6 karakter. Az alkalmazás nem ír elő további összetettségi szabályt.",
     currentPassword:"Jelenlegi jelszó", newPassword:"Új jelszó", confirmPassword:"Új jelszó megerősítése",
-    changePasswordButton:"JELSZÓ MÓDOSÍTÁSA", signOut:"KIJELENTKEZÉS"
+    changePasswordButton:"JELSZÓ MÓDOSÍTÁSA", signOut:"KIJELENTKEZÉS",
+    phMainComplaint:"Mellkasi fájdalom", phManualPaste:"Kézi bevitel vagy szöveg beillesztése…",
+    phDiagnoses:"Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia.",
+    phDischargeCondition:"Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…",
+    phOtherOutcome:"Halál, áthelyezés, saját felelősségre távozás…",
+    phSummary:"A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető.",
+    phArrivalOther:"Az érkezés módjának részletei…"
   }
 };
 
@@ -114,6 +126,21 @@ function applyLanguage(lang) {
   }
   document.getElementById("langEnBtn")?.classList.toggle("active", uiLang === "en");
   document.getElementById("langHuBtn")?.classList.toggle("active", uiLang === "hu");
+
+  const placeholders = {
+    newComplaint: "phMainComplaint",
+    fComplaint: "phManualPaste",
+    fHistory: "phManualPaste",
+    fDiagnoses: "phDiagnoses",
+    fDischargeCondition: "phDischargeCondition",
+    fOtherOutcome: "phOtherOutcome",
+    fSummary: "phSummary",
+    iceArrivalOther: "phArrivalOther"
+  };
+  Object.entries(placeholders).forEach(([id, key]) => {
+    const node = document.getElementById(id);
+    if (node) node.placeholder = t(key);
+  });
 }
 
 function defaultState() {
@@ -553,24 +580,24 @@ async function changeAdminPassword() {
   message.textContent = "";
 
   if (!currentPassword) {
-    message.textContent = "Enter your current password.";
+    message.textContent = uiLang === "hu" ? "Adja meg a jelenlegi jelszavát." : "Enter your current password.";
     return;
   }
   if (newPassword.length < 6) {
-    message.textContent = "New password must contain at least 6 characters.";
+    message.textContent = uiLang === "hu" ? "Az új jelszónak legalább 6 karakterből kell állnia." : "New password must contain at least 6 characters.";
     return;
   }
   if (newPassword !== confirmPassword) {
-    message.textContent = "New passwords do not match.";
+    message.textContent = uiLang === "hu" ? "Az új jelszavak nem egyeznek." : "New passwords do not match.";
     return;
   }
   if (newPassword === currentPassword) {
-    message.textContent = "New password must be different from the current password.";
+    message.textContent = uiLang === "hu" ? "Az új jelszónak különböznie kell a jelenlegi jelszótól." : "New password must be different from the current password.";
     return;
   }
 
   button.disabled = true;
-  button.textContent = "CHANGING…";
+  button.textContent = uiLang === "hu" ? "MÓDOSÍTÁS…" : "CHANGING…";
 
   try {
     await window.BachSBOBackend.changeAdminPassword(
@@ -580,12 +607,12 @@ async function changeAdminPassword() {
     document.getElementById("currentAdminPassword").value = "";
     document.getElementById("newAdminPassword").value = "";
     document.getElementById("confirmAdminPassword").value = "";
-    message.textContent = "Password changed successfully.";
+    message.textContent = uiLang === "hu" ? "A jelszó sikeresen módosítva." : "Password changed successfully.";
   } catch (error) {
-    message.textContent = error?.message || "Could not change password.";
+    message.textContent = error?.message || (uiLang === "hu" ? "A jelszó módosítása sikertelen." : "Could not change password.");
   } finally {
     button.disabled = false;
-    button.textContent = "CHANGE PASSWORD";
+    button.textContent = uiLang === "hu" ? "JELSZÓ MÓDOSÍTÁSA" : "CHANGE PASSWORD";
   }
 }
 
@@ -1039,11 +1066,11 @@ function makeSimpleCard(label, entry, key, isGas = false) {
 
     <div class="test-grid">
 
-      <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${label} result...">${esc(entry.text || "")}</textarea>
+      <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? `${label} eredménye…` : `${label} result…`}">${esc(entry.text || "")}</textarea>
 
       <button type="button" class="btn small primary test-save" data-save="${key}"
         ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>
-        SAVE RESULT
+        ${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}
       </button>
     </div>
   `;
@@ -1095,7 +1122,7 @@ function renderDynamicCards(hostId, entries, label, prefix, placeholder) {
       <div class="dynamic-grid">
         <input data-type="${key}" value="${attr(entry.type || "")}" placeholder="${placeholder}" />
 
-        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="Result / note...">${esc(entry.text || "")}</textarea>
+        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? "Eredmény / megjegyzés…" : "Result / note…"}">${esc(entry.text || "")}</textarea>
 
         <button type="button" class="btn small primary test-save" data-save="${key}"
           ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>
@@ -1177,9 +1204,9 @@ function renderRadiologyCards(patient) {
       <div class="radiology-grid${entry.modality === "other" ? " has-other" : ""}">
         <select data-body>${options(bodyParts, entry.bodyPart, bodyLabels)}</select>
         <select data-modality>${options(modalities, entry.modality, modalityLabels)}</select>
-        <input data-other class="${entry.modality === "other" ? "" : "hidden"}" value="${attr(entry.otherTest || "")}" placeholder="Specific test e.g. CT angiographia" />
-        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="Radiology result...">${esc(entry.text || "")}</textarea>
-        <button type="button" class="btn small primary test-save" data-save="${key}" ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>SAVE RESULT</button>
+        <input data-other class="${entry.modality === "other" ? "" : "hidden"}" value="${attr(entry.otherTest || "")}" placeholder="${uiLang === "hu" ? "Specifikus vizsgálat, pl. CT angiográfia" : "Specific test, e.g. CT angiography"}" />
+        <textarea data-text="${key}" ${entry.mode === "notordered" ? "disabled" : ""} placeholder="${uiLang === "hu" ? "Radiológiai eredmény…" : "Radiology result…"}">${esc(entry.text || "")}</textarea>
+        <button type="button" class="btn small primary test-save" data-save="${key}" ${!entry.text.trim() || entry.mode === "notordered" || status === "result" ? "disabled" : ""}>${uiLang === "hu" ? "EREDMÉNY MENTÉSE" : "SAVE RESULT"}</button>
       </div>`;
 
     const body = card.querySelector("[data-body]");
@@ -2001,11 +2028,11 @@ async function renderLearningDashboard() {
   document.getElementById("learningActiveSkill").textContent =
     overview.activeSkill
       ? `${overview.activeSkill.name || "SBO Skill"} v${overview.activeSkill.version}`
-      : "Not configured";
+      : (uiLang === "hu" ? "Nincs beállítva" : "Not configured");
 
   const activeStyle = (overview.styleProfiles || []).find((x) => x.is_active);
   document.getElementById("learningActiveStyle").textContent =
-    activeStyle ? `v${activeStyle.version}` : "None";
+    activeStyle ? `v${activeStyle.version}` : (uiLang === "hu" ? "Nincs" : "None");
 
   renderCorpusRevisions(overview.corpusRevisions || []);
   renderStyleProfiles(overview.styleProfiles || [], overview.styleCoachRuns || []);
@@ -2022,7 +2049,7 @@ async function generateStyleCandidate() {
   const button = document.getElementById("generateStyleBtn");
   button.disabled = true;
   const old = button.textContent;
-  button.textContent = "ANALYZING…";
+  button.textContent = uiLang === "hu" ? "ELEMZÉS…" : "ANALYZING…";
 
   try {
     const result = await window.BachSBOBackend.analyzeStyle();
@@ -2084,7 +2111,19 @@ function showSetupRequired() {
 function showSignIn() {
   const adminEmail = window.BACH_SBO_CONFIG?.adminEmail || "";
 
-  modal(`
+  modal(uiLang === "hu" ? `
+    <h3>Admin bejelentkezés</h3>
+    <p class="subtle">${esc(adminEmail)}</p>
+    <div class="field">
+      <label>Jelszó</label>
+      <input id="authPassword" type="password" autocomplete="current-password"
+        minlength="6" placeholder="Admin jelszó" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="passwordSignIn">BEJELENTKEZÉS</button>
+    </div>
+    <div id="authMessage" class="subtle"></div>
+  ` : `
     <h3>Admin sign in</h3>
     <p class="subtle">${esc(adminEmail)}</p>
     <div class="field">
@@ -2104,12 +2143,12 @@ function showSignIn() {
 
   const submit = async () => {
     if (password.value.length < 6) {
-      message.textContent = "Password must contain at least 6 characters.";
+      message.textContent = uiLang === "hu" ? "A jelszónak legalább 6 karakterből kell állnia." : "Password must contain at least 6 characters.";
       return;
     }
 
     button.disabled = true;
-    message.textContent = "Signing in…";
+    message.textContent = uiLang === "hu" ? "Bejelentkezés…" : "Signing in…";
 
     try {
       const session =

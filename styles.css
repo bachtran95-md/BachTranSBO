@@ -579,6 +579,10 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.completed.selected .badge.d
 .cockpit-clinical-primary > [data-narrative-field="history"]{
   grid-column:1/-1;
 }
+body.cockpit-ui .cockpit-clinical-primary > [data-narrative-field="complaint"] textarea,
+body.cockpit-ui .cockpit-clinical-primary > [data-narrative-field="history"] textarea{
+  min-height:136px;
+}
 .cockpit-clinical-primary #inlineCaseEditor{grid-column:1/-1}
 body.cockpit-ui .cockpit-clinical-primary > #cockpitDemographicsMount{
   grid-column:1/-1;

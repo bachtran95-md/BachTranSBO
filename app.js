@@ -2238,7 +2238,6 @@ function endShiftStep2() {
       selectedPatientId = null;
       closeModal();
       renderApp();
-      schedulePasswordReauth();
     } catch (error) {
       endFinal.disabled = false;
       handleBackendError(error);
@@ -2749,6 +2748,7 @@ function showSignIn() {
       password.value = "";
       closeModal();
       renderApp();
+      schedulePasswordReauth();
     } catch (error) {
       message.textContent = error?.message || "Sign in failed.";
       password.value = "";

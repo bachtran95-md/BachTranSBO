@@ -175,11 +175,33 @@
 
   function narrativeResolved(key) {
     const field = document.querySelector(`[data-narrative-field="${key}"]`);
-    return Boolean(field?.classList.contains("result") || field?.classList.contains("none"));
+    if (!field) return false;
+
+    // Prefer the semantic state, but also trust the live value/None toggle.
+    // This prevents a stale CSS class from keeping a workflow tab orange after
+    // AI fill, paste, reload, or another synchronous form update.
+    if (field.classList.contains("result") || field.classList.contains("none")) return true;
+    const input = field.querySelector("textarea, input:not([type='button'])");
+    if (String(input?.value || "").trim()) return true;
+    return Boolean(field.querySelector(`[data-none-toggle="${key}"].active`));
   }
 
   function hasValue(id) {
     return Boolean(String(document.getElementById(id)?.value || "").trim());
+  }
+
+  function validClinicalYob() {
+    const raw = String(document.getElementById("iceYob")?.value || "").trim();
+    if (!/^\d{4}$/.test(raw)) return false;
+    const year = Number(raw);
+    const currentYear = new Date().getFullYear();
+    return Number.isInteger(year) && year >= 1900 && year <= currentYear;
+  }
+
+  function validClinicalSex() {
+    return ["M", "F", "O"].includes(
+      String(document.getElementById("iceSex")?.value || "").trim().toUpperCase()
+    );
   }
 
   function tabSummaryGaps() {
@@ -190,8 +212,8 @@
 
     const clinical =
       !hasValue("fMainComplaint") ||
-      !hasValue("iceSex") ||
-      !hasValue("iceYob") ||
+      !validClinicalSex() ||
+      !validClinicalYob() ||
       !arrival ||
       (arrival === "other" && !hasValue("iceArrivalOther")) ||
       !narrativeResolved("complaint") ||

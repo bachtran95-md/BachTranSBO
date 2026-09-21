@@ -521,7 +521,7 @@ if (!(await beta.locator("#iceAge").getAttribute("readonly") !== null)) {
   throw new Error("Klinikum Age must be read-only and derived from YOB");
 }
 
-// Regression from screen recording: Klinikum Sex uses three exclusive tick
+// Regression from screen recording: Klinikum Sex uses three exclusive radio
 // choices rather than a native dropdown.
 if (await beta.locator('#iceSexChoices select').count()) {
   throw new Error("Klinikum sex still contains a dropdown");
@@ -538,7 +538,13 @@ const expectedSexChoices = [
   { value: "O", text: "Egyéb" }
 ];
 if (JSON.stringify(sexChoiceState) !== JSON.stringify(expectedSexChoices)) {
-  throw new Error("Unexpected Klinikum sex tick order: " + JSON.stringify(sexChoiceState));
+  throw new Error("Unexpected Klinikum sex radio order: " + JSON.stringify(sexChoiceState));
+}
+const sexIndicatorText = await beta.locator(".sex-choice-check").evaluateAll((nodes) =>
+  nodes.map((node) => node.textContent || "")
+);
+if (sexIndicatorText.some((text) => text.trim())) {
+  throw new Error("Klinikum sex radio still contains a redundant check glyph: " + JSON.stringify(sexIndicatorText));
 }
 
 const demographicLayout = await beta.locator("#inlineCaseEditor").evaluate(() => {

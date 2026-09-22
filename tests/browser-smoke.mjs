@@ -1481,6 +1481,50 @@ if (!finalizedState.finalizedAt || finalizedState.finalizedText !== "Mock summar
   throw new Error("Finalize did not persist the generated summary: " + JSON.stringify(finalizedState));
 }
 
+// Beta-only feature gate: beta.html must stay isolated from Stable while adding
+// shift readability and workflow inactivity indicators.
+await beta.evaluate(() => {
+  const key = "__bach_sbo_e2e_state";
+  const state = JSON.parse(localStorage.getItem(key) || "{}");
+  const p = state?.patients?.[0];
+  if (!p) throw new Error("Missing smoke patient before beta feature gate");
+  p.summaryFinalizedAt = null;
+  p.summaryFinalizedText = "";
+  p.updatedAt = new Date(Date.now() - 121 * 60 * 1000).toISOString();
+  localStorage.setItem(key, JSON.stringify(state));
+});
+
+const betaFeatures = await context.newPage();
+betaFeatures.on("dialog", async (dialog) => dialog.accept());
+await betaFeatures.goto(baseUrl + "/beta.html", { waitUntil: "domcontentloaded" });
+if (await betaFeatures.locator("#authPassword").count()) {
+  await betaFeatures.locator("#authPassword").fill("smoke-test-password");
+  await betaFeatures.locator("#passwordSignIn").click();
+}
+if (await betaFeatures.locator("#chooseNormalMode").count()) {
+  await betaFeatures.locator("#chooseNormalMode").click();
+}
+await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
+await betaFeatures.waitForFunction(() =>
+  document.body.classList.contains("beta-build") &&
+  document.body.classList.contains("cockpit-ui")
+);
+await betaFeatures.locator(".beta-build-badge").waitFor();
+await betaFeatures.waitForFunction(() => {
+  const text = document.querySelector("#shiftMeta .beta-shift-pill")?.textContent || "";
+  return /\d{4}/.test(text) && /(Aktív|Active)\s*:/.test(text);
+});
+await betaFeatures.waitForFunction(() =>
+  document.querySelector("#patientTbody tr[data-id]")?.classList.contains("beta-stale-case")
+);
+await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
+await betaFeatures.locator("#betaStaleCaseBanner").waitFor();
+const betaStaleText = await betaFeatures.locator("#betaStaleCaseBanner").textContent();
+if (!/121|122|123/.test(betaStaleText || "")) {
+  throw new Error("Beta stale-case banner did not show inactivity duration: " + betaStaleText);
+}
+await betaFeatures.close();
+
 if (errors.length) {
   throw new Error("Browser page errors: " + errors.join(" | "));
 }

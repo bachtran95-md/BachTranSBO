@@ -102,6 +102,14 @@ jobs:
             echo "recovery.html must remain free of cockpit scripts."
             exit 1
           fi
+          if [ -e legacy.html ]; then
+            echo "recovery.html is the only supported fallback; legacy.html must not be reintroduced."
+            exit 1
+          fi
+          if ! grep -q 'data-recovery-mode="true"' recovery.html; then
+            echo "recovery.html must remain explicitly marked as recovery mode."
+            exit 1
+          fi
           if ! grep -q 'Production implementation lives in cockpit.js' cockpit-beta.js || grep -q 'function createTabBar' cockpit-beta.js; then
             echo "cockpit-beta.js must remain only a compatibility shim."
             exit 1

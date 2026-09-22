@@ -76,10 +76,10 @@ body.beta-build.cockpit-ui .beta-shift-metric{
   align-items:center;
   gap:6px;
   padding:7px 10px;
-  border:1px solid #374151;
+  border:1px solid #bfdbfe;
   border-radius:10px;
-  background:#1f2937;
-  color:#cbd5e1;
+  background:#eff6ff;
+  color:#334155;
   font-size:12px;
 }
 body.beta-build.cockpit-ui .beta-shift-metric b{
@@ -87,23 +87,17 @@ body.beta-build.cockpit-ui .beta-shift-metric b{
   line-height:1;
 }
 body.beta-build.cockpit-ui .beta-metric-cases{
-  border-color:#2563eb;
-  background:#172554;
-  color:#bfdbfe;
+  color:#1d4ed8;
 }
-body.beta-build.cockpit-ui .beta-metric-cases b{color:#93c5fd}
+body.beta-build.cockpit-ui .beta-metric-cases b{color:#1d4ed8}
 body.beta-build.cockpit-ui .beta-metric-active{
-  border-color:#d97706;
-  background:#451a03;
-  color:#fed7aa;
+  color:#1e40af;
 }
-body.beta-build.cockpit-ui .beta-metric-active b{color:#fdba74}
+body.beta-build.cockpit-ui .beta-metric-active b{color:#1e40af}
 body.beta-build.cockpit-ui .beta-metric-completed{
-  border-color:#475569;
-  background:#1f2937;
-  color:#cbd5e1;
+  color:#64748b;
 }
-body.beta-build.cockpit-ui .beta-metric-completed b{color:#e5e7eb}
+body.beta-build.cockpit-ui .beta-metric-completed b{color:#64748b}
 
 body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case{
   position:relative;

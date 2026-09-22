@@ -712,7 +712,7 @@
 
     const lines = [
       "A: Légutak átjárhatók.",
-      `B: ${bDyspnea} Mellkas alakja: emphysaemás. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs.`,
+      `B: ${bDyspnea} Mellkas: részarányos. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs.`,
       `C: ${cHeart} Nyaki vénák nem teltek.${cEdema}`,
       `D: GCS: ${gcs}${gcs === 15 ? " (Sz:4, V:5, M:6)" : ""}. ${dNeuro}`,
       `E: Kp. fejlett, kp. táplált, jó általános állapotú beteg. Bőrszín: normál, turgora megtartott. Nyálkahártyák: kp. vértelt. Nyelv: nedves. Sclera: fehér. ${abdomen} Húgy és ivarszervek: Vesetájak ütögetésre nem érzékenyek. Végtagok: alakilag és funkcionálisan épek, ${edema}. MVT-re utaló jel nincs. Gerinc: alakilag ép, ütögetésre nem érzékeny. Külsérelmi nyoma: nincs.`

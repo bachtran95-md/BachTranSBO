@@ -1,0 +1,166 @@
+/* Experimental features loaded only by beta.html. Stable index.html is untouched. */
+
+body.beta-build .brand{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.beta-build-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 6px;
+  border:1px solid #fbbf24;
+  border-radius:999px;
+  background:#451a03;
+  color:#fde68a;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+
+body.beta-build.cockpit-ui .topbar{
+  min-height:58px;
+  padding-top:8px;
+  padding-bottom:8px;
+}
+body.beta-build.cockpit-ui .shift-meta.beta-shift-dashboard{
+  gap:9px;
+}
+body.beta-build.cockpit-ui .beta-shift-pill{
+  min-height:40px;
+  padding:6px 11px;
+  display:grid;
+  grid-template-columns:auto auto auto;
+  grid-template-areas:
+    "dot primary duration"
+    "dot start start";
+  column-gap:8px;
+  row-gap:1px;
+  border-radius:11px;
+  background:#1f2937;
+}
+body.beta-build.cockpit-ui .beta-shift-pill .dot{
+  grid-area:dot;
+  align-self:center;
+}
+body.beta-build.cockpit-ui .beta-shift-primary{
+  grid-area:primary;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.035em;
+  color:#fff;
+}
+body.beta-build.cockpit-ui .beta-shift-start{
+  grid-area:start;
+  color:#d1d5db;
+  font-size:11px;
+  font-weight:650;
+  white-space:nowrap;
+}
+body.beta-build.cockpit-ui .beta-shift-duration{
+  grid-area:duration;
+  justify-self:end;
+  color:#86efac;
+  font-size:12px;
+  font-weight:850;
+  white-space:nowrap;
+}
+body.beta-build.cockpit-ui .beta-shift-metric{
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border:1px solid #374151;
+  border-radius:10px;
+  background:#1f2937;
+  color:#cbd5e1;
+  font-size:12px;
+}
+body.beta-build.cockpit-ui .beta-shift-metric b{
+  font-size:17px;
+  line-height:1;
+}
+
+body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case{
+  position:relative;
+}
+body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case::after{
+  content:attr(data-stale-label);
+  position:absolute;
+  right:5px;
+  top:4px;
+  z-index:4;
+  min-width:48px;
+  height:21px;
+  padding:0 6px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid #fda29b;
+  border-radius:999px;
+  background:#fef3f2;
+  color:#b42318;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  box-shadow:0 1px 2px rgba(16,24,40,.05);
+}
+body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case .cockpit-main-complaint{
+  padding-right:66px;
+}
+
+.beta-stale-case-banner{
+  margin:8px 10px 0;
+  padding:9px 11px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  border:1px solid #fda29b;
+  border-radius:9px;
+  background:#fef3f2;
+  color:#b42318;
+}
+.beta-stale-case-banner .beta-stale-icon{
+  flex:0 0 auto;
+  font-size:21px;
+  line-height:1;
+}
+.beta-stale-case-banner strong{
+  display:block;
+  font-size:12px;
+  line-height:1.25;
+}
+.beta-stale-case-banner small{
+  display:block;
+  margin-top:2px;
+  color:#912018;
+  font-size:10px;
+}
+
+@media (max-width:1180px){
+  body.beta-build.cockpit-ui .beta-shift-start{display:none}
+  body.beta-build.cockpit-ui .beta-shift-pill{
+    grid-template-areas:"dot primary duration";
+    grid-template-columns:auto auto auto;
+  }
+}
+
+@media (max-width:760px){
+  body.beta-build.cockpit-ui .topbar{
+    min-height:52px;
+  }
+  body.beta-build.cockpit-ui .shift-meta.beta-shift-dashboard{
+    max-width:100%;
+    overflow-x:auto;
+    flex-wrap:nowrap;
+  }
+  body.beta-build.cockpit-ui .beta-shift-pill,
+  body.beta-build.cockpit-ui .beta-shift-metric{
+    flex:0 0 auto;
+  }
+  .beta-stale-case-banner{
+    margin:7px 8px 0;
+  }
+}

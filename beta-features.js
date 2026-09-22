@@ -12,6 +12,7 @@
   let learningRegistryPromise = null;
   let activeUnknownPhrase = "";
   let lastLearningId = "";
+  let learningMessage = "";
 
   const CORE_FINDINGS = [
     { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
@@ -552,6 +553,193 @@
 
   function generatedStatus(findings) {
     return templateMode === "standard" ? standardStatus(findings) : abcdeStatus(findings);
+  }
+
+  function updateLearningOverviewUi(composer) {
+    const meta = composer?.querySelector("#betaLearningMeta");
+    const undo = composer?.querySelector("#betaUndoLearning");
+    if (meta) {
+      meta.textContent = `${Number(learningOverview.approvedLearning || 0)} tanítás • ${Number(learningOverview.pendingCandidates || 0)} jelölt`;
+    }
+    if (undo) undo.disabled = !lastLearningId;
+    const message = composer?.querySelector("#betaLearningMessage");
+    if (message) {
+      message.textContent = learningMessage;
+      message.classList.toggle("hidden", !learningMessage);
+    }
+  }
+
+  function fillLearningSelectors(composer) {
+    const existing = composer?.querySelector("#betaExistingFinding");
+    const target = composer?.querySelector("#betaNewFindingTarget");
+    if (existing && !existing.options.length) {
+      for (const item of CORE_FINDINGS) {
+        const option = document.createElement("option");
+        option.value = item.key;
+        option.textContent = `${item.section} • ${item.label}`;
+        existing.appendChild(option);
+      }
+    }
+    if (target && !target.options.length) {
+      for (const item of CUSTOM_TARGETS) {
+        const option = document.createElement("option");
+        option.value = item.value;
+        option.textContent = item.label;
+        target.appendChild(option);
+      }
+    }
+  }
+
+  function prepareUnknownEditor(composer, phrase) {
+    activeUnknownPhrase = String(phrase || "").trim();
+    const editor = composer?.querySelector("#betaLearningEditor");
+    if (!editor) return;
+    editor.classList.toggle("hidden", !activeUnknownPhrase);
+    if (!activeUnknownPhrase) return;
+
+    fillLearningSelectors(composer);
+    const phraseNode = editor.querySelector("#betaLearningPhrase");
+    const label = editor.querySelector("#betaNewFindingLabel");
+    const output = editor.querySelector("#betaNewFindingOutput");
+    const conflict = editor.querySelector("#betaNewFindingConflict");
+    if (phraseNode) phraseNode.textContent = activeUnknownPhrase;
+    if (label) label.value = activeUnknownPhrase;
+    if (output) output.value = ensureSentence(activeUnknownPhrase);
+    if (conflict) conflict.value = "";
+  }
+
+  function acceptLearningRecord(result) {
+    if (!result?.record) return;
+    learnedFindingRecords = [
+      result.record,
+      ...learnedFindingRecords.filter((item) => item.id !== result.record.id)
+    ];
+    learningOverview = result.overview || learningOverview;
+    lastLearningId = result.record.id;
+    activeUnknownPhrase = "";
+    learningMessage = result?.threshold?.built
+      ? "Mentve. A küszöb elérve, a jelölt patch automatikusan frissült."
+      : "Mentve a learning registrybe.";
+    syncComposer();
+  }
+
+  async function saveExistingLearning() {
+    const composer = document.getElementById("betaFindingComposer");
+    const select = composer?.querySelector("#betaExistingFinding");
+    const meta = coreFindingMeta(select?.value);
+    if (!composer || !activeUnknownPhrase || !meta) return;
+
+    const button = composer.querySelector("#betaSaveExistingFinding");
+    if (button) button.disabled = true;
+    try {
+      const result = await window.BachSBOBackend?.findingLearningConfirmMapping?.({
+        sourcePhrase: activeUnknownPhrase,
+        mappingKind: "existing",
+        findingKey: meta.key,
+        canonicalLabel: meta.label,
+        target: meta.target,
+        section: meta.section,
+        attributes: {}
+      });
+      if (!result) throw new Error("Finding learning backend is unavailable.");
+      acceptLearningRecord(result);
+    } catch (error) {
+      learningMessage = `Mentési hiba: ${error?.message || error}`;
+      updateLearningOverviewUi(composer);
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+
+  async function saveNewLearning() {
+    const composer = document.getElementById("betaFindingComposer");
+    if (!composer || !activeUnknownPhrase) return;
+
+    const label = String(composer.querySelector("#betaNewFindingLabel")?.value || "").trim();
+    const targetValue = String(composer.querySelector("#betaNewFindingTarget")?.value || "other");
+    const target = targetMeta(targetValue);
+    const outputText = String(composer.querySelector("#betaNewFindingOutput")?.value || "").trim();
+    const conflictText = String(composer.querySelector("#betaNewFindingConflict")?.value || "").trim();
+    const findingKey = `custom_${target.value}_${simpleHash(normalizeLearningPhrase(activeUnknownPhrase))}`;
+    const button = composer.querySelector("#betaSaveNewFinding");
+
+    if (!label || !outputText) {
+      learningMessage = "Az új finding neve és output szövege kötelező.";
+      updateLearningOverviewUi(composer);
+      return;
+    }
+
+    if (button) button.disabled = true;
+    try {
+      const result = await window.BachSBOBackend?.findingLearningConfirmMapping?.({
+        sourcePhrase: activeUnknownPhrase,
+        mappingKind: "new",
+        findingKey,
+        canonicalLabel: label,
+        target: target.value,
+        section: target.section,
+        outputText,
+        conflictText,
+        attributes: {}
+      });
+      if (!result) throw new Error("Finding learning backend is unavailable.");
+      acceptLearningRecord(result);
+    } catch (error) {
+      learningMessage = `Mentési hiba: ${error?.message || error}`;
+      updateLearningOverviewUi(composer);
+    } finally {
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+
+  async function undoLastLearning() {
+    if (!lastLearningId || typeof window.BachSBOBackend?.findingLearningUndo !== "function") return;
+    const id = lastLearningId;
+    try {
+      const result = await window.BachSBOBackend.findingLearningUndo(id);
+      learnedFindingRecords = learnedFindingRecords.filter((record) => record.id !== id);
+      learningOverview = result?.overview || learningOverview;
+      lastLearningId = "";
+      learningMessage = "Az utolsó tanítás visszavonva.";
+      syncComposer();
+    } catch (error) {
+      learningMessage = `Visszavonási hiba: ${error?.message || error}`;
+      updateLearningOverviewUi(document.getElementById("betaFindingComposer"));
+    }
+  }
+
+  async function buildFindingCandidates() {
+    const composer = document.getElementById("betaFindingComposer");
+    try {
+      const result = await window.BachSBOBackend?.findingLearningBuildCandidates?.();
+      if (!result) throw new Error("Finding learning backend is unavailable.");
+      learningOverview = result.overview || learningOverview;
+      learningMessage = `Jelölt patch frissítve: ${result.patch?.length || 0} rekord.`;
+      updateLearningOverviewUi(composer);
+    } catch (error) {
+      learningMessage = `Jelölt build hiba: ${error?.message || error}`;
+      updateLearningOverviewUi(composer);
+    }
+  }
+
+  async function copyFindingCandidatePatch() {
+    const composer = document.getElementById("betaFindingComposer");
+    try {
+      const result = await window.BachSBOBackend?.findingLearningCandidatePatch?.();
+      if (!result) throw new Error("Finding learning backend is unavailable.");
+      learningOverview = result.overview || learningOverview;
+      const patchText = JSON.stringify({
+        generatedAt: result.generatedAt,
+        registryPatchVersion: result.registryPatchVersion,
+        patch: result.patch || []
+      }, null, 2);
+      await navigator.clipboard.writeText(patchText);
+      learningMessage = `Patch vágólapra másolva: ${result.patch?.length || 0} jelölt.`;
+      updateLearningOverviewUi(composer);
+    } catch (error) {
+      learningMessage = `Patch másolási hiba: ${error?.message || error}`;
+      updateLearningOverviewUi(composer);
+    }
   }
 
   function ensureComposer() {

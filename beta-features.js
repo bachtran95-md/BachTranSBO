@@ -72,6 +72,132 @@
       .trim();
   }
 
+  function normalizeLearningPhrase(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .toLocaleLowerCase("hu-HU")
+      .replace(/[‐‑‒–—−]/g, "-")
+      .replace(/\s+/g, " ")
+      .replace(/[\s.,;:]+$/g, "")
+      .trim();
+  }
+
+  function coreFindingMeta(key) {
+    return CORE_FINDINGS.find((item) => item.key === key) || null;
+  }
+
+  function targetMeta(value) {
+    return CUSTOM_TARGETS.find((item) => item.value === value) || CUSTOM_TARGETS.at(-1);
+  }
+
+  function simpleHash(value) {
+    let hash = 2166136261;
+    for (const char of String(value || "")) {
+      hash ^= char.codePointAt(0) || 0;
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(36);
+  }
+
+  function learnedFindingFromRecord(record) {
+    if (!record?.findingKey) return null;
+    if (record.mappingKind === "new") {
+      const target = targetMeta(record.target);
+      return {
+        key: `custom:${record.findingKey}`,
+        label: record.canonicalLabel || record.outputText || record.sourcePhrase || record.findingKey,
+        group: target.group,
+        customRule: {
+          findingKey: record.findingKey,
+          target: record.target || target.value,
+          section: record.section || target.section,
+          outputText: record.outputText || record.sourcePhrase || record.canonicalLabel || "",
+          conflictText: record.conflictText || ""
+        }
+      };
+    }
+
+    const meta = coreFindingMeta(record.findingKey);
+    if (!meta) return null;
+    return {
+      key: meta.key,
+      label: record.canonicalLabel || meta.label,
+      group: meta.group,
+      ...(record.attributes || {})
+    };
+  }
+
+  function parseLearnedFindings(source) {
+    const text = normalizeLearningPhrase(source);
+    if (!text || !learnedFindingRecords.length) return [];
+
+    const findings = [];
+    for (const record of learnedFindingRecords) {
+      const alias = normalizeLearningPhrase(record.normalizedPhrase || record.sourcePhrase);
+      if (!alias || !text.includes(alias)) continue;
+      const finding = learnedFindingFromRecord(record);
+      if (finding) addFinding(findings, finding);
+    }
+    return findings;
+  }
+
+  function segmentClinicalText(source) {
+    let text = String(source || "").trim();
+    if (!text) return [];
+
+    const protectedAbbreviations = [
+      ["mko.", "mko§"],
+      ["n.v.", "n§v§"],
+      ["kb.", "kb§"],
+      ["jobb o.", "jobb o§"],
+      ["bal o.", "bal o§"],
+      ["st. post", "st§ post"]
+    ];
+    for (const [raw, token] of protectedAbbreviations) {
+      text = text.replaceAll(raw, token);
+      text = text.replaceAll(raw.toUpperCase(), token);
+    }
+
+    return text
+      .split(/(?:\s*[;,]\s*)|(?:[.!?]+\s+)/)
+      .map((part) => {
+        let restored = part.trim();
+        for (const [raw, token] of protectedAbbreviations) {
+          restored = restored.replaceAll(token, raw);
+        }
+        return restored.trim();
+      })
+      .filter(Boolean);
+  }
+
+  function unknownSegments(source) {
+    return segmentClinicalText(source).filter((segment) => parseFindings(segment).length === 0);
+  }
+
+  async function loadFindingLearningRegistry(force = false) {
+    if (learningRegistryLoaded && !force) return;
+    if (learningRegistryPromise && !force) return learningRegistryPromise;
+    if (typeof window.BachSBOBackend?.findingLearningLoadRegistry !== "function") {
+      learningRegistryLoaded = true;
+      return;
+    }
+
+    learningRegistryPromise = (async () => {
+      try {
+        const result = await window.BachSBOBackend.findingLearningLoadRegistry();
+        learnedFindingRecords = Array.isArray(result?.records) ? result.records : [];
+        learningOverview = result?.overview || learningOverview;
+        learningRegistryLoaded = true;
+        syncComposer();
+      } catch (error) {
+        console.warn("Finding learning registry unavailable:", error);
+      } finally {
+        learningRegistryPromise = null;
+      }
+    })();
+    return learningRegistryPromise;
+  }
+
   function clauseAt(text, index) {
     const separators = /[.;,\n]/;
     let start = index;

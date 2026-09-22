@@ -1585,6 +1585,7 @@ function getCaseMetadata(caseId = selectedPatientId) {
 function applyCaseMetadata(caseId, metadata = {}) {
   const patient = patientById(caseId);
   if (!patient) return null;
+  const activityBefore = JSON.stringify(caseMetadataFromPatient(patient));
 
   if (Object.prototype.hasOwnProperty.call(metadata, "sex")) {
     patient.sex = normalizeSex(metadata.sex);
@@ -1611,7 +1612,9 @@ function applyCaseMetadata(caseId, metadata = {}) {
   if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
     patient.otherDetails = metadata.other_details || "";
   }
-  patient.updatedAt = nowIso();
+  if (JSON.stringify(caseMetadataFromPatient(patient)) !== activityBefore) {
+    patient.updatedAt = nowIso();
+  }
   syncPatientRowFromState(patient);
   return structuredClone(patient);
 }

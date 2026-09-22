@@ -706,42 +706,28 @@
     if (window.__inlineCaseEditorInstalled) return;
     window.__inlineCaseEditorInstalled = true;
 
-    // If Beta provides a native inline editor, wire it immediately so
-    // Age/YOB/Arrival work before any timer, observer, or case-selection click.
+    // Wire the native editor immediately, then react to explicit app renders.
+    // No DOM observer or recurring repair loop is needed.
     ensureUi();
     enhanceSexUi();
+    loadSelected({ force: true });
 
-    new MutationObserver(() => {
-      clearTimeout(window.__iceRefresh);
-      window.__iceRefresh = setTimeout(() => {
-        ensureUi();
-        enhanceSexUi();
-        loadSelected();
-      }, 120);
-    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    document.addEventListener("bachsbo:ui-rendered", () => {
+      ensureUi();
+      enhanceSexUi();
+      loadSelected({ force: true });
+    });
+
     document.addEventListener("click", (event) => {
-      // Patient switching is now an awaited autosave transaction in app.js.
-      // Do not force-refresh metadata while the old case is still being saved.
-      if (event.target?.closest?.("#patientTbody tr[data-id]")) return;
-
-      setTimeout(() => {
-        loadSelected({ force: false });
-        enhanceSexUi();
-      }, 100);
+      if (event.target?.id === "langEnBtn" || event.target?.id === "langHuBtn") {
+        setTimeout(enhanceSexUi, 0);
+      }
     }, true);
+
     document.addEventListener("change", (event) => {
       if (event.target?.id === "newSex") styleSexSelect(event.target);
       if (event.target?.id === "fDisposition") ensureDischargeConditionUi();
     }, true);
-    setInterval(() => {
-      ensureUi();
-      enhanceSexUi();
-      loadSelected();
-    }, 1200);
-    setTimeout(() => {
-      loadSelected({ force: true });
-      enhanceSexUi();
-    }, 600);
   }
 
   if (document.readyState === "loading") {

@@ -778,7 +778,13 @@
       button.className = "beta-existing-choice";
       button.dataset.existingFindingKey = item.key;
       button.classList.toggle("selected", item.key === activeExistingFindingKey);
-      button.innerHTML = `<span>${item.label}</span><small>${item.source === "learned" ? "tanított finding" : item.key}</small>`;
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      const detail = document.createElement("small");
+      detail.textContent = item.source === "learned"
+        ? "tanított finding"
+        : targetMeta(item.target).label;
+      button.append(label, detail);
       list.appendChild(button);
     }
 
@@ -951,6 +957,8 @@
 
       if (suggestion.mappingKind === "existing" && coreFindingMeta(suggestion.findingKey)) {
         activeExistingFindingKey = suggestion.findingKey;
+        const search = composer.querySelector("#betaExistingFindingSearch");
+        if (search) search.value = "";
         renderExistingFindingPicker(composer);
         learningMessage = `AI javaslat: ${suggestion.canonicalLabel || coreFindingMeta(suggestion.findingKey)?.label}. Ellenőrizze, majd nyomja meg a HOZZÁRENDELÉS + TANÍTÁS gombot.`;
       } else {

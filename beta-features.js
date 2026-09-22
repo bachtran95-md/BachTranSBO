@@ -6,6 +6,45 @@
   let templateMode = "abcde";
   let suppressedFindingKeys = new Set();
   let lastPhysicalSource = "";
+  let learnedFindingRecords = [];
+  let learningOverview = { approvedLearning: 0, pendingCandidates: 0 };
+  let learningRegistryLoaded = false;
+  let learningRegistryPromise = null;
+  let activeUnknownPhrase = "";
+  let lastLearningId = "";
+
+  const CORE_FINDINGS = [
+    { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
+    { key: "abdomen-tender", label: "Hasi nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
+    { key: "defense", label: "Defanz", target: "abdomen", section: "E", group: "abdomen" },
+    { key: "no-defense", label: "Defanz nincs", target: "abdomen", section: "E", group: "abdomen" },
+    { key: "dyspnea", label: "Dyspnoe", target: "respiratory", section: "B", group: "respiratory" },
+    { key: "no-dyspnea", label: "Dyspnoe nincs", target: "respiratory", section: "B", group: "respiratory" },
+    { key: "crackles", label: "Crepitatio", target: "respiratory", section: "B", group: "respiratory" },
+    { key: "wheeze", label: "Sípoló légzés", target: "respiratory", section: "B", group: "respiratory" },
+    { key: "pulmonary-congestion", label: "Pulmonalis pangás", target: "respiratory", section: "B", group: "respiratory" },
+    { key: "edema", label: "Perifériás ödéma", target: "circulation", section: "C", group: "circulation" },
+    { key: "no-edema", label: "Ödéma nincs", target: "circulation", section: "C", group: "circulation" },
+    { key: "tachyarrhythmia", label: "Tachyarrhythmiás szívritmus", target: "circulation", section: "C", group: "circulation" },
+    { key: "systolic-murmur", label: "Systolés zörej", target: "circulation", section: "C", group: "circulation" },
+    { key: "irregular", label: "Szabálytalan szívritmus", target: "circulation", section: "C", group: "circulation" },
+    { key: "tachycardia", label: "Tachycardia", target: "circulation", section: "C", group: "circulation" },
+    { key: "bradycardia", label: "Bradycardia", target: "circulation", section: "C", group: "circulation" },
+    { key: "focal", label: "Neurológiai gócjel / paresis", target: "neuro", section: "D", group: "neuro" },
+    { key: "no-focal", label: "Neurológiai gócjel nincs", target: "neuro", section: "D", group: "neuro" },
+    { key: "gcs", label: "GCS", target: "neuro", section: "D", group: "neuro" }
+  ];
+
+  const CUSTOM_TARGETS = [
+    { value: "respiratory", label: "B – Pulmo", section: "B", group: "respiratory" },
+    { value: "circulation", label: "C – Szív / keringés", section: "C", group: "circulation" },
+    { value: "neuro", label: "D – Neurológia", section: "D", group: "neuro" },
+    { value: "abdomen", label: "E – Has", section: "E", group: "abdomen" },
+    { value: "skin", label: "E – Bőr / általános", section: "E", group: "skin" },
+    { value: "locomotor", label: "E – Végtag / mozgásszerv", section: "E", group: "locomotor" },
+    { value: "urogenital", label: "E – Vese / húgy-ivarszerv", section: "E", group: "urogenital" },
+    { value: "other", label: "E – Egyéb", section: "E", group: "other" }
+  ];
 
   const STANDARD_BASE = {
     intro: "Kp táplált. Bőr: normoturgor, kp vértelt, icterus, ödéma nem látható. Nyálkahártyák: kp. vérteltek. Conjunctiva: kp. erezett. Garatképletek: békések. Nyirokcsomók: kóros nem tap. Mamma: göb nem tap. Pajzsmirigy: göb nem tap.",

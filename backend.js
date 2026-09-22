@@ -638,6 +638,63 @@
     );
   }
 
+  async function findingLearningLoadRegistry() {
+    return invokeAuthedFunction(
+      "finding-learning",
+      { action: "load_registry" },
+      "Finding learning registry"
+    );
+  }
+
+  async function findingLearningConfirmMapping(mapping) {
+    if (!mapping?.sourcePhrase || !mapping?.findingKey) {
+      throw new Error("Finding learning mapping is incomplete.");
+    }
+    return invokeAuthedFunction(
+      "finding-learning",
+      {
+        action: "confirm_mapping",
+        sourcePhrase: String(mapping.sourcePhrase),
+        mappingKind: mapping.mappingKind === "new" ? "new" : "existing",
+        findingKey: String(mapping.findingKey),
+        canonicalLabel: String(mapping.canonicalLabel || ""),
+        target: String(mapping.target || ""),
+        section: String(mapping.section || ""),
+        outputText: String(mapping.outputText || ""),
+        conflictText: String(mapping.conflictText || ""),
+        attributes: mapping.attributes && typeof mapping.attributes === "object"
+          ? mapping.attributes
+          : {}
+      },
+      "Finding learning save"
+    );
+  }
+
+  async function findingLearningUndo(learningId) {
+    if (!learningId) throw new Error("Missing learning record.");
+    return invokeAuthedFunction(
+      "finding-learning",
+      { action: "undo_learning", learningId: String(learningId) },
+      "Finding learning undo"
+    );
+  }
+
+  async function findingLearningBuildCandidates() {
+    return invokeAuthedFunction(
+      "finding-learning",
+      { action: "build_candidates" },
+      "Finding candidate build"
+    );
+  }
+
+  async function findingLearningCandidatePatch() {
+    return invokeAuthedFunction(
+      "finding-learning",
+      { action: "candidate_patch" },
+      "Finding candidate patch"
+    );
+  }
+
   async function loadRawTransferWorkspace() {
     const db = requireClient();
     const user = await getUser();
@@ -842,6 +899,11 @@
     caseAssistantGetState,
     caseAssistantDecide,
     caseAssistantExtract,
+    findingLearningLoadRegistry,
+    findingLearningConfirmMapping,
+    findingLearningUndo,
+    findingLearningBuildCandidates,
+    findingLearningCandidatePatch,
     loadRawTransferWorkspace,
     getCaseRawData,
     saveCaseRawData,

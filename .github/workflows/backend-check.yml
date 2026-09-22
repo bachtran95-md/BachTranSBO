@@ -33,6 +33,7 @@ jobs:
           node --check beta-finding-registry.generated.js
           node --check beta-features.js
           node --check beta-status-module.js
+          node --check beta-status-module.js
 
       - name: Check security invariants
         run: |
@@ -92,7 +93,7 @@ jobs:
             echo "beta.html must load the production cockpit foundation."
             exit 1
           fi
-          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html; then
+          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html || ! grep -q 'beta-status-module.js' beta.html; then
             echo "beta.html must load beta-only feature assets."
             exit 1
           fi

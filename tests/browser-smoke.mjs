@@ -1908,12 +1908,21 @@ if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValu
 if ((await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
   throw new Error("Structured STATUS positive E5 finding did not survive reload");
 }
-if (!await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible() ||
-    !await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
-  throw new Error("Structured STATUS facts were hidden after reload");
+if (await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible() ||
+    await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
+  throw new Error("Generated structured STATUS editor should remain collapsed after reload");
 }
 if (!await betaFeatures.locator("#betaStructuredStatusPreview").isHidden()) {
   throw new Error("Generated full STATUS preview should stay collapsed after reload");
+}
+await betaFeatures.locator("#betaStructuredStatusEdit").click();
+if (!await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible() ||
+    !await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
+  throw new Error("Structured STATUS editor did not reopen after reload");
+}
+if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80" ||
+    (await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
+  throw new Error("Structured STATUS values changed when reopening the editor after reload");
 }
 if ((await betaFeatures.locator("#betaEkgFr").inputValue()) !== "") {
   throw new Error("Local-only EKG helper incorrectly survived reload");

@@ -6,34 +6,53 @@
   },
   {
     "name": "missing sex",
-    "patch": { "sex": "" },
+    "patch": {
+      "sex": ""
+    },
     "expectedReady": false
   },
   {
     "name": "invalid year of birth",
-    "patch": { "yob": "1888" },
+    "patch": {
+      "yob": "1888"
+    },
     "expectedReady": false
   },
   {
     "name": "missing arrival mode",
-    "patch": { "arrivalMode": "" },
+    "patch": {
+      "arrivalMode": ""
+    },
     "expectedReady": false
   },
   {
     "name": "other arrival without details",
-    "patch": { "arrivalMode": "other", "arrivalOther": "" },
+    "patch": {
+      "arrivalMode": "other",
+      "arrivalOther": ""
+    },
     "expectedReady": false
   },
   {
     "name": "missing complaint narrative",
-    "patch": { "complaintSkipped": false, "complaint": "" },
+    "patch": {
+      "complaintSkipped": false,
+      "complaint": ""
+    },
     "expectedReady": false
   },
   {
     "name": "waiting lab",
     "patch": {
       "tests": {
-        "labs": [{ "id": "fixture-lab", "mode": "waiting", "text": "", "savedText": "" }],
+        "labs": [
+          {
+            "id": "fixture-lab",
+            "mode": "waiting",
+            "text": "",
+            "savedText": ""
+          }
+        ],
         "ekgs": [],
         "gases": [],
         "radiology": [],
@@ -44,12 +63,18 @@
   },
   {
     "name": "discharged without condition",
-    "patch": { "dischargeCondition": "" },
+    "patch": {
+      "dischargeCondition": ""
+    },
     "expectedReady": false
   },
   {
     "name": "discharged without recommendation",
-    "patch": { "recommendations": [""] },
+    "patch": {
+      "recommendations": [
+        ""
+      ]
+    },
     "expectedReady": false
   },
   {
@@ -98,6 +123,70 @@
       "disposition": "foo",
       "dischargeCondition": "",
       "recommendations": []
+    },
+    "expectedReady": false
+  },
+  {
+    "name": "structured physical status generated with no positive findings",
+    "patch": {
+      "physical": "",
+      "physicalSkipped": false,
+      "physicalStatus": {
+        "version": 1,
+        "parameters": {
+          "bloodPressure": "135/80",
+          "pulse": "88",
+          "temperature": "",
+          "respiratoryRate": "",
+          "spo2": "",
+          "oxygen": ""
+        },
+        "sections": {
+          "A": "",
+          "B": "",
+          "C": "",
+          "D": "",
+          "E1": "",
+          "E2": "",
+          "E3": "",
+          "E4": "",
+          "E5": "",
+          "E6": ""
+        },
+        "generatedAt": "2026-09-22T23:00:00.000Z"
+      }
+    },
+    "expectedReady": true
+  },
+  {
+    "name": "structured physical status edited but not generated",
+    "patch": {
+      "physical": "E5: Hasa érzékeny.",
+      "physicalSkipped": false,
+      "physicalStatus": {
+        "version": 1,
+        "parameters": {
+          "bloodPressure": "135/80",
+          "pulse": "88",
+          "temperature": "",
+          "respiratoryRate": "",
+          "spo2": "",
+          "oxygen": ""
+        },
+        "sections": {
+          "A": "",
+          "B": "",
+          "C": "",
+          "D": "",
+          "E1": "",
+          "E2": "",
+          "E3": "",
+          "E4": "",
+          "E5": "Hasa érzékeny.",
+          "E6": ""
+        },
+        "generatedAt": null
+      }
     },
     "expectedReady": false
   }

@@ -26,8 +26,8 @@
     { key: "crackles", label: "Crepitatio", target: "respiratory", section: "B", group: "respiratory" },
     { key: "wheeze", label: "Sípoló légzés", target: "respiratory", section: "B", group: "respiratory" },
     { key: "pulmonary-congestion", label: "Pulmonalis pangás", target: "respiratory", section: "B", group: "respiratory" },
-    { key: "edema", label: "Perifériás ödéma", target: "circulation", section: "C", group: "circulation" },
-    { key: "no-edema", label: "Ödéma nincs", target: "circulation", section: "C", group: "circulation" },
+    { key: "edema", label: "Perifériás ödéma", target: "locomotor", section: "E", group: "locomotor" },
+    { key: "no-edema", label: "Ödéma nincs", target: "locomotor", section: "E", group: "locomotor" },
     { key: "tachyarrhythmia", label: "Tachyarrhythmiás szívritmus", target: "circulation", section: "C", group: "circulation" },
     { key: "systolic-murmur", label: "Systolés zörej", target: "circulation", section: "C", group: "circulation" },
     { key: "irregular", label: "Szabálytalan szívritmus", target: "circulation", section: "C", group: "circulation" },
@@ -684,30 +684,40 @@
       const loc = map.get("pulmonary-congestion").location;
       noises.push(`${loc ? loc + " " : ""}tüdő felett pangás hallható`);
     }
-    const bNoises = noises.length ? `Zörejek: ${noises.join(", ")}.` : "Zörejek: nincs.";
+    const bNoises = noises.length
+      ? `Zörejek: ${noises.join(", ")}.`
+      : "Zörejek: nincs.";
 
     let cHeart = "Szívhangok: ritmusos, tiszta, zörej nem hallható.";
     if (map.has("tachyarrhythmia")) {
       cHeart = "Szívhangok: tachyarrhythmiásak.";
     } else {
-      if (map.has("irregular")) cHeart = "Szívhangok: arrhythmiásak, tiszták, zörej nem hallható.";
-      if (map.has("tachycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: tachycard,");
-      if (map.has("bradycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: bradycard,");
+      if (map.has("irregular")) {
+        cHeart = "Szívhangok: arrhythmiásak, tiszták, zörej nem hallható.";
+      }
+      if (map.has("tachycardia")) {
+        cHeart = cHeart.replace("Szívhangok:", "Szívhangok: tachycard,");
+      }
+      if (map.has("bradycardia")) {
+        cHeart = cHeart.replace("Szívhangok:", "Szívhangok: bradycard,");
+      }
     }
     if (map.has("systolic-murmur")) {
       const grade = map.get("systolic-murmur").grade;
       cHeart = cHeart.replace(/(?:,?\s*tiszt[aá]k?\.?|zörej nem hallható\.?)/g, "").trim();
       cHeart += ` ${grade ? grade + " " : ""}systolés zörej hallható.`;
     }
-    const cEdema = map.has("edema") ? " Perifériás ödéma észlelhető." : "";
 
     const gcs = map.has("gcs") ? map.get("gcs").value : 15;
-    let dNeuro = "Pupillák kerekek, egyenlőek, fényre jól reagálnak, nystagmus, kettőslátás nincs. Tarkótáji kötöttség, meningealis izgalmi jelek nincsenek. Izomerő megtartott. Szenzoros/Motoros oldalkülönbség: nincs. Latens paresis nincs. Romberg: megáll. Dix-Hallpike: n.v. Célkísérletek pontosak.";
+    let dNeuro = "Pupillák kerekek, egyenlőek, fényre jól reagálnak, nystagmus, kettőslátás nincs. Tarkótáji kötöttség, meningealis izgalmi jelek nincsenek. Izomerő megtartott. Szenzoros/motoros oldalkülönbség nincs. Latens paresis nincs.";
     if (map.has("focal")) {
-      dNeuro = dNeuro.replace("Izomerő megtartott. Szenzoros/Motoros oldalkülönbség: nincs. Latens paresis nincs.", "Neurológiai gócjel / paresis észlelhető.");
+      dNeuro = dNeuro.replace(
+        "Izomerő megtartott. Szenzoros/motoros oldalkülönbség nincs. Latens paresis nincs.",
+        "Neurológiai gócjel / paresis észlelhető."
+      );
     }
 
-    let abdomen = "Has: mellkas szintjében, puha, betapintható. Máj: nem tapintható. Lép: nem tapintható. Kóros rezisztencia nincs, nyomásérzékenység nincs, kp. élénk bélhangok.";
+    let abdomen = "Has: mellkas szintjében, puha, betapintható. Kóros rezisztencia nincs, nyomásérzékenység nincs, kp. élénk bélhangok. Máj nem tapintható. Lép nem tapintható.";
     if (map.has("epig-tender")) {
       abdomen = abdomen.replace("nyomásérzékenység nincs", "epigastriumban nyomásérzékeny");
     } else if (map.has("abdomen-tender")) {
@@ -720,16 +730,31 @@
 
     const lines = [
       "A: Légutak átjárhatók. A beteg beszél.",
-      `B: ${bDyspnea} Mellkas: részarányos. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs. Légzési munka normális. Cyanosis nincs.`,
-      `C: Jól tapintható perifériás pulzusok. CRT <2 s. ${cHeart} Nyaki vénák nem teltek.${cEdema}`,
+      `B: ${bDyspnea} Mellkas: részarányos. Rekeszek szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség nincs. Légzési munka normális. Cyanosis nincs.`,
+      `C: Jól tapintható perifériás pulzusok. CRT <2 s. ${cHeart} Nyaki vénák nem teltek.`,
       `D: A (Alert). GCS: ${gcs}${gcs === 15 ? " (Sz:4, V:5, M:6)" : ""}. ${dNeuro}`,
-      `E: Kp. fejlett, kp. táplált, jó általános állapotú beteg. Bőrszín: normál, turgora megtartott. Nyálkahártyák: kp. vértelt. Nyelv: nedves. Sclera: fehér. ${abdomen} Húgy és ivarszervek: Vesetájak ütögetésre nem érzékenyek. Végtagok: alakilag és funkcionálisan épek, ${edema}. MVT-re utaló jel nincs. Gerinc: alakilag ép, ütögetésre nem érzékeny. Külsérelmi nyoma: nincs.`
+      "E1 – Általános állapot: Kp. fejlett, kp. táplált, jó általános állapotú beteg.",
+      "E2 – Bőr / nyálkahártyák: Bőrszín normál, turgora megtartott. Nyálkahártyák kp. vérteltek. Nyelv nedves. Sclera fehér.",
+      "E3 – Sérülés: Külsérelmi nyom nincs.",
+      `E4 – Végtagok / oedema / MVT: Végtagok alakilag és funkcionálisan épek, ${edema}. MVT-re utaló jel nincs. Gerinc alakilag ép, ütögetésre nem érzékeny.`,
+      `E5 – Has: ${abdomen}`,
+      "E6 – Vese / urogenitalis: Vesetájak ütögetésre nem érzékenyek."
     ];
 
-    const lineIndex = { A: 0, B: 1, C: 2, D: 3, E: 4 };
     for (const finding of customFindings(findings)) {
       const rule = finding.customRule;
-      const index = lineIndex[String(rule.section || "E").toUpperCase()] ?? 4;
+      const target = String(rule.target || "");
+      const index =
+        target === "airway" ? 0 :
+        target === "respiratory" ? 1 :
+        target === "circulation" ? 2 :
+        target === "neuro" ? 3 :
+        target === "general" ? 4 :
+        target === "skin" ? 5 :
+        target === "locomotor" ? 7 :
+        target === "abdomen" ? 8 :
+        target === "urogenital" ? 9 :
+        4;
       lines[index] = applyCustomRule(lines[index], rule);
     }
 
@@ -1063,7 +1088,7 @@
             <strong>Finding preview</strong>
             <span class="beta-finding-count" id="betaFindingCount"></span>
           </div>
-          <span class="beta-local-only">STATUS NEM MENTŐDIK • TANÍTÁS KÜLÖN</span>
+          <span class="beta-local-only">POZITÍV FINDING TANULÁS</span>
         </div>
         <div class="beta-finding-chips" id="betaFindingChips"></div>
         <div class="beta-unknown-block hidden" id="betaUnknownBlock">
@@ -1282,6 +1307,13 @@
       }, 1200);
     }
   }
+
+  window.BachSBOPhysicalStatusEngine = Object.freeze({
+    parseFindings: (source) => parseFindings(source),
+    unknownSegments: (source) => unknownSegments(source),
+    abcdeStatus: (findings) => abcdeStatus(findings),
+    activeFindings: (findings) => activeFindings(findings)
+  });
 
   function refreshBetaFeatures() {
     addBetaBadge();

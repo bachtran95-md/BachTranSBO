@@ -1608,7 +1608,7 @@ if (!finalizedState.finalizedAt || finalizedState.finalizedText !== "Mock summar
 }
 
 // Beta remains an isolated experiment entrypoint. Promoted features come from
-// Stable production assets; the beta-only layer adds only the BETA identity.
+// Stable production assets; beta-only features must not appear on Stable.
 await beta.evaluate(() => {
   const key = "__bach_sbo_e2e_state";
   const state = JSON.parse(localStorage.getItem(key) || "{}");
@@ -1649,6 +1649,62 @@ await betaFeatures.locator("#caseTriageControl").waitFor();
 if (await betaFeatures.locator("#betaTriageControl").count()) {
   throw new Error("Promoted triage is still duplicated in the beta-only layer");
 }
+
+// Beta-only physical finding composer: deterministic local parsing only.
+await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
+await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 3 &&
+  !(document.querySelector("#betaCopyStatus")?.disabled)
+);
+const abcdePreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
+for (const expected of [
+  "A: Légutak átjárhatók.",
+  "Nehézlégzés nincs.",
+  "jobb basalis crepitatio hallható",
+  "epigastriumban nyomásérzékeny"
+]) {
+  if (!abcdePreview.includes(expected)) {
+    throw new Error("ABCDE finding composer preview missing: " + expected + "\n" + abcdePreview);
+  }
+}
+if (abcdePreview.includes("Zörejek: nincs.")) {
+  throw new Error("ABCDE preview kept normal lung-noise text despite crepitatio");
+}
+
+// Suppressing a chip must change only the local preview.
+await betaFeatures.locator('[data-finding-key="crackles"]').click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelector('[data-finding-key="crackles"]')?.classList.contains("suppressed") &&
+  (document.querySelector("#betaStatusPreview")?.value || "").includes("Zörejek: nincs.")
+);
+
+// Standard template uses the same reviewed finding set.
+await betaFeatures.locator('[data-status-mode="standard"]').click();
+await betaFeatures.waitForFunction(() =>
+  (document.querySelector("#betaStatusPreview")?.value || "").startsWith("Kp táplált.")
+);
+const standardPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
+if (!standardPreview.includes("epigastriumban nyomásérzékeny")) {
+  throw new Error("Standard finding composer did not apply epigastric tenderness");
+}
+
+// Generated status must not become part of the patient/workflow state.
+const composerPersistenceCheck = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const serialized = JSON.stringify(patient || {});
+  return {
+    physical: patient?.physical || "",
+    generatedLeaked: serialized.includes("Légutak átjárhatók") || serialized.includes("Kp táplált.")
+  };
+});
+if (
+  composerPersistenceCheck.physical !== "epig nyomérz, dyspnoe nincs, jobb basalis crepitatio" ||
+  composerPersistenceCheck.generatedLeaked
+) {
+  throw new Error("Generated beta status leaked into patient state: " + JSON.stringify(composerPersistenceCheck));
+}
+
 await betaFeatures.close();
 
 if (errors.length) {

@@ -1,4 +1,9 @@
+import { readFile } from "node:fs/promises";
 import { chromium } from "playwright";
+
+const workflowFixtures = JSON.parse(
+  await readFile(new URL("./workflow-fixtures.json", import.meta.url), "utf8")
+);
 
 const baseUrl = process.env.SMOKE_BASE_URL || "http://127.0.0.1:4173";
 const backendMock = String.raw`
@@ -580,6 +585,89 @@ if (await beta.locator("#chooseNormalMode").count()) {
 }
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.waitForFunction(() => document.body.classList.contains("cockpit-ui"));
+
+const frontendParity = await beta.evaluate((fixtures) => {
+  const evaluate = window.BachSBOClinicalUi?.evaluateWorkflowStatus;
+  if (typeof evaluate !== "function") {
+    throw new Error("Frontend workflow parity evaluator is unavailable");
+  }
+
+  const basePatient = () => ({
+    sex: "F",
+    yob: "1970",
+    mainComplaint: "Mellkasi fájdalom",
+    arrivalMode: "walk_in",
+    arrivalOther: "",
+    complaint: "",
+    complaintSkipped: true,
+    history: "",
+    historySkipped: true,
+    physical: "",
+    physicalSkipped: true,
+    therapy: "",
+    therapySkipped: true,
+    course: "",
+    courseSkipped: true,
+    diagnoses: "",
+    diagnosesSkipped: true,
+    tests: {
+      labs: [],
+      ekgs: [],
+      gases: [],
+      radiology: [],
+      consultations: []
+    },
+    disposition: "discharged",
+    dischargeCondition: "Panaszmentes, jó általános állapotú.",
+    recommendations: ["Háziorvosi kontroll."],
+    hospital: "",
+    ward: "",
+    physician: "",
+    admissionNote: "",
+    otherOutcome: "",
+    otherDetails: ""
+  });
+
+  const merge = (base, patch) => {
+    if (Array.isArray(patch)) return structuredClone(patch);
+    if (!patch || typeof patch !== "object") return patch;
+
+    const out = structuredClone(base);
+    for (const [key, value] of Object.entries(patch)) {
+      if (
+        value &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        out?.[key] &&
+        typeof out[key] === "object" &&
+        !Array.isArray(out[key])
+      ) {
+        out[key] = merge(out[key], value);
+      } else {
+        out[key] = structuredClone(value);
+      }
+    }
+    return out;
+  };
+
+  return fixtures.map((fixture) => {
+    const status = evaluate(merge(basePatient(), fixture.patch));
+    return {
+      name: fixture.name,
+      expectedReady: fixture.expectedReady,
+      actualReady: Boolean(status?.summaryReady)
+    };
+  });
+}, workflowFixtures);
+
+for (const result of frontendParity) {
+  if (result.actualReady !== result.expectedReady) {
+    throw new Error(
+      `Frontend workflow parity failed for ${result.name}: expected ready=${result.expectedReady}, got ready=${result.actualReady}`
+    );
+  }
+}
+
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
   throw new Error("Stable cockpit did not restore the expected case state");
 }

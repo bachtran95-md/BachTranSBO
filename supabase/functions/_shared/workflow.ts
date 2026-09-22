@@ -19,17 +19,24 @@ export function patientWorkflowBlockers(patient: any) {
     blockers.push("Arrival details");
   }
 
+  const physicalStructuredComplete = Boolean(
+    patient?.physicalStatus?.version === 1 &&
+    patient?.physicalStatus?.generatedAt
+  );
+
   const requiredNarrative = [
-    ["Complaint", patient?.complaint, patient?.complaintSkipped],
-    ["Patient history", patient?.history, patient?.historySkipped],
-    ["Physical examination", patient?.physical, patient?.physicalSkipped],
-    ["Therapy", patient?.therapy, patient?.therapySkipped],
-    ["Clinical course", patient?.course, patient?.courseSkipped],
-    ["Diagnoses", patient?.diagnoses, patient?.diagnosesSkipped],
+    ["Complaint", patient?.complaint, patient?.complaintSkipped, false],
+    ["Patient history", patient?.history, patient?.historySkipped, false],
+    ["Physical examination", patient?.physical, patient?.physicalSkipped, physicalStructuredComplete],
+    ["Therapy", patient?.therapy, patient?.therapySkipped, false],
+    ["Clinical course", patient?.course, patient?.courseSkipped, false],
+    ["Diagnoses", patient?.diagnoses, patient?.diagnosesSkipped, false],
   ];
 
-  for (const [label, value, skipped] of requiredNarrative) {
-    if (!skipped && !String(value || "").trim()) blockers.push(String(label));
+  for (const [label, value, skipped, structuredComplete] of requiredNarrative) {
+    if (!skipped && !structuredComplete && !String(value || "").trim()) {
+      blockers.push(String(label));
+    }
   }
 
   const testEntries = [

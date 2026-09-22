@@ -1674,6 +1674,40 @@ if (abcdePreview.includes("Zörejek: nincs.")) {
   throw new Error("ABCDE preview kept normal lung-noise text despite crepitatio");
 }
 
+// Real-world shorthand coverage: abdominal tenderness + tachyarrhythmia + murmur + bilateral congestion.
+await betaFeatures.locator("#fPhysical").fill("Hasa érzékeny. Tachyarritmiás szívritmus, 6/5ös systolés zörej. Mko. tüdő fölött pangás hallható.");
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4
+);
+const realWorldChips = await betaFeatures.locator("#betaFindingComposer .beta-finding-chip").allTextContents();
+for (const expected of [
+  "Hasi nyomásérzékenység",
+  "Tachyarrhythmiás szívritmus",
+  "6/5 systolés zörej",
+  "mko. tüdő felett pangás"
+]) {
+  if (!realWorldChips.includes(expected)) {
+    throw new Error("Real-world finding parser missed: " + expected + " -> " + JSON.stringify(realWorldChips));
+  }
+}
+const realWorldPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
+for (const expected of [
+  "nyomásérzékeny",
+  "tachyarrhythmiás",
+  "6/5 systolés zörej hallható",
+  "mko. tüdő felett pangás hallható"
+]) {
+  if (!realWorldPreview.includes(expected)) {
+    throw new Error("Real-world status preview missed: " + expected + "\n" + realWorldPreview);
+  }
+}
+
+// Restore the earlier fixture for chip suppression coverage.
+await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+await betaFeatures.waitForFunction(() =>
+  document.querySelector('[data-finding-key="crackles"]')
+);
+
 // Suppressing a chip must change only the local preview.
 await betaFeatures.locator('[data-finding-key="crackles"]').click();
 await betaFeatures.waitForFunction(() =>

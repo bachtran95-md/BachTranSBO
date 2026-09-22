@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { openAiApiKey } from "../_shared/openai.ts";
+import { callResponses, responseText } from "../_shared/responses.ts";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") || "*";
 
@@ -66,17 +67,6 @@ function serviceClient() {
   );
 }
 
-function responseText(payload: any): string {
-  if (typeof payload?.output_text === "string") return payload.output_text.trim();
-
-  const chunks: string[] = [];
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (typeof content?.text === "string") chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
-}
 
 function testStatus(row: any) {
   if (row.mode === "notordered") return "not_ordered";
@@ -245,6 +235,7 @@ async function createEmbedding(input: string) {
   const model = Deno.env.get("EMBEDDING_MODEL") || "text-embedding-3-small";
   const response = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
+    signal: AbortSignal.timeout(15000),
     headers: {
       "Authorization": `Bearer ${openAiApiKey()}`,
       "Content-Type": "application/json",
@@ -296,31 +287,14 @@ async function similarCases(
 }
 
 async function callOpenAI(prompt: string) {
-  const apiKey = openAiApiKey();
   const model = Deno.env.get("SUMMARY_MODEL") || "gpt-5.6-terra";
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      prompt_cache_key: "bachtransbo-summary-v1",
-      input: prompt,
-    }),
+  const payload = await callResponses({
+    model,
+    prompt_cache_key: "bachtransbo-summary-v1",
+    max_output_tokens: 8000,
+    input: prompt,
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `OpenAI summary generation failed (${response.status}): ${detail.slice(0, 500)}`,
-    );
-  }
-
-  const payload = await response.json();
   const text = responseText(payload);
   if (!text) throw new Error("OpenAI returned an empty summary.");
 
@@ -503,3 +477,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

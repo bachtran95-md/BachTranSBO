@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
-import { openAiApiKey } from "../_shared/openai.ts";
+import { callResponses, responseText } from "../_shared/responses.ts";
 import { deidentifyAssistantText } from "../_shared/deidentify.ts";
 import "../../../assistant-core.js";
 
@@ -74,16 +74,6 @@ function serviceClient() {
   );
 }
 
-function responseText(payload: any): string {
-  if (typeof payload?.output_text === "string") return payload.output_text.trim();
-  const chunks: string[] = [];
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (typeof content?.text === "string") chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
-}
 
 async function modelCall(
   instructions: string,
@@ -98,34 +88,14 @@ async function modelCall(
     Deno.env.get("SUMMARY_MODEL") ||
     "gpt-5.6-terra";
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    signal: AbortSignal.timeout(105000),
-    headers: {
-      Authorization: `Bearer ${openAiApiKey()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      instructions,
-      input,
-      max_output_tokens: 6500,
-      ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
-      ...extra,
-    }),
+  const result = await callResponses({
+    model,
+    instructions,
+    input,
+    max_output_tokens: 6500,
+    ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
+    ...extra,
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `AI request failed (${response.status}). Check model access and API configuration.`,
-    );
-  }
-
-  const result = await response.json();
-  if (result.status !== "completed") {
-    throw new Error("AI response incomplete. Please retry with shorter notes.");
-  }
 
   return { result, model };
 }
@@ -905,3 +875,4 @@ export async function handler(req: Request) {
 }
 
 Deno.serve(handler);
+

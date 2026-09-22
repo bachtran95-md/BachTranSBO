@@ -173,6 +173,22 @@ jobs:
             echo "clinical-store is missing the server-side delete_case action."
             exit 1
           fi
+          if ! grep -q 'function caseRowFromPatient' supabase/functions/clinical-store/index.ts || ! grep -q 'function summaryRowFromPatient' supabase/functions/clinical-store/index.ts; then
+            echo "clinical-store must use canonical case/summary serializers."
+            exit 1
+          fi
+          if [ "$(grep -c 'year_of_birth:' supabase/functions/clinical-store/index.ts)" -ne 1 ]; then
+            echo "Case year_of_birth mapping must exist only in the canonical serializer."
+            exit 1
+          fi
+          if [ "$(grep -c 'caseRowFromPatient(patient, ownerId, now)' supabase/functions/clinical-store/index.ts)" -ne 3 ]; then
+            echo "saveState, savePatient and finalizePatient must all use caseRowFromPatient."
+            exit 1
+          fi
+          if [ "$(grep -c 'summaryRowFromPatient(patient, ownerId, now)' supabase/functions/clinical-store/index.ts)" -ne 3 ]; then
+            echo "saveState, savePatient and finalizePatient must all use summaryRowFromPatient."
+            exit 1
+          fi
           if grep -R -E "verify_jwt[[:space:]]*=[[:space:]]*true" supabase/config.toml; then
             echo "New Supabase API keys require in-function JWT validation; gateway verify_jwt must stay false."
             exit 1

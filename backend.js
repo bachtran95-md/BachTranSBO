@@ -646,6 +646,16 @@
     );
   }
 
+  async function findingLearningSuggest(sourcePhrase) {
+    const phrase = String(sourcePhrase || "").trim();
+    if (!phrase) throw new Error("Missing unknown finding phrase.");
+    return invokeAuthedFunction(
+      "finding-learning",
+      { action: "suggest_mapping", sourcePhrase: phrase },
+      "Finding AI suggestion"
+    );
+  }
+
   async function findingLearningConfirmMapping(mapping) {
     if (!mapping?.sourcePhrase || !mapping?.findingKey) {
       throw new Error("Finding learning mapping is incomplete.");
@@ -900,6 +910,7 @@
     caseAssistantDecide,
     caseAssistantExtract,
     findingLearningLoadRegistry,
+    findingLearningSuggest,
     findingLearningConfirmMapping,
     findingLearningUndo,
     findingLearningBuildCandidates,

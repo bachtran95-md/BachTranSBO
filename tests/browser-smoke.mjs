@@ -1795,6 +1795,32 @@ for (const expected of [
   }
 }
 
+// Unknown findings must be explicit, teachable, and immediately reusable.
+await betaFeatures.locator("#fPhysical").fill("Bal oldalon pleuralis dörzszörej hallható.");
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
+  document.querySelector("#betaCopyStatus")?.disabled
+);
+await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
+await betaFeatures.locator("#betaNewFindingLabel").fill("Pleuralis dörzszörej");
+await betaFeatures.locator("#betaNewFindingTarget").selectOption("respiratory");
+await betaFeatures.locator("#betaNewFindingOutput").fill("Bal oldalon pleuralis dörzszörej hallható.");
+await betaFeatures.locator("#betaSaveNewFinding").click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
+  [...document.querySelectorAll("#betaFindingComposer .beta-finding-chip")]
+    .some((node) => (node.textContent || "").includes("Pleuralis dörzszörej")) &&
+  !(document.querySelector("#betaCopyStatus")?.disabled)
+);
+const learnedPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
+if (!learnedPreview.includes("Bal oldalon pleuralis dörzszörej hallható.")) {
+  throw new Error("New learned finding was not rendered into the status preview");
+}
+await betaFeatures.locator("#betaBuildCandidates").click();
+await betaFeatures.waitForFunction(() =>
+  /1 tanítás.*1 jelölt/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
+);
+
 // Restore the earlier fixture for chip suppression coverage.
 await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
 await betaFeatures.waitForFunction(() =>

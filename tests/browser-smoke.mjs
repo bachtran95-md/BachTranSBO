@@ -141,6 +141,47 @@ const backendMock = String.raw`
       reviewed_at: null
     }
   ];
+  let findingLearningRecords = [];
+  let findingCandidates = [];
+
+  const findingOverview = () => ({
+    approvedLearning: findingLearningRecords.length,
+    pendingCandidates: findingCandidates.length
+  });
+
+  const rebuildFindingCandidates = () => {
+    const byKey = new Map();
+    for (const record of findingLearningRecords) {
+      const signature = record.normalizedPhrase + "::" + record.findingKey;
+      const current = byKey.get(signature);
+      if (current) {
+        current.confirmations += 1;
+        current.lastConfirmedAt = record.createdAt;
+      } else {
+        byKey.set(signature, {
+          id: "candidate-" + record.id,
+          alias: record.normalizedPhrase,
+          sample: record.sourcePhrase,
+          mappingKind: record.mappingKind,
+          findingKey: record.findingKey,
+          canonicalLabel: record.canonicalLabel,
+          target: record.target,
+          section: record.section,
+          outputText: record.outputText,
+          conflictText: record.conflictText,
+          attributes: clone(record.attributes || {}),
+          confirmations: 1,
+          firstConfirmedAt: record.createdAt,
+          lastConfirmedAt: record.createdAt,
+          builtAt: new Date().toISOString()
+        });
+      }
+    }
+    findingCandidates = [...byKey.values()];
+    return clone(findingCandidates);
+  };
+
+
 
   const session = () => localStorage.getItem(SESSION_KEY)
     ? { user: { email: "e2e@example.test" }, access_token: "e2e-access", refresh_token: "e2e-refresh" }
@@ -303,6 +344,58 @@ const backendMock = String.raw`
           label: "Complaint"
         }],
         warnings: []
+      };
+    },
+    async findingLearningLoadRegistry() {
+      return {
+        records: clone(findingLearningRecords),
+        overview: findingOverview()
+      };
+    },
+    async findingLearningConfirmMapping(mapping) {
+      const sourcePhrase = String(mapping.sourcePhrase || "").trim();
+      const normalizedPhrase = sourcePhrase
+        .toLocaleLowerCase("hu-HU")
+        .replace(/\s+/g, " ")
+        .replace(/[\s.,;:]+$/g, "")
+        .trim();
+      const record = {
+        id: "learn-" + String(findingLearningRecords.length + 1).padStart(3, "0"),
+        sourcePhrase,
+        normalizedPhrase,
+        mappingKind: mapping.mappingKind === "new" ? "new" : "existing",
+        findingKey: String(mapping.findingKey || ""),
+        canonicalLabel: String(mapping.canonicalLabel || ""),
+        target: String(mapping.target || ""),
+        section: String(mapping.section || ""),
+        outputText: String(mapping.outputText || ""),
+        conflictText: String(mapping.conflictText || ""),
+        attributes: clone(mapping.attributes || {}),
+        createdAt: new Date().toISOString()
+      };
+      findingLearningRecords.unshift(record);
+      return {
+        record: clone(record),
+        threshold: { built: false, newLearningSinceBuild: findingLearningRecords.length },
+        overview: findingOverview()
+      };
+    },
+    async findingLearningUndo(learningId) {
+      findingLearningRecords = findingLearningRecords.filter((record) => record.id !== learningId);
+      rebuildFindingCandidates();
+      return { reverted: learningId, overview: findingOverview() };
+    },
+    async findingLearningBuildCandidates() {
+      const patch = rebuildFindingCandidates();
+      return { patch, overview: findingOverview() };
+    },
+    async findingLearningCandidatePatch() {
+      if (!findingCandidates.length && findingLearningRecords.length) rebuildFindingCandidates();
+      return {
+        generatedAt: new Date().toISOString(),
+        registryPatchVersion: 1,
+        patch: clone(findingCandidates),
+        overview: findingOverview()
       };
     },
     async loadRawTransferWorkspace() {

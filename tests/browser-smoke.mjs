@@ -975,6 +975,59 @@ if ((await beta.locator("#fDischargeCondition").inputValue()) !== "Panaszmentes,
   throw new Error("Discharge condition was lost after reload");
 }
 
+// Disposition is mutually exclusive in canonical patient state. Switching
+// branches must immediately clear hidden data from the previous branch.
+await beta.locator("#recList [data-rec]").first().fill("Háziorvosi kontroll.");
+await beta.waitForFunction(() =>
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.recommendations?.[0] === "Háziorvosi kontroll."
+);
+
+await beta.locator("#fDisposition").selectOption("admitted");
+await beta.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return p?.disposition === "admitted" &&
+    p?.dischargeCondition === "" &&
+    Array.isArray(p?.recommendations) &&
+    p.recommendations.length === 0 &&
+    document.querySelector("#dischargedFields")?.classList.contains("hidden") &&
+    !document.querySelector("#admittedFields")?.classList.contains("hidden");
+});
+
+await beta.locator("#cockpitWardSelect").selectOption("Kardiológia");
+await beta.waitForFunction(() =>
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.ward === "Kardiológia"
+);
+
+await beta.locator("#fDisposition").selectOption("other");
+await beta.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return p?.disposition === "other" &&
+    p?.ward === "" &&
+    p?.hospital === "" &&
+    !document.querySelector("#otherFields")?.classList.contains("hidden") &&
+    document.querySelector("#admittedFields")?.classList.contains("hidden");
+});
+await beta.locator("#fOtherOutcome").fill("Saját felelősségre távozott");
+await beta.waitForFunction(() =>
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.otherOutcome === "Saját felelősségre távozott"
+);
+
+await beta.locator("#fDisposition").selectOption("discharged");
+await beta.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return p?.disposition === "discharged" &&
+    p?.otherOutcome === "" &&
+    p?.otherDetails === "" &&
+    !document.querySelector("#dischargedFields")?.classList.contains("hidden") &&
+    document.querySelector("#otherFields")?.classList.contains("hidden");
+});
+
+// Restore the discharge branch for the rest of the smoke workflow.
+await beta.locator("#fDischargeCondition").fill("Panaszmentes, jó általános állapotú.");
+await beta.locator("#recList [data-rec]").first().fill("Háziorvosi kontroll.");
+await beta.locator("#fDischargeCondition").blur();
+await beta.waitForTimeout(220);
+
 // Regression from the uploaded recording: typing into a result must not remove
 // Beta's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();

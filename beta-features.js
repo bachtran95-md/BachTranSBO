@@ -17,17 +17,17 @@
   let activeExistingFindingKey = "";
 
   const CORE_FINDINGS = [
-    { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
-    { key: "abdomen-tender", label: "Hasi nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
-    { key: "defense", label: "Defanz", target: "abdomen", section: "E", group: "abdomen" },
-    { key: "no-defense", label: "Defanz nincs", target: "abdomen", section: "E", group: "abdomen" },
+    { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E5", group: "abdomen" },
+    { key: "abdomen-tender", label: "Hasi nyomásérzékenység", target: "abdomen", section: "E5", group: "abdomen" },
+    { key: "defense", label: "Defanz", target: "abdomen", section: "E5", group: "abdomen" },
+    { key: "no-defense", label: "Defanz nincs", target: "abdomen", section: "E5", group: "abdomen" },
     { key: "dyspnea", label: "Dyspnoe", target: "respiratory", section: "B", group: "respiratory" },
     { key: "no-dyspnea", label: "Dyspnoe nincs", target: "respiratory", section: "B", group: "respiratory" },
     { key: "crackles", label: "Crepitatio", target: "respiratory", section: "B", group: "respiratory" },
     { key: "wheeze", label: "Sípoló légzés", target: "respiratory", section: "B", group: "respiratory" },
     { key: "pulmonary-congestion", label: "Pulmonalis pangás", target: "respiratory", section: "B", group: "respiratory" },
-    { key: "edema", label: "Perifériás ödéma", target: "locomotor", section: "E", group: "locomotor" },
-    { key: "no-edema", label: "Ödéma nincs", target: "locomotor", section: "E", group: "locomotor" },
+    { key: "edema", label: "Perifériás ödéma", target: "locomotor", section: "E4", group: "locomotor" },
+    { key: "no-edema", label: "Ödéma nincs", target: "locomotor", section: "E4", group: "locomotor" },
     { key: "tachyarrhythmia", label: "Tachyarrhythmiás szívritmus", target: "circulation", section: "C", group: "circulation" },
     { key: "systolic-murmur", label: "Systolés zörej", target: "circulation", section: "C", group: "circulation" },
     { key: "irregular", label: "Szabálytalan szívritmus", target: "circulation", section: "C", group: "circulation" },
@@ -43,14 +43,16 @@
   // keeps it as a separate investigation, not as part of the physical status.
   const CUSTOM_TARGETS = [
     { value: "airway", label: "A – Légút", section: "A", group: "airway" },
-    { value: "respiratory", label: "B – Légzés / Pulmo", section: "B", group: "respiratory" },
+    { value: "respiratory", label: "B – Légzés / Mellkas / Pulmo", section: "B", group: "respiratory" },
     { value: "circulation", label: "C – Keringés / Szív", section: "C", group: "circulation" },
     { value: "neuro", label: "D – Neurológia", section: "D", group: "neuro" },
-    { value: "general", label: "E – Általános állapot / Bőr", section: "E", group: "general" },
-    { value: "abdomen", label: "E – Has", section: "E", group: "abdomen" },
-    { value: "locomotor", label: "E – Végtag / sérülés / mozgásszerv", section: "E", group: "locomotor" },
-    { value: "urogenital", label: "E – Vese / húgy-ivarszerv", section: "E", group: "urogenital" },
-    { value: "other", label: "E – Egyéb", section: "E", group: "other" }
+    { value: "general", label: "E1 – Általános állapot", section: "E1", group: "general" },
+    { value: "skin", label: "E2 – Bőr / nyálkahártyák", section: "E2", group: "skin" },
+    { value: "injury", label: "E3 – Sérülés", section: "E3", group: "injury" },
+    { value: "locomotor", label: "E4 – Végtagok / oedema / MVT", section: "E4", group: "locomotor" },
+    { value: "abdomen", label: "E5 – Has", section: "E5", group: "abdomen" },
+    { value: "urogenital", label: "E6 – Vese / urogenitalis", section: "E6", group: "urogenital" },
+    { value: "other", label: "E1 – Egyéb", section: "E1", group: "other" }
   ];
 
   const STANDARD_BASE = {
@@ -648,6 +650,7 @@
           break;
         case "general":
         case "skin":
+        case "injury":
           intro = applyCustomRule(intro, rule);
           break;
         case "locomotor":
@@ -751,6 +754,7 @@
         target === "neuro" ? 3 :
         target === "general" ? 4 :
         target === "skin" ? 5 :
+        target === "injury" ? 6 :
         target === "locomotor" ? 7 :
         target === "abdomen" ? 8 :
         target === "urogenital" ? 9 :
@@ -1273,7 +1277,7 @@
     warning.textContent = !hasSource
       ? ""
       : unknowns.length
-        ? `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez a STATUS MÁSOLÁSA előtt.`
+        ? `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez a STATUS GENERÁLÁSA előtt.`
         : !active.length
           ? "Nem ismertem fel biztos findingot. A normál status létrehozása blokkolva van."
           : "";

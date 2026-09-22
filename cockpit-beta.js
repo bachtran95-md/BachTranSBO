@@ -1755,9 +1755,10 @@
       syncMobileDrawerBackdrop();
     });
 
-    window.setInterval(() => {
+    document.addEventListener("bachsbo:ui-rendered", activateCockpitIfReady);
+    document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") activateCockpitIfReady();
-    }, 600);
+    });
   }
 
   function install() {

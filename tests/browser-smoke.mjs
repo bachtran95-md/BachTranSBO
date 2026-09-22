@@ -1834,10 +1834,12 @@ for (const expected of [
   }
 }
 
-// Unknown findings must be explicit, teachable, and immediately reusable.
-await betaFeatures.locator("#fPhysical").fill("Bal oldalon pleuralis dörzszörej hallható.");
+// Every line must be reviewed independently: a known first line must not hide an unknown second line.
+await betaFeatures.locator("#fPhysical").fill("Hasa érzékeny.\nBal oldalon pleuralis dörzszörej hallható.");
 await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
+  (document.querySelector("#betaUnknownChips .beta-unknown-chip")?.textContent || "").includes("pleuralis dörzszörej") &&
   document.querySelector("#betaCopyStatus")?.disabled
 );
 const directAiButtons = betaFeatures.locator("#betaUnknownChips [data-ai-unknown-phrase]");
@@ -1889,17 +1891,26 @@ await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1
 );
 await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
-await betaFeatures.locator("#betaExistingFinding").selectOption("systolic-murmur");
+await betaFeatures.locator("#betaExistingFindingSearch").fill("systolés zörej");
+await betaFeatures.locator('[data-existing-finding-key="systolic-murmur"]').click();
+if (!/Systolés zörej/.test(await betaFeatures.locator("#betaExistingFindingSelection").textContent())) {
+  throw new Error("Searchable existing-finding picker did not select systolic murmur");
+}
 await betaFeatures.locator("#betaSaveExistingFinding").click();
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
   (document.querySelector("#betaStatusPreview")?.value || "").includes("4/6 systolés zörej hallható")
 );
 
-await betaFeatures.locator("#betaBuildCandidates").click();
 await betaFeatures.waitForFunction(() =>
-  /2 tanítás.*2 jelölt/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
+  /2 tanítás mentve/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
 );
+if (await betaFeatures.locator("#betaBuildCandidates, #betaCopyCandidatePatch").count()) {
+  throw new Error("Technical candidate/patch controls leaked into the physician workflow");
+}
+if (await betaFeatures.locator("#betaUndoLearning").isHidden()) {
+  throw new Error("Contextual undo action should be available after a teaching action");
+}
 
 // Restore the earlier fixture for chip suppression coverage.
 await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");

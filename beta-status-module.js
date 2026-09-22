@@ -100,7 +100,8 @@
     const engine = statusEngine();
     const source = statusSource(data);
     const findings = engine?.parseFindings?.(source) || [];
-    const clinical = engine?.abcdeStatus?.(findings) || "";
+    const active = engine?.activeFindings?.(findings) || findings;
+    const clinical = engine?.abcdeStatus?.(active) || "";
     const params = parameterLine(data);
     return [params, clinical].filter(Boolean).join("\n");
   }

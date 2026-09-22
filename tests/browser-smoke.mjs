@@ -1888,14 +1888,19 @@ await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
 await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
 await betaFeatures.locator("#betaStructuredStatus").waitFor();
-await betaFeatures.waitForFunction(() =>
-  document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated")
-);
+await betaFeatures.locator("#betaStructuredStatusDone:not(.hidden)").waitFor();
 if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80") {
   throw new Error("Structured STATUS blood pressure did not survive reload");
 }
 if ((await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
   throw new Error("Structured STATUS positive E5 finding did not survive reload");
+}
+if (!await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible() ||
+    !await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
+  throw new Error("Structured STATUS facts were hidden after reload");
+}
+if (!await betaFeatures.locator("#betaStructuredStatusPreview").isHidden()) {
+  throw new Error("Generated full STATUS preview should stay collapsed after reload");
 }
 if ((await betaFeatures.locator("#betaEkgFr").inputValue()) !== "") {
   throw new Error("Local-only EKG helper incorrectly survived reload");

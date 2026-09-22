@@ -201,6 +201,10 @@
       ["mko.", "mko§"],
       ["n.v.", "n§v§"],
       ["kb.", "kb§"],
+      ["syst.", "syst§"],
+      ["sziszt.", "sziszt§"],
+      ["diast.", "diast§"],
+      ["diaszt.", "diaszt§"],
       ["jobb o.", "jobb o§"],
       ["bal o.", "bal o§"],
       ["st. post", "st§ post"]

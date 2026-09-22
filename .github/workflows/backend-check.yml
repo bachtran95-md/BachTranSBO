@@ -226,6 +226,14 @@ jobs:
             echo "saveState, savePatient and finalizePatient must all use summaryRowFromPatient."
             exit 1
           fi
+          if grep -E -q 'triage_status|triageStatus' supabase/functions/generate-summary/index.ts; then
+            echo "Manual case triage is UI/workflow metadata and must never enter Summary generation."
+            exit 1
+          fi
+          if sed -n '/function corpusSnapshot/,/^async function createEmbedding/p' supabase/functions/clinical-store/index.ts | grep -E -q 'triage_status|triageStatus'; then
+            echo "Manual case triage must never enter finalized learning snapshots."
+            exit 1
+          fi
           if grep -R -E "verify_jwt[[:space:]]*=[[:space:]]*true" supabase/config.toml; then
             echo "New Supabase API keys require in-function JWT validation; gateway verify_jwt must stay false."
             exit 1

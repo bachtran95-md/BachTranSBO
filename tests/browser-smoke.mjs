@@ -1840,11 +1840,17 @@ await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
   document.querySelector("#betaCopyStatus")?.disabled
 );
-await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
+const directAiButtons = betaFeatures.locator("#betaUnknownChips [data-ai-unknown-phrase]");
+if (await directAiButtons.count() !== 1) {
+  throw new Error("Unknown finding does not expose a direct AI suggestion action");
+}
 
 // AI may populate a proposal, but it must not save anything before physician confirmation.
-await betaFeatures.locator("#betaSuggestFinding").click();
-await betaFeatures.waitForFunction(() => !document.querySelector("#betaSuggestFinding")?.disabled);
+await directAiButtons.click();
+await betaFeatures.waitForFunction(() =>
+  !document.querySelector("#betaSuggestFinding")?.disabled &&
+  !document.querySelector("#betaUnknownChips [data-ai-unknown-phrase]")?.disabled
+);
 const aiFindingState = await betaFeatures.evaluate(() => ({
   label: document.querySelector("#betaNewFindingLabel")?.value || "",
   target: document.querySelector("#betaNewFindingTarget")?.value || "",

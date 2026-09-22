@@ -18,3 +18,144 @@ body.beta-build .brand{
   font-weight:900;
   letter-spacing:.08em;
 }
+
+
+/* Beta-only local physical-status finding composer. */
+body.beta-build .beta-finding-composer{
+  margin-top:8px;
+  padding:10px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#f8fafc;
+}
+body.beta-build .beta-finding-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:7px;
+}
+body.beta-build .beta-finding-head > div{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0;
+}
+body.beta-build .beta-finding-head strong{
+  font-size:11px;
+  color:#334155;
+}
+body.beta-build .beta-finding-count{
+  font-size:10px;
+  color:#64748b;
+}
+body.beta-build .beta-local-only{
+  flex:0 0 auto;
+  padding:3px 6px;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+  background:#fff;
+  color:#64748b;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.06em;
+}
+body.beta-build .beta-finding-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  min-height:25px;
+}
+body.beta-build .beta-finding-chip{
+  appearance:none;
+  border:1px solid #93c5fd;
+  border-radius:999px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  padding:4px 7px;
+  font-size:10px;
+  font-weight:750;
+  cursor:pointer;
+}
+body.beta-build .beta-finding-chip:hover{
+  border-color:#60a5fa;
+  background:#dbeafe;
+}
+body.beta-build .beta-finding-chip.suppressed{
+  border-color:#d1d5db;
+  background:#f3f4f6;
+  color:#9ca3af;
+  text-decoration:line-through;
+  opacity:.72;
+}
+body.beta-build .beta-finding-warning{
+  margin-top:7px;
+  padding:6px 8px;
+  border:1px solid #fdba74;
+  border-radius:8px;
+  background:#fff7ed;
+  color:#9a3412;
+  font-size:10px;
+  font-weight:700;
+}
+body.beta-build .beta-status-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:8px;
+}
+body.beta-build .beta-status-mode{
+  display:inline-flex;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  overflow:hidden;
+  background:#fff;
+}
+body.beta-build .beta-status-mode button{
+  border:0;
+  border-right:1px solid #e2e8f0;
+  background:#fff;
+  color:#64748b;
+  padding:5px 8px;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+body.beta-build .beta-status-mode button:last-child{border-right:0}
+body.beta-build .beta-status-mode button.active{
+  background:#2563eb;
+  color:#fff;
+}
+body.beta-build .beta-copy-status{
+  min-height:30px;
+  font-size:10px!important;
+}
+body.beta-build .beta-copy-status:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+body.beta-build .beta-status-preview{
+  width:100%;
+  min-height:180px;
+  margin-top:8px;
+  resize:vertical;
+  background:#fff;
+  color:#334155;
+  border-color:#cbd5e1;
+  font-size:11px!important;
+  line-height:1.45;
+}
+@media (max-width:760px){
+  body.beta-build .beta-finding-head,
+  body.beta-build .beta-status-toolbar{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  body.beta-build .beta-copy-status{
+    width:100%;
+  }
+  body.beta-build .beta-status-preview{
+    min-height:220px;
+  }
+}

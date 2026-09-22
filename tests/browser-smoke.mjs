@@ -1783,6 +1783,89 @@ if (await betaFeatures.locator("#betaTriageControl").count()) {
   throw new Error("Promoted triage is still duplicated in the beta-only layer");
 }
 
+// Structured STATUS: parameters + positive findings are persisted, while the
+// full generated copy text remains derived UI output only.
+await betaFeatures.locator("#betaStructuredStatus").waitFor();
+await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
+await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
+await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");
+await betaFeatures.locator("#betaGenerateStructuredStatus").click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated") &&
+  !document.querySelector("#betaStructuredStatusDone")?.classList.contains("hidden")
+);
+const structuredStatusState = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  return {
+    physical: patient?.physical || "",
+    physicalStatus: patient?.physicalStatus || null,
+    physicalReady: !workflow?.sections?.tests?.blockers?.some((x) =>
+      /Fizik|Physical examination/i.test(String(x))
+    )
+  };
+});
+if (
+  structuredStatusState.physicalStatus?.parameters?.bloodPressure !== "135/80" ||
+  structuredStatusState.physicalStatus?.parameters?.pulse !== "88" ||
+  structuredStatusState.physicalStatus?.sections?.E5 !== "Hasa érzékeny." ||
+  !structuredStatusState.physicalStatus?.generatedAt
+) {
+  throw new Error("Structured STATUS data did not persist in the case state: " + JSON.stringify(structuredStatusState));
+}
+if (
+  !structuredStatusState.physical.includes("E5: Hasa érzékeny.") ||
+  structuredStatusState.physical.includes("135/80") ||
+  structuredStatusState.physical.includes("Légutak átjárhatók")
+) {
+  throw new Error("Physical summary bridge contains parameters or generated normal text: " + structuredStatusState.physical);
+}
+if (!structuredStatusState.physicalReady) {
+  throw new Error("Generated structured STATUS did not resolve the Physical examination workflow blocker");
+}
+await betaFeatures.locator("#betaStructuredStatusView").click();
+const structuredCopyPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
+for (const expected of [
+  "Paraméterek: vérnyomás 135/80 Hgmm, pulsus 88/perc.",
+  "A: Légutak átjárhatók.",
+  "E5 – Has:",
+  "nyomásérzékeny"
+]) {
+  if (!structuredCopyPreview.includes(expected)) {
+    throw new Error("Structured STATUS copy preview missing: " + expected + "\n" + structuredCopyPreview);
+  }
+}
+await betaFeatures.locator("#betaStructuredStatusView").click();
+
+// EKG helper is deliberately ephemeral: editing its two templates must not
+// mutate the patient test state or feed the Summary data path.
+await betaFeatures.locator("#betaEkgCopyBuilder").waitFor();
+const ekgStateBefore = await betaFeatures.evaluate(() =>
+  JSON.stringify(window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.ekgs || [])
+);
+await betaFeatures.locator("#betaEkgFr").fill("72");
+await betaFeatures.locator("#betaEkgPq").fill("160");
+await betaFeatures.locator("#betaEkgQrs").fill("90");
+await betaFeatures.locator("#betaEkgQtc").fill("420");
+await betaFeatures.locator("#betaEkgTransition").fill("V3–V4");
+const detailedEkg = await betaFeatures.locator("#betaEkgOutput").inputValue();
+for (const expected of ["SR", "72/min", "PQ: 160 ms", "QRS: 90 ms", "QTc: 420 ms", "V3–V4"]) {
+  if (!detailedEkg.includes(expected)) {
+    throw new Error("Detailed EKG helper missing: " + expected + "\n" + detailedEkg);
+  }
+}
+await betaFeatures.locator("#betaEkgTemplate").selectOption("short");
+const shortEkg = await betaFeatures.locator("#betaEkgOutput").inputValue();
+if (!shortEkg.includes("norm. átvezetési idők") || shortEkg.includes("PQ: 160 ms")) {
+  throw new Error("Short EKG helper did not switch templates: " + shortEkg);
+}
+const ekgStateAfter = await betaFeatures.evaluate(() =>
+  JSON.stringify(window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.ekgs || [])
+);
+if (ekgStateAfter !== ekgStateBefore) {
+  throw new Error("Local-only EKG helper mutated persisted EKG test state");
+}
+
 // Beta-only physical finding composer: deterministic local parsing only.
 // fPhysical is now an intentionally hidden compatibility bridge behind the
 // structured STATUS UI, so parser regression coverage writes to it directly.

@@ -818,11 +818,12 @@
     }
   }
 
-  async function suggestUnknownFinding() {
+  async function suggestUnknownFinding(triggerButton = null) {
     const composer = document.getElementById("betaFindingComposer");
     if (!composer || !activeUnknownPhrase) return;
-    const button = composer.querySelector("#betaSuggestFinding");
-    if (button) button.disabled = true;
+    const editorButton = composer.querySelector("#betaSuggestFinding");
+    const buttons = [editorButton, triggerButton].filter(Boolean);
+    buttons.forEach((button) => { button.disabled = true; });
     learningMessage = "AI javaslat készül…";
     updateLearningOverviewUi(composer);
 
@@ -861,7 +862,9 @@
       learningMessage = `AI javaslat hiba: ${error?.message || error}`;
       updateLearningOverviewUi(composer);
     } finally {
-      if (button?.isConnected) button.disabled = false;
+      buttons.forEach((button) => {
+        if (button?.isConnected) button.disabled = false;
+      });
     }
   }
 
@@ -996,12 +999,19 @@
         else suppressedFindingKeys.add(key);
         syncComposer();
       });
-      composer.querySelector("#betaUnknownChips")?.addEventListener("click", (event) => {
+      composer.querySelector("#betaUnknownChips")?.addEventListener("click", async (event) => {
+        const aiButton = event.target.closest("[data-ai-unknown-phrase]");
+        if (aiButton) {
+          prepareUnknownEditor(composer, aiButton.dataset.aiUnknownPhrase || "");
+          await suggestUnknownFinding(aiButton);
+          return;
+        }
+
         const chip = event.target.closest("[data-unknown-phrase]");
         if (!chip) return;
         prepareUnknownEditor(composer, chip.dataset.unknownPhrase || "");
       });
-      composer.querySelector("#betaSuggestFinding")?.addEventListener("click", suggestUnknownFinding);
+      composer.querySelector("#betaSuggestFinding")?.addEventListener("click", () => suggestUnknownFinding());
       composer.querySelector("#betaSaveExistingFinding")?.addEventListener("click", saveExistingLearning);
       composer.querySelector("#betaSaveNewFinding")?.addEventListener("click", saveNewLearning);
       composer.querySelector("#betaUndoLearning")?.addEventListener("click", undoLastLearning);
@@ -1070,13 +1080,25 @@
     if (unknownChips) {
       unknownChips.innerHTML = "";
       for (const phrase of unknowns) {
+        const item = document.createElement("div");
+        item.className = "beta-unknown-item";
+
         const button = document.createElement("button");
         button.type = "button";
         button.className = "beta-unknown-chip";
         button.dataset.unknownPhrase = phrase;
         button.textContent = phrase;
-        button.title = "Kattintson a finding tanításához";
-        unknownChips.appendChild(button);
+        button.title = "Kattintson a finding kézi tanításához";
+
+        const aiButton = document.createElement("button");
+        aiButton.type = "button";
+        aiButton.className = "beta-unknown-ai";
+        aiButton.dataset.aiUnknownPhrase = phrase;
+        aiButton.textContent = "AI JAVASLAT";
+        aiButton.title = "AI javaslat készítése ehhez az ismeretlen findinghoz";
+
+        item.append(button, aiButton);
+        unknownChips.appendChild(item);
       }
     }
     unknownBlock?.classList.toggle("hidden", unknowns.length === 0);

@@ -30,7 +30,7 @@ jobs:
           node --check case-ui.js
           node --check cockpit.js
           node --check cockpit-beta.js
-          node --check beta-features.js
+          node --check beta-finding-registry.generated.js\n          node --check beta-features.js
 
       - name: Check security invariants
         run: |
@@ -94,8 +94,16 @@ jobs:
             echo "beta.html must load beta-only feature assets."
             exit 1
           fi
-          if grep -q 'beta-features.js\|beta-features.css' index.html; then
+          if ! grep -q 'beta-finding-registry.generated.js' beta.html; then
+            echo "beta.html must load the generated finding registry."
+            exit 1
+          fi
+          if grep -q 'beta-features.js\|beta-features.css\|beta-finding-registry.generated.js' index.html; then
             echo "Production index.html must not load beta-only feature assets."
+            exit 1
+          fi
+          if grep -E -q 'patient(Id|_id)|case(Id|_id)|year_of_birth|main_complaint|physical_examination' beta-finding-registry.generated.js; then
+            echo "Generated finding registry must contain rules only, never patient/case data."
             exit 1
           fi
           if grep -E -q '<script[^>]+src="[^"]*cockpit' recovery.html; then

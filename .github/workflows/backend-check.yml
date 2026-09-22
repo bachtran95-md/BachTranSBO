@@ -106,6 +106,22 @@ jobs:
             echo "recovery.html is the only supported fallback; legacy.html must not be reintroduced."
             exit 1
           fi
+          if [ -e browser-smoke.mjs ]; then
+            echo "Browser smoke tests must live only under tests/browser-smoke.mjs."
+            exit 1
+          fi
+          if grep -q 'function narrativeWaitingLabels' app.js || grep -q 'function renderSummaryProgress' cockpit.js; then
+            echo "Removed dead workflow render helpers must not be reintroduced."
+            exit 1
+          fi
+          if ! grep -q 'from "../_shared/workflow.ts"' supabase/functions/clinical-store/index.ts; then
+            echo "clinical-store must import the shared server workflow validator."
+            exit 1
+          fi
+          if grep -q '^function patientWorkflowBlockers' supabase/functions/clinical-store/index.ts; then
+            echo "clinical-store must not duplicate patientWorkflowBlockers inline."
+            exit 1
+          fi
           if ! grep -q 'data-recovery-mode="true"' recovery.html; then
             echo "recovery.html must remain explicitly marked as recovery mode."
             exit 1
@@ -224,6 +240,7 @@ jobs:
       - name: Type-check Edge Functions
         run: |
           deno check supabase/functions/_shared/deidentify.ts
+          deno check supabase/functions/_shared/workflow.ts
           deno check supabase/functions/clinical-store/index.ts
           deno check supabase/functions/generate-summary/index.ts
           deno check supabase/functions/analyze-style/index.ts
@@ -236,6 +253,9 @@ jobs:
         run: |
           deno test supabase/functions/_shared/deidentify.test.ts
           deno test supabase/functions/_shared/openai.test.ts
+
+      - name: Run workflow parity regression tests
+        run: deno test tests/workflow-server-parity.test.ts
 
       - name: Setup Node for browser smoke
         uses: actions/setup-node@v4

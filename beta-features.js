@@ -118,12 +118,12 @@
 
     const congestion = text.search(/pang[aá]s/);
     if (congestion >= 0 && !hasNegationNear(text, congestion)) {
-      const clause = clauseAt(text, congestion);
-      const location = /\bmko\b\.?|mindk[eé]t\s+oldal/.test(clause)
+      const pulmonaryWindow = text.slice(Math.max(0, congestion - 60), Math.min(text.length, congestion + 40));
+      const location = /\bmko\b\.?\s+(?:tüdő|pulmo)|mindk[eé]t\s+oldal/.test(pulmonaryWindow)
         ? "mko."
-        : /\bjobb\b/.test(clause)
+        : /\bjobb\b[^.;,\n]{0,35}(?:tüdő|pulmo|pang[aá]s)/.test(pulmonaryWindow)
           ? "jobb oldalon"
-          : /\bbal\b/.test(clause)
+          : /\bbal\b[^.;,\n]{0,35}(?:tüdő|pulmo|pang[aá]s)/.test(pulmonaryWindow)
             ? "bal oldalon"
             : "";
       addFinding(findings, {

@@ -14,6 +14,7 @@
   let lastLearningId = "";
   let learningMessage = "";
   let activeAiSuggestion = null;
+  let activeExistingFindingKey = "";
 
   const CORE_FINDINGS = [
     { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E", group: "abdomen" },
@@ -151,6 +152,43 @@
     return CUSTOM_TARGETS.find((item) => item.value === value) || CUSTOM_TARGETS.at(-1);
   }
 
+  function existingFindingChoices() {
+    const choices = CORE_FINDINGS.map((item) => ({
+      ...item,
+      source: "core",
+      outputText: "",
+      conflictText: "",
+      attributes: {}
+    }));
+    const seen = new Set(choices.map((item) => item.key));
+
+    for (const record of learnedFindingRecords) {
+      if (record?.mappingKind !== "new" || !record?.findingKey || seen.has(record.findingKey)) continue;
+      const target = targetMeta(record.target);
+      choices.push({
+        key: record.findingKey,
+        label: record.canonicalLabel || record.outputText || record.sourcePhrase || record.findingKey,
+        target: record.target || target.value,
+        section: record.section || target.section,
+        group: target.group,
+        source: "learned",
+        outputText: record.outputText || record.sourcePhrase || record.canonicalLabel || "",
+        conflictText: record.conflictText || "",
+        attributes: record.attributes || {}
+      });
+      seen.add(record.findingKey);
+    }
+
+    return choices.sort((a, b) =>
+      String(a.section || "E").localeCompare(String(b.section || "E")) ||
+      String(a.label || "").localeCompare(String(b.label || ""), "hu-HU")
+    );
+  }
+
+  function existingFindingChoice(key) {
+    return existingFindingChoices().find((item) => item.key === key) || null;
+  }
+
   function existingFindingAttributes(findingKey, phrase) {
     const text = normalizeText(phrase);
     const attributes = {};
@@ -229,12 +267,33 @@
     }
 
     const meta = coreFindingMeta(record.findingKey);
-    if (!meta) return null;
+    if (meta) {
+      return {
+        key: meta.key,
+        label: record.canonicalLabel || meta.label,
+        group: meta.group,
+        ...(record.attributes || {})
+      };
+    }
+
+    const customBase = learnedFindingRecords.find((item) =>
+      item?.mappingKind === "new" && item?.findingKey === record.findingKey
+    );
+    if (!customBase) return null;
+    const target = targetMeta(customBase.target);
     return {
-      key: meta.key,
-      label: record.canonicalLabel || meta.label,
-      group: meta.group,
-      ...(record.attributes || {})
+      key: `custom:${customBase.findingKey}`,
+      label: record.canonicalLabel || customBase.canonicalLabel || customBase.outputText || customBase.findingKey,
+      group: target.group,
+      ...(customBase.attributes || {}),
+      ...(record.attributes || {}),
+      customRule: {
+        findingKey: customBase.findingKey,
+        target: customBase.target || target.value,
+        section: customBase.section || target.section,
+        outputText: customBase.outputText || customBase.sourcePhrase || customBase.canonicalLabel || "",
+        conflictText: customBase.conflictText || ""
+      }
     };
   }
 
@@ -275,7 +334,7 @@
     }
 
     return text
-      .split(/(?:\s*[;,]\s*)|(?:[.!?]+\s+)/)
+      .split(/(?:\s*[;,\n]+\s*)|(?:[.!?]+\s+)/)
       .map((part) => {
         let restored = part.trim();
         for (const [raw, token] of protectedAbbreviations) {
@@ -677,9 +736,12 @@
     const meta = composer?.querySelector("#betaLearningMeta");
     const undo = composer?.querySelector("#betaUndoLearning");
     if (meta) {
-      meta.textContent = `${Number(learningOverview.approvedLearning || 0)} tanítás • ${Number(learningOverview.pendingCandidates || 0)} jelölt`;
+      meta.textContent = `${Number(learningOverview.approvedLearning || 0)} tanítás mentve`;
     }
-    if (undo) undo.disabled = !lastLearningId;
+    if (undo) {
+      undo.disabled = !lastLearningId;
+      undo.classList.toggle("hidden", !lastLearningId);
+    }
     const message = composer?.querySelector("#betaLearningMessage");
     if (message) {
       message.textContent = learningMessage;
@@ -687,17 +749,58 @@
     }
   }
 
-  function fillLearningSelectors(composer) {
-    const existing = composer?.querySelector("#betaExistingFinding");
-    const target = composer?.querySelector("#betaNewFindingTarget");
-    if (existing && !existing.options.length) {
-      for (const item of CORE_FINDINGS) {
-        const option = document.createElement("option");
-        option.value = item.key;
-        option.textContent = `${item.section} • ${item.label}`;
-        existing.appendChild(option);
+  function renderExistingFindingPicker(composer) {
+    const list = composer?.querySelector("#betaExistingFindingList");
+    const search = composer?.querySelector("#betaExistingFindingSearch");
+    const selected = composer?.querySelector("#betaExistingFindingSelection");
+    const save = composer?.querySelector("#betaSaveExistingFinding");
+    if (!list) return;
+
+    const query = normalizeText(search?.value || "");
+    const choices = existingFindingChoices().filter((item) => {
+      if (!query) return true;
+      return normalizeText(`${item.section} ${item.label} ${item.target} ${item.key}`).includes(query);
+    });
+
+    list.innerHTML = "";
+    let currentSection = "";
+    for (const item of choices) {
+      if (item.section !== currentSection) {
+        currentSection = item.section;
+        const heading = document.createElement("div");
+        heading.className = "beta-existing-group";
+        heading.textContent = `${item.section} • ${targetMeta(item.target).label.replace(/^.[ ]*[–-][ ]*/, "")}`;
+        list.appendChild(heading);
       }
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "beta-existing-choice";
+      button.dataset.existingFindingKey = item.key;
+      button.classList.toggle("selected", item.key === activeExistingFindingKey);
+      button.innerHTML = `<span>${item.label}</span><small>${item.source === "learned" ? "tanított finding" : item.key}</small>`;
+      list.appendChild(button);
     }
+
+    if (!choices.length) {
+      const empty = document.createElement("div");
+      empty.className = "beta-existing-empty";
+      empty.textContent = "Nincs találat.";
+      list.appendChild(empty);
+    }
+
+    const choice = existingFindingChoice(activeExistingFindingKey);
+    if (selected) {
+      selected.textContent = choice
+        ? `Kiválasztva: ${choice.section} • ${choice.label}`
+        : "Válasszon egy meglévő findingot.";
+      selected.classList.toggle("has-selection", Boolean(choice));
+    }
+    if (save) save.disabled = !choice;
+  }
+
+  function fillLearningSelectors(composer) {
+    const target = composer?.querySelector("#betaNewFindingTarget");
     if (target && !target.options.length) {
       for (const item of CUSTOM_TARGETS) {
         const option = document.createElement("option");
@@ -706,12 +809,16 @@
         target.appendChild(option);
       }
     }
+    renderExistingFindingPicker(composer);
   }
 
   function prepareUnknownEditor(composer, phrase) {
     const nextPhrase = String(phrase || "").trim();
     if (normalizeLearningPhrase(nextPhrase) !== normalizeLearningPhrase(activeUnknownPhrase)) {
       activeAiSuggestion = null;
+      activeExistingFindingKey = "";
+      const search = composer?.querySelector("#betaExistingFindingSearch");
+      if (search) search.value = "";
     }
     activeUnknownPhrase = nextPhrase;
     const editor = composer?.querySelector("#betaLearningEditor");
@@ -728,6 +835,7 @@
     if (label) label.value = activeUnknownPhrase;
     if (output) output.value = ensureSentence(activeUnknownPhrase);
     if (conflict) conflict.value = "";
+    renderExistingFindingPicker(composer);
   }
 
   function acceptLearningRecord(result) {
@@ -748,9 +856,8 @@
 
   async function saveExistingLearning() {
     const composer = document.getElementById("betaFindingComposer");
-    const select = composer?.querySelector("#betaExistingFinding");
-    const meta = coreFindingMeta(select?.value);
-    if (!composer || !activeUnknownPhrase || !meta) return;
+    const choice = existingFindingChoice(activeExistingFindingKey);
+    if (!composer || !activeUnknownPhrase || !choice) return;
 
     const button = composer.querySelector("#betaSaveExistingFinding");
     if (button) button.disabled = true;
@@ -758,11 +865,16 @@
       const result = await window.BachSBOBackend?.findingLearningConfirmMapping?.({
         sourcePhrase: activeUnknownPhrase,
         mappingKind: "existing",
-        findingKey: meta.key,
-        canonicalLabel: meta.label,
-        target: meta.target,
-        section: meta.section,
-        attributes: mergedLearningAttributes(meta.key, activeUnknownPhrase)
+        findingKey: choice.key,
+        canonicalLabel: choice.label,
+        target: choice.target,
+        section: choice.section,
+        outputText: "",
+        conflictText: "",
+        attributes: {
+          ...(choice.attributes || {}),
+          ...mergedLearningAttributes(choice.key, activeUnknownPhrase)
+        }
       });
       if (!result) throw new Error("Finding learning backend is unavailable.");
       acceptLearningRecord(result);
@@ -838,8 +950,8 @@
       };
 
       if (suggestion.mappingKind === "existing" && coreFindingMeta(suggestion.findingKey)) {
-        const select = composer.querySelector("#betaExistingFinding");
-        if (select) select.value = suggestion.findingKey;
+        activeExistingFindingKey = suggestion.findingKey;
+        renderExistingFindingPicker(composer);
         learningMessage = `AI javaslat: ${suggestion.canonicalLabel || coreFindingMeta(suggestion.findingKey)?.label}. Ellenőrizze, majd nyomja meg a HOZZÁRENDELÉS + TANÍTÁS gombot.`;
       } else {
         const label = composer.querySelector("#betaNewFindingLabel");
@@ -950,8 +1062,12 @@
           <div class="beta-learning-grid">
             <div class="beta-learning-card">
               <strong>Meglévő findinghez rendelés</strong>
-              <select id="betaExistingFinding"></select>
-              <button type="button" class="btn small" id="betaSaveExistingFinding">HOZZÁRENDELÉS + TANÍTÁS</button>
+              <label>Keresés
+                <input id="betaExistingFindingSearch" type="search" placeholder="pl. zörej, pangás, has…" autocomplete="off" />
+              </label>
+              <div class="beta-existing-list" id="betaExistingFindingList"></div>
+              <div class="beta-existing-selection" id="betaExistingFindingSelection">Válasszon egy meglévő findingot.</div>
+              <button type="button" class="btn small" id="betaSaveExistingFinding" disabled>HOZZÁRENDELÉS + TANÍTÁS</button>
             </div>
             <div class="beta-learning-card">
               <strong>Új finding hozzáadása</strong>
@@ -963,13 +1079,9 @@
             </div>
           </div>
         </div>
-        <div class="beta-learning-toolbar">
-          <span id="betaLearningMeta">0 tanítás • 0 jelölt</span>
-          <div>
-            <button type="button" class="btn small" id="betaUndoLearning" disabled>UNDO TANÍTÁS</button>
-            <button type="button" class="btn small" id="betaBuildCandidates">JELÖLTEK FRISSÍTÉSE</button>
-            <button type="button" class="btn small" id="betaCopyCandidatePatch">PATCH MÁSOLÁSA</button>
-          </div>
+        <div class="beta-learning-footer">
+          <span id="betaLearningMeta">0 tanítás mentve</span>
+          <button type="button" class="btn small beta-undo-learning hidden" id="betaUndoLearning" disabled>UTOLSÓ TANÍTÁS VISSZAVONÁSA</button>
         </div>
         <div class="beta-learning-message hidden" id="betaLearningMessage"></div>
         <div class="beta-finding-warning hidden" id="betaFindingWarning"></div>
@@ -1012,11 +1124,16 @@
         prepareUnknownEditor(composer, chip.dataset.unknownPhrase || "");
       });
       composer.querySelector("#betaSuggestFinding")?.addEventListener("click", () => suggestUnknownFinding());
+      composer.querySelector("#betaExistingFindingSearch")?.addEventListener("input", () => renderExistingFindingPicker(composer));
+      composer.querySelector("#betaExistingFindingList")?.addEventListener("click", (event) => {
+        const choice = event.target.closest("[data-existing-finding-key]");
+        if (!choice) return;
+        activeExistingFindingKey = choice.dataset.existingFindingKey || "";
+        renderExistingFindingPicker(composer);
+      });
       composer.querySelector("#betaSaveExistingFinding")?.addEventListener("click", saveExistingLearning);
       composer.querySelector("#betaSaveNewFinding")?.addEventListener("click", saveNewLearning);
       composer.querySelector("#betaUndoLearning")?.addEventListener("click", undoLastLearning);
-      composer.querySelector("#betaBuildCandidates")?.addEventListener("click", buildFindingCandidates);
-      composer.querySelector("#betaCopyCandidatePatch")?.addEventListener("click", copyFindingCandidatePatch);
       fillLearningSelectors(composer);
       updateLearningOverviewUi(composer);
     }

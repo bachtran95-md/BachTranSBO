@@ -1091,12 +1091,97 @@
     return cells;
   }
 
+  function triageStatus(patient) {
+    return window.BachSBOClinicalUi?.normalizeTriageStatus?.(patient?.triageStatus) || "";
+  }
+
   function decoratePatientRow(row, patient) {
     const cells = decoratePatientIdentity(row, patient);
     if (!cells) return;
 
+    row.classList.remove("triage-red", "triage-yellow", "triage-green");
+    const triage = triageStatus(patient);
+    if (triage) row.classList.add(`triage-${triage}`);
+
     const progress = currentPatientProgress(patient?.id);
     cells[4].innerHTML = waitingTestMarkup(progress, row.classList.contains("completed"));
+  }
+
+  function renderCaseTriageControl() {
+    const row = document.querySelector("#patientTbody tr.selected[data-id]");
+    const patient = row
+      ? window.BachSBOClinicalUi?.getPatientSnapshot?.(row.dataset.id) || null
+      : null;
+    const heading = document.querySelector("#recordHeader .record-patient-heading");
+    let control = document.getElementById("caseTriageControl");
+
+    if (!patient || !heading) {
+      control?.remove();
+      return;
+    }
+
+    if (!control) {
+      control = document.createElement("span");
+      control.id = "caseTriageControl";
+      control.className = "case-triage-control";
+      control.innerHTML = `
+        <span class="case-triage-label"></span>
+        <span class="case-triage-options" role="group">
+          <button type="button" class="case-triage-dot red" data-case-triage="red"></button>
+          <button type="button" class="case-triage-dot yellow" data-case-triage="yellow"></button>
+          <button type="button" class="case-triage-dot green" data-case-triage="green"></button>
+        </span>
+      `;
+      heading.appendChild(control);
+    }
+
+    const isHu = document.getElementById("langHuBtn")?.classList.contains("active");
+    const labels = isHu
+      ? { red: "Piros triázs", yellow: "Sárga triázs", green: "Zöld triázs" }
+      : { red: "Red triage", yellow: "Yellow triage", green: "Green triage" };
+    const current = triageStatus(patient);
+    const readonly = Boolean(patient.summaryFinalizedAt);
+
+    const labelNode = control.querySelector(".case-triage-label");
+    if (labelNode) labelNode.textContent = `— ${isHu ? "Triázs" : "Triage"}`;
+    const options = control.querySelector(".case-triage-options");
+    options?.setAttribute("aria-label", isHu ? "Case triázs" : "Case triage");
+
+    control.querySelectorAll("[data-case-triage]").forEach((button) => {
+      const value = button.dataset.caseTriage || "";
+      const active = value === current;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.setAttribute("aria-label", labels[value] || value);
+      button.title = labels[value] || value;
+      button.disabled = readonly;
+    });
+    control.classList.toggle("readonly", readonly);
+  }
+
+  async function changeCaseTriage(button) {
+    const row = document.querySelector("#patientTbody tr.selected[data-id]");
+    const caseId = row?.dataset.id || "";
+    const ui = window.BachSBOClinicalUi;
+    const patient = caseId ? ui?.getPatientSnapshot?.(caseId) : null;
+    if (!patient || patient.summaryFinalizedAt) return;
+
+    const choice = ui?.normalizeTriageStatus?.(button.dataset.caseTriage) || "";
+    const previous = triageStatus(patient);
+    const next = previous === choice ? "" : choice;
+    if (!ui?.setCaseTriageStatus?.(caseId, next)) return;
+
+    enhancePatientRows();
+    renderCaseTriageControl();
+
+    try {
+      await ui?.autosaveCurrentCase?.();
+    } catch (error) {
+      ui?.setCaseTriageStatus?.(caseId, previous);
+      enhancePatientRows();
+      renderCaseTriageControl();
+      console.warn("Case triage save failed", error);
+    }
   }
 
   function enhancePatientRows() {
@@ -1536,6 +1621,7 @@
     enhanceDispositionUi();
     syncCaseSelection();
     enhancePatientRows();
+    renderCaseTriageControl();
     syncRailState();
   }
 
@@ -1643,6 +1729,13 @@
       }
     }, true);
     document.addEventListener("click", (event) => {
+      const triageButton = event.target?.closest?.("[data-case-triage]");
+      if (triageButton) {
+        event.preventDefault();
+        void changeCaseTriage(triageButton);
+        return;
+      }
+
       const autosaveAction = event.target?.closest?.(
         "#patientForm [data-mode-choice], " +
         "#patientForm [data-none-toggle], " +

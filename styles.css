@@ -2700,3 +2700,174 @@ body.raw-data-drawer-open{overflow:hidden}
   .raw-data-drawer-actions .btn{min-height:46px}
   .normal-raw-data-text{min-height:58vh;font-size:16px}
 }
+
+
+/* Stable shift dashboard and manual case triage -------------------------- */
+body.cockpit-ui .topbar{
+  min-height:58px;
+  padding-top:8px;
+  padding-bottom:8px;
+  background:#eaf4ff;
+  color:#0f172a;
+  border-bottom:1px solid #cbdff5;
+}
+body.cockpit-ui .main{
+  height:calc(100vh - 98px);
+}
+body.cockpit-ui .shift-meta{
+  gap:9px;
+}
+body.cockpit-ui .shift-dashboard-pill{
+  min-height:40px;
+  padding:6px 11px;
+  display:grid;
+  grid-template-columns:auto auto auto;
+  grid-template-areas:
+    "dot primary duration"
+    "dot start start";
+  column-gap:8px;
+  row-gap:1px;
+  border:1px solid #bfdbfe;
+  border-radius:11px;
+  background:#eff6ff;
+}
+body.cockpit-ui .shift-dashboard-pill .dot{
+  grid-area:dot;
+  align-self:center;
+}
+body.cockpit-ui .shift-dashboard-primary{
+  grid-area:primary;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.035em;
+  color:#1e3a8a;
+}
+body.cockpit-ui .shift-dashboard-start{
+  grid-area:start;
+  color:#475569;
+  font-size:11px;
+  font-weight:650;
+  white-space:nowrap;
+}
+body.cockpit-ui .shift-dashboard-duration{
+  grid-area:duration;
+  justify-self:end;
+  color:#2563eb;
+  font-size:12px;
+  font-weight:850;
+  white-space:nowrap;
+}
+body.cockpit-ui .shift-dashboard-metric{
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border-radius:10px;
+  font-size:12px;
+}
+body.cockpit-ui .shift-dashboard-metric b{
+  font-size:17px;
+  line-height:1;
+}
+body.cockpit-ui .shift-metric-cases{
+  border:1px solid #93c5fd;
+  background:#eff6ff;
+  color:#1d4ed8;
+}
+body.cockpit-ui .shift-metric-cases b{color:#1d4ed8}
+body.cockpit-ui .shift-metric-active{
+  border:1px solid #fdba74;
+  background:#fff7ed;
+  color:#c2410c;
+}
+body.cockpit-ui .shift-metric-active b{color:#c2410c}
+body.cockpit-ui .shift-metric-completed{
+  border:1px solid #cbd5e1;
+  background:#f1f5f9;
+  color:#64748b;
+}
+body.cockpit-ui .shift-metric-completed b{color:#475569}
+
+body.cockpit-ui #recordHeader .record-patient-heading{
+  overflow:visible;
+}
+body.cockpit-ui #recordHeader #recordSubtitle{
+  flex:0 1 auto;
+}
+body.cockpit-ui .case-triage-control{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#64748b;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+}
+body.cockpit-ui .case-triage-options{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+body.cockpit-ui .case-triage-dot{
+  width:18px;
+  height:18px;
+  padding:0;
+  border:2px solid rgba(255,255,255,.94);
+  border-radius:50%;
+  box-shadow:0 0 0 1px #cbd5e1;
+  cursor:pointer;
+  transition:transform .12s ease,box-shadow .12s ease;
+}
+body.cockpit-ui .case-triage-dot:hover{transform:scale(1.08)}
+body.cockpit-ui .case-triage-dot.red{background:#ef4444}
+body.cockpit-ui .case-triage-dot.yellow{background:#eab308}
+body.cockpit-ui .case-triage-dot.green{background:#22c55e}
+body.cockpit-ui .case-triage-dot.active{
+  transform:scale(1.08);
+  box-shadow:0 0 0 2px #fff,0 0 0 4px #334155;
+}
+body.cockpit-ui .case-triage-control.readonly .case-triage-dot:not(.active){
+  opacity:.28;
+}
+body.cockpit-ui .case-triage-dot:disabled{cursor:default}
+
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.triage-red{
+  border:2px solid #ef4444;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.triage-yellow{
+  border:2px solid #eab308;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.triage-green{
+  border:2px solid #22c55e;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-red{
+  box-shadow:0 0 0 2px rgba(239,68,68,.16);
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-yellow{
+  box-shadow:0 0 0 2px rgba(234,179,8,.18);
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-green{
+  box-shadow:0 0 0 2px rgba(34,197,94,.16);
+}
+
+@media (max-width:1180px){
+  body.cockpit-ui .shift-dashboard-start{display:none}
+  body.cockpit-ui .shift-dashboard-pill{
+    grid-template-areas:"dot primary duration";
+    grid-template-columns:auto auto auto;
+  }
+}
+@media (max-width:760px){
+  body.cockpit-ui .topbar{min-height:52px}
+  body.cockpit-ui .shift-meta{
+    max-width:100%;
+    overflow-x:auto;
+    flex-wrap:nowrap;
+  }
+  body.cockpit-ui .shift-dashboard-pill,
+  body.cockpit-ui .shift-dashboard-metric{
+    flex:0 0 auto;
+  }
+}

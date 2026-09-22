@@ -528,6 +528,85 @@ function isCompleted(patient) {
   return Boolean(patient.summaryFinalizedAt);
 }
 
+const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+function defaultPhysicalStatusData() {
+  return {
+    version: 1,
+    parameters: {
+      bloodPressure: "",
+      pulse: "",
+      temperature: "",
+      respiratoryRate: "",
+      spo2: "",
+      oxygen: ""
+    },
+    sections: Object.fromEntries(PHYSICAL_STATUS_SECTION_KEYS.map((key) => [key, ""])),
+    generatedAt: null
+  };
+}
+
+function normalizePhysicalStatusData(value) {
+  const base = defaultPhysicalStatusData();
+  if (!value || typeof value !== "object") return base;
+
+  const parameters = value.parameters && typeof value.parameters === "object"
+    ? value.parameters
+    : {};
+  const sections = value.sections && typeof value.sections === "object"
+    ? value.sections
+    : {};
+
+  for (const key of Object.keys(base.parameters)) {
+    base.parameters[key] = String(parameters[key] ?? "").trim();
+  }
+  for (const key of PHYSICAL_STATUS_SECTION_KEYS) {
+    base.sections[key] = String(sections[key] ?? "").trim();
+  }
+
+  base.generatedAt = value.generatedAt ? String(value.generatedAt) : null;
+  return base;
+}
+
+function physicalStatusPositiveText(value) {
+  if (!value || typeof value !== "object") return "";
+  const status = normalizePhysicalStatusData(value);
+  return PHYSICAL_STATUS_SECTION_KEYS
+    .map((key) => {
+      const text = String(status.sections[key] || "").trim();
+      return text ? `${key}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function structuredPhysicalStatusComplete(patient) {
+  return Boolean(
+    patient?.physicalStatus?.version === 1 &&
+    patient.physicalStatus.generatedAt
+  );
+}
+
+function setPhysicalStatusData(caseId, value) {
+  const patient = patientById(caseId);
+  if (!patient || isCompleted(patient)) return null;
+
+  patient.physicalStatus = normalizePhysicalStatusData(value);
+  patient.physical = physicalStatusPositiveText(patient.physicalStatus);
+  patient.physicalSkipped = false;
+  touchPatient(patient);
+
+  if (caseId === selectedPatientId) {
+    const hiddenPhysical = document.getElementById("fPhysical");
+    if (hiddenPhysical) hiddenPhysical.value = patient.physical;
+    refreshNarrativeField(patient, "physical");
+    updateStatusCell(patient);
+    refreshSummaryControls(patient);
+  }
+
+  return structuredClone(patient.physicalStatus);
+}
+
 function newEntry(type = "") {
   return {
     id: crypto.randomUUID(),
@@ -651,6 +730,9 @@ function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
   if (patient[config.skipProp]) return "none";
+  if (key === "physical" && patient?.physicalStatus?.version === 1) {
+    return structuredPhysicalStatusComplete(patient) ? "result" : "waiting";
+  }
   if (String(patient[config.valueProp] || "").trim()) return "result";
   return "waiting";
 }
@@ -912,7 +994,9 @@ function patientProgress(patient) {
   ];
   const clinical = clinicalDefinitions.map(([valueKey, skippedKey, name]) => ({
     name,
-    complete: Boolean(patient[skippedKey] || String(patient[valueKey] || "").trim())
+    complete: valueKey === "physical"
+      ? narrativeStatus(patient, "physical") !== "waiting"
+      : Boolean(patient[skippedKey] || String(patient[valueKey] || "").trim())
   }));
   const tests = investigationItems(patient);
 
@@ -1755,6 +1839,9 @@ async function addPatient() {
     historySkipped: false,
     physical: "",
     physicalSkipped: false,
+    physicalStatus: document.body.classList.contains("beta-build")
+      ? defaultPhysicalStatusData()
+      : null,
     tests: {
       labs: [newEntry()],
       ekgs: [newEntry()],
@@ -2344,14 +2431,16 @@ function collectForm() {
   patient.mainComplaint = document.getElementById("fMainComplaint").value;
   patient.complaint = document.getElementById("fComplaint").value;
   patient.history = document.getElementById("fHistory").value;
-  patient.physical = document.getElementById("fPhysical").value;
+  patient.physical = patient?.physicalStatus?.version === 1
+    ? physicalStatusPositiveText(patient.physicalStatus)
+    : document.getElementById("fPhysical").value;
   patient.others = document.getElementById("fOthers").value;
   patient.therapy = document.getElementById("fTherapy").value;
   patient.course = document.getElementById("fCourse").value;
 
   if (patient.complaint.trim()) patient.complaintSkipped = false;
   if (patient.history.trim()) patient.historySkipped = false;
-  if (patient.physical.trim()) patient.physicalSkipped = false;
+  if (patient?.physicalStatus?.version === 1 || patient.physical.trim()) patient.physicalSkipped = false;
   if (patient.therapy.trim()) patient.therapySkipped = false;
   if (patient.course.trim()) patient.courseSkipped = false;
 
@@ -3619,7 +3708,11 @@ window.BachSBOClinicalUi = Object.freeze({
   getPatientSnapshot,
   getPatientProgress,
   getWorkflowStatus,
-  evaluateWorkflowStatus: (patient) => structuredClone(workflowStatus(patient))
+  evaluateWorkflowStatus: (patient) => structuredClone(workflowStatus(patient)),
+  defaultPhysicalStatusData,
+  normalizePhysicalStatusData,
+  physicalStatusPositiveText,
+  setPhysicalStatusData
 });
 
 async function copyNoteSnippet(button) {

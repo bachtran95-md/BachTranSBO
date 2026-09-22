@@ -1783,6 +1783,8 @@ if (await betaFeatures.locator("#betaTriageControl").count()) {
   throw new Error("Promoted triage is still duplicated in the beta-only layer");
 }
 
+await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
+
 // Structured STATUS: parameters + positive findings are persisted, while the
 // full generated copy text remains derived UI output only.
 await betaFeatures.locator("#betaStructuredStatus").waitFor();

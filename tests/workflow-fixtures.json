@@ -1,0 +1,104 @@
+[
+  {
+    "name": "complete discharged",
+    "patch": {},
+    "expectedReady": true
+  },
+  {
+    "name": "missing sex",
+    "patch": { "sex": "" },
+    "expectedReady": false
+  },
+  {
+    "name": "invalid year of birth",
+    "patch": { "yob": "1888" },
+    "expectedReady": false
+  },
+  {
+    "name": "missing arrival mode",
+    "patch": { "arrivalMode": "" },
+    "expectedReady": false
+  },
+  {
+    "name": "other arrival without details",
+    "patch": { "arrivalMode": "other", "arrivalOther": "" },
+    "expectedReady": false
+  },
+  {
+    "name": "missing complaint narrative",
+    "patch": { "complaintSkipped": false, "complaint": "" },
+    "expectedReady": false
+  },
+  {
+    "name": "waiting lab",
+    "patch": {
+      "tests": {
+        "labs": [{ "id": "fixture-lab", "mode": "waiting", "text": "", "savedText": "" }],
+        "ekgs": [],
+        "gases": [],
+        "radiology": [],
+        "consultations": []
+      }
+    },
+    "expectedReady": false
+  },
+  {
+    "name": "discharged without condition",
+    "patch": { "dischargeCondition": "" },
+    "expectedReady": false
+  },
+  {
+    "name": "discharged without recommendation",
+    "patch": { "recommendations": [""] },
+    "expectedReady": false
+  },
+  {
+    "name": "admitted complete",
+    "patch": {
+      "disposition": "admitted",
+      "dischargeCondition": "",
+      "recommendations": [],
+      "ward": "Kardiológia"
+    },
+    "expectedReady": true
+  },
+  {
+    "name": "admitted without ward",
+    "patch": {
+      "disposition": "admitted",
+      "dischargeCondition": "",
+      "recommendations": [],
+      "ward": ""
+    },
+    "expectedReady": false
+  },
+  {
+    "name": "other disposition complete",
+    "patch": {
+      "disposition": "other",
+      "dischargeCondition": "",
+      "recommendations": [],
+      "otherOutcome": "Saját felelősségre távozott"
+    },
+    "expectedReady": true
+  },
+  {
+    "name": "other disposition without outcome",
+    "patch": {
+      "disposition": "other",
+      "dischargeCondition": "",
+      "recommendations": [],
+      "otherOutcome": ""
+    },
+    "expectedReady": false
+  },
+  {
+    "name": "invalid disposition enum",
+    "patch": {
+      "disposition": "foo",
+      "dischargeCondition": "",
+      "recommendations": []
+    },
+    "expectedReady": false
+  }
+]

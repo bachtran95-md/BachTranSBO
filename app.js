@@ -202,6 +202,17 @@ function defaultState() {
   return { shift: null, patients: [], references: [] };
 }
 
+function emitUiRendered(source = "render") {
+  document.dispatchEvent(new CustomEvent("bachsbo:ui-rendered", {
+    detail: {
+      source,
+      view: currentView,
+      selectedPatientId,
+      hasShift: Boolean(state.shift)
+    }
+  }));
+}
+
 function persist() {
   // Privacy-aware backend writes are intentionally explicit rather than
   // running on every keystroke. This only marks the in-memory state dirty.
@@ -1364,13 +1375,18 @@ function renderApp() {
     document.getElementById("noShiftView").classList.add("hidden");
     document.getElementById("patientsView").classList.add("hidden");
     if (admin) renderAdminView();
+    emitUiRendered("view");
     return;
   }
 
   document.getElementById("noShiftView").classList.toggle("hidden", Boolean(state.shift));
   document.getElementById("patientsView").classList.toggle("hidden", !state.shift);
 
-  if (state.shift) renderPatients();
+  if (state.shift) {
+    renderPatients();
+  } else {
+    emitUiRendered("render");
+  }
 }
 
 function setView(view) {
@@ -1533,6 +1549,8 @@ function renderPatients() {
     paintRecordHeaderSex("");
     disconnectNormalRawData();
   }
+
+  emitUiRendered("patients");
 }
 
 function syncPatientRowFromState(patient) {

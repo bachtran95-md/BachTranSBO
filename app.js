@@ -882,6 +882,13 @@ function wireNarrativeFields(patient) {
 
     input.oninput = () => {
       patient[config.valueProp] = input.value;
+      if (
+        key === "physical" &&
+        !document.body.classList.contains("beta-build") &&
+        patient?.physicalStatus?.version === 1
+      ) {
+        patient.physicalStatus = null;
+      }
       if (input.value.trim()) patient[config.skipProp] = false;
       persist();
       refreshNarrativeField(patient, key);
@@ -2431,9 +2438,11 @@ function collectForm() {
   patient.mainComplaint = document.getElementById("fMainComplaint").value;
   patient.complaint = document.getElementById("fComplaint").value;
   patient.history = document.getElementById("fHistory").value;
-  patient.physical = patient?.physicalStatus?.version === 1
-    ? physicalStatusPositiveText(patient.physicalStatus)
-    : document.getElementById("fPhysical").value;
+  patient.physical =
+    document.body.classList.contains("beta-build") &&
+    patient?.physicalStatus?.version === 1
+      ? physicalStatusPositiveText(patient.physicalStatus)
+      : document.getElementById("fPhysical").value;
   patient.others = document.getElementById("fOthers").value;
   patient.therapy = document.getElementById("fTherapy").value;
   patient.course = document.getElementById("fCourse").value;

@@ -374,6 +374,26 @@
     return new Map(findings.map((finding) => [finding.key, finding]));
   }
 
+  function customFindings(findings) {
+    return findings.filter((finding) => finding?.customRule?.outputText);
+  }
+
+  function ensureSentence(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    return /[.!?]$/.test(text) ? text : text + ".";
+  }
+
+  function applyCustomRule(base, rule) {
+    let text = String(base || "");
+    const conflict = String(rule?.conflictText || "").trim();
+    if (conflict) {
+      text = text.split(conflict).join("").replace(/\s{2,}/g, " ").trim();
+    }
+    const output = ensureSentence(rule?.outputText);
+    return output ? `${text.trim()} ${output}`.trim() : text.trim();
+  }
+
   function standardStatus(findings) {
     const map = findingMap(findings);
     let intro = STANDARD_BASE.intro;
@@ -427,8 +447,36 @@
     let neuro = STANDARD_BASE.neuro;
     if (map.has("focal")) neuro = neuro.replace("neurológiai gócjel nincs", "neurológiai gócjel észlelhető");
     if (map.has("gcs")) neuro += ` GCS: ${map.get("gcs").value}.`;
+    let locomotor = STANDARD_BASE.locomotor;
 
-    return [intro, STANDARD_BASE.chest, pulmo, heart, abdomen, STANDARD_BASE.locomotor, neuro].join(" ");
+    for (const finding of customFindings(findings)) {
+      const rule = finding.customRule;
+      switch (rule.target) {
+        case "respiratory":
+          pulmo = applyCustomRule(pulmo, rule);
+          break;
+        case "circulation":
+          heart = applyCustomRule(heart, rule);
+          break;
+        case "neuro":
+          neuro = applyCustomRule(neuro, rule);
+          break;
+        case "skin":
+          intro = applyCustomRule(intro, rule);
+          break;
+        case "locomotor":
+          locomotor = applyCustomRule(locomotor, rule);
+          break;
+        case "abdomen":
+        case "urogenital":
+        case "other":
+        default:
+          abdomen = applyCustomRule(abdomen, rule);
+          break;
+      }
+    }
+
+    return [intro, STANDARD_BASE.chest, pulmo, heart, abdomen, locomotor, neuro].join(" ");
   }
 
   function abcdeStatus(findings) {
@@ -484,13 +532,22 @@
 
     const edema = map.has("edema") ? "ödéma észlelhető" : "ödéma nincs";
 
-    return [
+    const lines = [
       "A: Légutak átjárhatók.",
       `B: ${bDyspnea} Mellkas alakja: emphysaemás. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs.`,
       `C: ${cHeart} Nyaki vénák nem teltek.${cEdema}`,
       `D: GCS: ${gcs}${gcs === 15 ? " (Sz:4, V:5, M:6)" : ""}. ${dNeuro}`,
       `E: Kp. fejlett, kp. táplált, jó általános állapotú beteg. Bőrszín: normál, turgora megtartott. Nyálkahártyák: kp. vértelt. Nyelv: nedves. Sclera: fehér. ${abdomen} Húgy és ivarszervek: Vesetájak ütögetésre nem érzékenyek. Végtagok: alakilag és funkcionálisan épek, ${edema}. MVT-re utaló jel nincs. Gerinc: alakilag ép, ütögetésre nem érzékeny. Külsérelmi nyoma: nincs.`
-    ].join("\n");
+    ];
+
+    const lineIndex = { A: 0, B: 1, C: 2, D: 3, E: 4 };
+    for (const finding of customFindings(findings)) {
+      const rule = finding.customRule;
+      const index = lineIndex[String(rule.section || "E").toUpperCase()] ?? 4;
+      lines[index] = applyCustomRule(lines[index], rule);
+    }
+
+    return lines.join("\n");
   }
 
   function generatedStatus(findings) {

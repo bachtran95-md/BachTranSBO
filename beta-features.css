@@ -108,6 +108,73 @@ body.beta-build.cockpit-ui .beta-metric-completed{
 }
 body.beta-build.cockpit-ui .beta-metric-completed b{color:#475569}
 
+body.beta-build.cockpit-ui #recordHeader .record-patient-heading{
+  overflow:visible;
+}
+body.beta-build.cockpit-ui #recordHeader #recordSubtitle{
+  flex:0 1 auto;
+}
+body.beta-build.cockpit-ui .beta-triage-control{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  color:#64748b;
+  font-size:11px;
+  font-weight:750;
+  white-space:nowrap;
+}
+body.beta-build.cockpit-ui .beta-triage-options{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+body.beta-build.cockpit-ui .beta-triage-dot{
+  width:18px;
+  height:18px;
+  padding:0;
+  border:2px solid rgba(255,255,255,.94);
+  border-radius:50%;
+  box-shadow:0 0 0 1px #cbd5e1;
+  cursor:pointer;
+  transition:transform .12s ease,box-shadow .12s ease;
+}
+body.beta-build.cockpit-ui .beta-triage-dot:hover{
+  transform:scale(1.08);
+}
+body.beta-build.cockpit-ui .beta-triage-dot.red{background:#ef4444}
+body.beta-build.cockpit-ui .beta-triage-dot.yellow{background:#eab308}
+body.beta-build.cockpit-ui .beta-triage-dot.green{background:#22c55e}
+body.beta-build.cockpit-ui .beta-triage-dot.active{
+  transform:scale(1.08);
+  box-shadow:0 0 0 2px #fff,0 0 0 4px #334155;
+}
+body.beta-build.cockpit-ui .beta-triage-control.readonly .beta-triage-dot:not(.active){
+  opacity:.28;
+}
+body.beta-build.cockpit-ui .beta-triage-dot:disabled{
+  cursor:default;
+}
+
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.beta-triage-red{
+  border:2px solid #ef4444;
+}
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.beta-triage-yellow{
+  border:2px solid #eab308;
+}
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.beta-triage-green{
+  border:2px solid #22c55e;
+}
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.beta-triage-red{
+  box-shadow:0 0 0 2px rgba(239,68,68,.16);
+}
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.beta-triage-yellow{
+  box-shadow:0 0 0 2px rgba(234,179,8,.18);
+}
+body.beta-build.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.beta-triage-green{
+  box-shadow:0 0 0 2px rgba(34,197,94,.16);
+}
+
 @media (max-width:1180px){
   body.beta-build.cockpit-ui .beta-shift-start{display:none}
   body.beta-build.cockpit-ui .beta-shift-pill{

@@ -2,14 +2,675 @@
 <html lang="hu">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta http-equiv="refresh" content="0;url=./" />
-  <title>BachTranSBO</title>
-  <script>
-    window.location.replace("./" + window.location.search + window.location.hash);
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <title>ER Command Center — Beta</title>
+  <link rel="stylesheet" href="styles.css?v=ai-data-drawer-20260921-1" />
+  <link rel="stylesheet" href="beta-features.css?v=shift-stale-20260922-2" />
 </head>
-<body>
-  <p><a href="./">BachTranSBO megnyitása</a></p>
+<body class="beta-build">
+  <header class="topbar">
+    <div>
+      <div class="brand">ER COMMAND CENTER</div>
+      <div class="shift-meta" id="shiftMeta"></div>
+    </div>
+    <div class="toolbar topbar-tools">
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button class="lang-btn active" id="langHuBtn" type="button">HU</button>
+        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
+      </div>
+      <div class="toolbar" id="topActions"></div>
+    </div>
+  </header>
+
+  <nav class="workspace-nav" aria-label="Workspace">
+    <div class="workspace-nav-main">
+      <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
+      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
+      <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
+    </div>
+    <div class="workspace-nav-future">
+      <span class="nav-future-label" data-i18n="futureModules">Future modules</span>
+      <button class="nav-item disabled"><span data-i18n="analytics">Analytics</span> <small data-i18n="planned">PLANNED</small></button>
+      <button class="nav-item disabled"><span data-i18n="archive">Archive</span> <small data-i18n="planned">PLANNED</small></button>
+      <button class="nav-item disabled"><span data-i18n="integrations">Integrations</span> <small data-i18n="planned">PLANNED</small></button>
+    </div>
+  </nav>
+
+  <main class="main">
+      <section id="rawTransferView" class="hidden">
+        <div class="raw-transfer-shell">
+          <div class="raw-transfer-intro">
+            <div>
+              <div class="raw-transfer-kicker">HEIDI → BACHTRANSBO</div>
+              <h1 data-i18n="rawTransferTitle">Raw data transfer</h1>
+              <p class="subtle" data-i18n="rawTransferDesc">Válasszon egy aktív esetet, illessze be a Heidi transcriptet, majd küldje el.</p>
+            </div>
+            <button class="btn" id="rawTransferRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+          </div>
+
+          <div id="rawTransferNoShift" class="empty hidden">
+            <div class="empty-card">
+              <h2 data-i18n="noActiveShift">Nincs aktív műszak</h2>
+              <p class="subtle" data-i18n="rawTransferNoShift">Raw Transfer csak aktív műszak alatt használható.</p>
+            </div>
+          </div>
+
+          <div id="rawTransferWorkspace" class="raw-transfer-grid hidden">
+            <div class="card raw-transfer-cases-card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="activeCases">Aktív esetek</h3>
+                  <div class="subtle" data-i18n="rawTransferCaseHint">Csak a beteg azonosításához szükséges minimális adatok jelennek meg.</div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div id="rawTransferCaseList" class="raw-transfer-case-list"></div>
+              </div>
+            </div>
+
+            <div class="card raw-transfer-editor-card">
+              <div class="card-h">
+                <div>
+                  <h3 id="rawTransferCaseTitle" data-i18n="selectCasePrompt">Válasszon egy esetet a listából.</h3>
+                  <div class="subtle" id="rawTransferCaseMeta"></div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div class="field">
+                  <label data-i18n="rawDataLabel">Raw data / Heidi transcript</label>
+                  <textarea id="rawTransferText" class="raw-transfer-textarea" maxlength="100000"
+                    placeholder="Heidi transcript beillesztése…"></textarea>
+                </div>
+                <div class="raw-transfer-actions">
+                  <button class="btn primary raw-transfer-send" id="rawTransferSaveBtn" type="button" disabled>
+                    <span data-i18n="sendRawData">RAW DATA KÜLDÉSE</span>
+                  </button>
+                  <button class="btn" id="rawTransferClearLocalBtn" type="button" data-i18n="clear">TÖRLÉS</button>
+                </div>
+                <div id="rawTransferStatus" class="raw-transfer-status subtle"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="noShiftView" class="empty hidden">
+        <div class="empty-card">
+          <h1 data-i18n="noActiveShift">No active shift</h1>
+          <p data-i18n="oneShiftOnly">Only one shift can be active at a time.</p>
+          <button class="btn primary" id="startShiftBtn" data-i18n="startShift">START SHIFT</button>
+        </div>
+      </section>
+
+      <section id="patientsView" class="hidden">
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="importCase">Import new case</h3>
+                  <div class="subtle" data-i18n="autoId">ID automatically starts from 01 in each shift.</div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div class="inline3">
+                  <div class="field">
+                    <label>ID</label>
+                    <input id="newId" disabled />
+                  </div>
+                  <div class="field">
+                    <label data-i18n="sex">Sex</label>
+                    <select id="newSex">
+                      <option value="">—</option>
+                      <option value="M">Férfi</option>
+                      <option value="F">Nő</option>
+                      <option value="O">Egyéb</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label data-i18n="yob">Year of birth</label>
+                    <input id="newYob" inputmode="numeric" maxlength="4" placeholder="1955 or 55" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label data-i18n="mainComplaint">Main complaint</label>
+                  <input id="newComplaint" placeholder="Mellkasi fájdalom" />
+                </div>
+                <button class="btn primary" id="addPatientBtn" data-i18n="addCase">ADD CASE</button>
+              </div>
+            </div>
+
+            <div class="card mt16">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="caseRecord">Case list</h3>
+                  <div class="subtle" data-i18n="caseStatusHint">Status shows unresolved items for each case.</div>
+                </div>
+              </div>
+              <div class="card-b table-wrap">
+                <table class="patient-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th data-i18n="sex">Sex</th>
+                      <th data-i18n="age">Age</th>
+                      <th data-i18n="mainComplaint">Main complaint</th>
+                      <th data-i18n="status">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="patientTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h" id="recordHeader">
+              <div class="record-patient-heading">
+                <h3 id="recordTitle">Eset részletei</h3>
+                <div class="subtle" id="recordSubtitle" data-i18n="selectCasePrompt">Válasszon egy esetet a listából.</div>
+              </div>
+              <div class="record-header-ai">
+                <button class="btn cockpit-ai-action cockpit-ai-action-data" id="cockpitDataEntryBtn" type="button" disabled>
+                  <svg class="cockpit-ai-logo" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+  </g>
+</svg>
+                  <span id="cockpitDataEntryLabel">AI ADATBEVITEL</span>
+                </button>
+              </div>
+              <div class="record-actions">
+                <button class="raw-data-badge hidden" id="normalRawBadge" type="button" aria-haspopup="dialog" aria-controls="normalRawDrawer">
+                  <span aria-hidden="true">📥</span>
+                  <span id="normalRawBadgeLabel">RAW DATA</span>
+                </button>
+                <span id="patientStatusBadge"></span>
+                <button class="btn small hidden" id="reopenCaseBtn" type="button" data-i18n="reopenCase">REOPEN CASE</button>
+              </div>
+            </div>
+            <div class="card-b">
+              <div id="noPatientSelected" class="subtle" data-i18n="noCaseSelected">No case selected.</div>
+
+              <form id="patientForm" class="hidden">
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionClinical">1. Clinical</div>
+                  <div class="field">
+                    <label data-i18n="mainComplaint">Main complaint</label>
+                    <input id="fMainComplaint" />
+                  </div>
+                  <div id="cockpitDemographicsMount">
+                    <div id="inlineCaseEditor" class="cockpit-demographics-inline" style="margin:10px 0 14px">
+                      <div class="inline3">
+                        <div class="field">
+                          <label data-ice-label="sex">Nem</label>
+                          <input id="iceSex" type="hidden" value="" />
+                          <div id="iceSexChoices" class="sex-choice-group" role="radiogroup" aria-label="Nem">
+                            <label class="sex-choice sex-choice-m">
+                              <input type="radio" name="iceSexChoice" value="M" />
+                              <span class="sex-choice-check" aria-hidden="true"></span>
+                              <span data-sex-choice-label="M">Férfi</span>
+                            </label>
+                            <label class="sex-choice sex-choice-f">
+                              <input type="radio" name="iceSexChoice" value="F" />
+                              <span class="sex-choice-check" aria-hidden="true"></span>
+                              <span data-sex-choice-label="F">Nő</span>
+                            </label>
+                            <label class="sex-choice sex-choice-o">
+                              <input type="radio" name="iceSexChoice" value="O" />
+                              <span class="sex-choice-check" aria-hidden="true"></span>
+                              <span data-sex-choice-label="O">Egyéb</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="field">
+                          <label data-ice-label="yob">Születési év</label>
+                          <input id="iceYob" inputmode="numeric" maxlength="4" placeholder="1955" autocomplete="off" />
+                        </div>
+                        <div class="field">
+                          <label data-ice-label="age">Életkor</label>
+                          <input id="iceAge" placeholder="auto" readonly aria-readonly="true" tabindex="-1" />
+                        </div>
+                      </div>
+                      <div class="field cockpit-arrival-field">
+                        <label data-ice-label="arrival">SBO-ra érkezés módja</label>
+                        <select id="iceArrival">
+                          <option value="">— válasszon —</option>
+                          <option value="omsz">OMSz szállította</option>
+                          <option value="esetkocsi">Esetkocsi szállította</option>
+                          <option value="walk_in">Saját lábán érkezett</option>
+                          <option value="gp_referral">Háziorvosi beutalóval</option>
+                          <option value="other">Egyéb</option>
+                        </select>
+                      </div>
+                      <div class="field hidden cockpit-arrival-other" id="iceArrivalOtherWrap">
+                        <label data-ice-label="arrivalOther">Érkezés részletei</label>
+                        <input id="iceArrivalOther" placeholder="Az érkezés módjának részletei…" autocomplete="off" />
+                      </div>
+                      <div class="toolbar cockpit-demographics-toolbar" style="justify-content:space-between;margin-top:8px">
+                        <div class="subtle" id="iceStatus"></div>
+                        <button class="btn small" id="iceDeleteCase" type="button" style="border-color:#fecaca;color:#b91c1c;background:#fff5f5">ESET TÖRLÉSE</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="complaint">
+                    <div class="narrative-head">
+                      <label data-i18n="complaint">Complaint</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="complaint">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="complaint" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fComplaint" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="history">
+                    <div class="narrative-head">
+                      <label data-i18n="patientHistory">Medical history</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="history">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fHistory" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionTests">2. Tests and examination</div>
+                  <div class="info-bar" data-i18n="testLegend">
+                    Orange = unresolved. Enter a result to turn green, or mark Not ordered to turn grey.
+                  </div>
+
+                  <div class="field narrative-field waiting" data-narrative-field="physical">
+                    <div class="narrative-head">
+                      <label data-i18n="physicalExam">Physical examination — main points / status</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="physical">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fPhysical"></textarea>
+                  </div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="lab">Lab</div>
+                    <button class="btn small" type="button" id="addLabBtn" data-i18n="addLab">+ ADD LAB</button>
+                  </div>
+                  <div id="labCards"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="ekg">EKG</div>
+                  </div>
+                  <div id="ekgCard"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="bloodGas">AVG / VVG</div>
+                  </div>
+                  <div id="gasCard"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="radiology">Radiology</div>
+                    <button class="btn small" type="button" id="addRadiologyBtn" data-i18n="addRadiology">+ ADD RADIOLOGY</button>
+                  </div>
+                  <div id="radiologyCards"></div>
+
+                  <div class="test-group-toolbar">
+                    <div class="test-group-title" data-i18n="consultations">Consultations</div>
+                    <button class="btn small" type="button" id="addConsultBtn" data-i18n="addConsultation">+ ADD CONSULTATION</button>
+                  </div>
+                  <div id="consultCards"></div>
+
+                  <div class="field">
+                    <label data-i18n="others">Others</label>
+                    <textarea id="fOthers"></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="sectionCourse">3. Treatment and course</div>
+                  <div class="field narrative-field waiting" data-narrative-field="therapy">
+                    <div class="narrative-head">
+                      <label data-i18n="therapy">Therapy</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="therapy">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="therapy" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fTherapy"></textarea>
+                  </div>
+                  <div class="field narrative-field waiting" data-narrative-field="course">
+                    <div class="narrative-head">
+                      <label data-i18n="clinicalCourse">Clinical course / case status change</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="course">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="course" data-i18n="markNone">NONE</button>
+                      </div>
+                    </div>
+                    <textarea id="fCourse"></textarea>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="finalDecision">4. Final decision / disposition</div>
+                  <div class="info-bar" data-i18n="finalDecisionInfo">
+                    Disposition records the clinical decision. The case closes only after the Summary is finalized.
+                  </div>
+                  <div class="field narrative-field waiting" id="diagnosesWrap" data-narrative-field="diagnoses">
+                    <div class="narrative-head">
+                      <label data-i18n="diagnoses">Diagnoses</label>
+                      <div class="narrative-actions">
+                        <span class="field-state waiting" data-field-state="diagnoses">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
+                      </div>
+                    </div>
+                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Panaszok hátterében mi állhat?</div>
+                    <textarea id="fDiagnoses" placeholder="Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia."></textarea>
+                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
+                  </div>
+                  <div class="field">
+                    <label data-i18n="disposition">Disposition</label>
+                    <select id="fDisposition">
+                      <option value="">Aktív / folyamatban</option>
+                      <option value="discharged">Otthonába bocsátva</option>
+                      <option value="admitted">Osztályos felvétel / áthelyezés</option>
+                      <option value="other">Egyéb</option>
+                    </select>
+                  </div>
+
+                  <div id="dischargedFields" class="hidden">
+                    <div id="dischargeConditionWrap" class="field narrative-field waiting">
+                      <div class="narrative-head">
+                        <label data-discharge-label>Állapot / panaszok elbocsátáskor</label>
+                        <div class="narrative-actions">
+                          <span class="field-state waiting" id="dischargeConditionState">KÖTELEZŐ</span>
+                        </div>
+                      </div>
+                      <textarea id="fDischargeCondition" placeholder="Pl. panaszmentes, jó általános állapotú; mellkasi fájdalma nem jelentkezett…"></textarea>
+                    </div>
+                    <div class="field">
+                      <label data-i18n="homePlan">Recommendation and plan at home</label>
+                      <div class="recs" id="recList"></div>
+                      <button class="btn small" id="addRecBtn" type="button" data-i18n="addRecommendation">+ Add recommendation</button>
+                    </div>
+                  </div>
+
+                  <div id="admittedFields" class="hidden">
+                    <div class="inline">
+                      <div class="field">
+                        <label data-i18n="hospital">Hospital</label>
+                        <input id="fHospital" />
+                      </div>
+                      <div class="field">
+                        <label data-i18n="ward">Ward / department</label>
+                        <input id="fWard" />
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label data-i18n="acceptingPhysician">Accepting physician</label>
+                      <input id="fPhysician" />
+                    </div>
+                    <div class="field">
+                      <label data-i18n="additionalNote">Additional note</label>
+                      <textarea id="fAdmissionNote"></textarea>
+                    </div>
+                  </div>
+
+                  <div id="otherFields" class="hidden">
+                    <div class="field">
+                      <label data-i18n="outcome">Outcome</label>
+                      <input id="fOtherOutcome" placeholder="Halál, áthelyezés, saját felelősségre távozás…" />
+                    </div>
+                    <div class="field">
+                      <label data-i18n="details">Details</label>
+                      <textarea id="fOtherDetails"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title" data-i18n="caseSummary">5. Case summary</div>
+                  <div class="info-bar" data-i18n="summaryInfo">
+                    Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.
+                  </div>
+                  <div class="summary-actions">
+                    <button class="btn cockpit-ai-action cockpit-ai-action-summary" id="generateSummaryBtn" type="button">
+                      <svg class="cockpit-ai-logo" viewBox="0 0 24 24" aria-hidden="true">
+  <g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(60 12 12)"/>
+    <rect x="10.4" y="2.6" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+    <rect x="10.4" y="12.2" width="3.2" height="9.2" rx="1.6" transform="rotate(120 12 12)"/>
+  </g>
+</svg>
+                      <span id="generateSummaryLabel" data-i18n="generateSummary">ÖSSZEFOGLALÓ GENERÁLÁSA</span>
+                    </button>
+                  </div>
+                  <div class="summary-gate blocked" id="summaryGate">
+                    Summary locked until every orange test is resolved or marked Not ordered.
+                  </div>
+                  <div class="summary-status" id="summaryStatus"></div>
+                  <div class="field">
+                    <label data-i18n="summaryEditable">Summary — editable</label>
+                    <textarea id="fSummary" class="summary-box" placeholder="A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető."></textarea>
+                  </div>
+                  <div class="field fixed-summary-footer-field hidden" id="fixedSummaryFooterField">
+                    <label data-i18n="summaryFixedFooter">Állandó záró szöveg — nem szerkeszthető</label>
+                    <textarea id="summaryFixedFooter" class="summary-fixed-footer" readonly aria-readonly="true"></textarea>
+                  </div>
+                  <div class="toolbar">
+                    <button class="btn success" id="finalizeSummaryBtn" type="button" data-i18n="finalizeSummary">FINALIZE SUMMARY</button>
+                  </div>
+                </div>
+
+                <div class="sticky-actions">
+                  <span class="autosave-hint" data-i18n="autosaveHint">Automatikus mentés aktív</span>
+                  <button class="btn" id="savePatientBtn" type="button" data-i18n="saveCase">ESET MENTÉSE</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="aiLearningView" class="hidden">
+        <div class="learning-head">
+          <div>
+            <h1 data-i18n="aiLearningNav">AI Learning</h1>
+            <div class="subtle" data-i18n="learningDesc">Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.</div>
+          </div>
+          <button class="btn" id="refreshLearningBtn" type="button" data-i18n="refresh">REFRESH</button>
+        </div>
+
+        <div class="learning-metrics">
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="finalizedCorpus">Finalized corpus</div>
+            <div class="learning-number" id="learningFinalizedCount">—</div>
+          </div>
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="activeSkill">Active Skill</div>
+            <div class="learning-number small" id="learningActiveSkill">—</div>
+          </div>
+          <div class="card learning-metric">
+            <div class="subtle" data-i18n="activeStyle">Active style</div>
+            <div class="learning-number small" id="learningActiveStyle">—</div>
+          </div>
+        </div>
+
+        <div id="learningMessage" class="info-bar hidden"></div>
+
+        <div class="card learning-corpus-card">
+          <div class="card-h">
+            <div>
+              <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
+              <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
+            </div>
+          </div>
+          <div class="card-b" id="corpusReviewList">
+            <div class="subtle" data-i18n="loading">Betöltés…</div>
+          </div>
+        </div>
+
+        <div class="learning-grid">
+          <div class="card">
+            <div class="card-h">
+              <div>
+                <h3 data-i18n="writingStyle">Writing style</h3>
+                <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
+              </div>
+              <button class="btn primary small" id="generateStyleBtn" type="button">
+                <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
+              </button>
+            </div>
+            <div class="card-b" id="styleProfilesList">
+              <div class="subtle">Loading…</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <div>
+                <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
+                <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+              </div>
+              <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
+                <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
+              </button>
+            </div>
+            <div class="card-b" id="skillSuggestionsList">
+              <div class="subtle">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminView" class="hidden">
+        <div class="learning-head">
+          <div>
+            <h1 data-i18n="adminNav">Admin</h1>
+            <div class="subtle" data-i18n="adminDesc">Single-owner account security settings.</div>
+          </div>
+        </div>
+
+        <div class="card admin-card">
+          <div class="card-h">
+            <div>
+              <h3 data-i18n="account">Account</h3>
+              <div class="subtle" data-i18n="accountDesc">Only the configured owner account can use this app.</div>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="field">
+              <label>Email</label>
+              <input id="adminEmailDisplay" disabled />
+            </div>
+
+            <div class="section">
+              <div class="section-title" data-i18n="changePassword">Change password</div>
+              <div class="info-bar">
+                <span data-i18n="passwordRule">Minimum 6 characters. No special complexity rule is required by this app.</span>
+              </div>
+
+              <div class="field">
+                <label data-i18n="currentPassword">Current password</label>
+                <input id="currentAdminPassword" type="password" autocomplete="current-password" />
+              </div>
+              <div class="field">
+                <label data-i18n="newPassword">New password</label>
+                <input id="newAdminPassword" type="password" autocomplete="new-password" minlength="6" />
+              </div>
+              <div class="field">
+                <label data-i18n="confirmPassword">Confirm new password</label>
+                <input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="6" />
+              </div>
+
+              <div class="toolbar">
+                <button class="btn primary" id="changeAdminPasswordBtn" type="button">
+                  <span data-i18n="changePasswordButton">CHANGE PASSWORD</span>
+                </button>
+                <button class="btn" id="adminSignOutBtn" type="button">
+                  <span data-i18n="signOut">SIGN OUT</span>
+                </button>
+              </div>
+              <div id="adminPasswordMessage" class="subtle mt16"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+  </main>
+
+  <div class="raw-data-drawer-backdrop" id="normalRawDrawerBackdrop" aria-hidden="true"></div>
+  <aside class="raw-data-drawer" id="normalRawDrawer" role="dialog" aria-modal="true" aria-labelledby="normalRawDrawerTitle" aria-hidden="true">
+    <div class="raw-data-drawer-head">
+      <div>
+        <div class="raw-data-drawer-kicker">HEIDI → BACHTRANSBO</div>
+        <strong id="normalRawDrawerTitle" data-i18n="rawDataInbox">Raw data inbox</strong>
+        <div class="subtle" id="normalRawDataMeta"></div>
+      </div>
+      <button class="btn small raw-data-drawer-close" id="normalRawDrawerClose" type="button" aria-label="Bezárás">×</button>
+    </div>
+    <div class="raw-data-drawer-body">
+      <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
+      <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
+        placeholder="Még nincs raw data ehhez az esethez."></textarea>
+    </div>
+    <div class="raw-data-drawer-actions">
+      <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+      <button class="btn primary" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
+      <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
+    </div>
+  </aside>
+
+  <div class="cockpit-data-entry-backdrop" id="cockpitDataEntryBackdrop" aria-hidden="true"></div>
+  <aside class="cockpit-data-entry-drawer" id="cockpitDataEntryOverlay" role="dialog" aria-modal="true" aria-labelledby="cockpitPasteTitle" aria-hidden="true">
+    <div class="cockpit-data-entry-head">
+      <div>
+        <div class="raw-data-drawer-kicker">HEIDI → AI ADATBEVITEL</div>
+        <strong id="cockpitPasteTitle">✨ AI-assisted data entry</strong>
+        <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Routing és adatkinyerés — a Heidi szöveg megfogalmazását megtartva</div>
+      </div>
+      <button class="btn small" id="cockpitDataEntryClose" type="button" aria-label="Bezárás">×</button>
+    </div>
+    <div class="cockpit-data-entry-body">
+      <div class="cockpit-data-entry-safety">
+        <strong>AI-assisted data entry</strong>
+        <span>Az AI mezőt javasol és a Heidi szöveget a lehető legkevésbé módosítja. A célmező és a szöveg alkalmazás előtt felülírható.</span>
+      </div>
+      <textarea id="cockpitPasteText" class="cockpit-paste-text cockpit-data-entry-text" maxlength="30000"></textarea>
+      <button class="btn primary cockpit-wide-btn" id="cockpitExtractText" type="button">TÉNYEK KINYERÉSE</button>
+      <div id="cockpitExtractStatus" class="cockpit-status"></div>
+      <div id="cockpitExtractPreview"></div>
+    </div>
+  </aside>
+
+  <div class="cockpit-extract-confirm-overlay hidden" id="cockpitExtractConfirmOverlay" aria-hidden="true">
+    <section class="cockpit-extract-confirm-dialog" role="alertdialog" aria-modal="true">
+      <strong id="cockpitExtractConfirmTitle">Beírás megerősítése</strong>
+      <p id="cockpitExtractConfirmText"></p>
+      <div class="cockpit-extract-confirm-actions">
+        <button class="btn" id="cockpitExtractConfirmCancel" type="button">MÉGSE</button>
+        <button class="btn primary" id="cockpitExtractConfirmApply" type="button">MEGERŐSÍTÉS ÉS BEÍRÁS</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="modalHost"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+  <script src="config.js?v=config-only-20260920-1"></script>
+  <script src="case-ui.js?v=demographics-20260922-1"></script>
+  <script src="backend.js?v=raw-transfer-mode-20260921-1"></script>
+  <script src="assistant-core.js?v=assistant-core-20260922-1"></script>
+  <script src="app.js?v=raw-inbox-drawer-20260921-1"></script>
+  <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
+  <script src="cockpit.js?v=stable-cockpit-20260922-1"></script>
+  <script src="beta-features.js?v=shift-stale-20260922-2"></script>
 </body>
 </html>

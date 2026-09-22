@@ -374,46 +374,6 @@
     }
   }
 
-  function renderSummaryProgress(progress, ready) {
-    if (!progress) {
-      return esc(label(
-        "Review unresolved fields before generation.",
-        "Generálás előtt ellenőrizze a hiányzó mezőket."
-      ));
-    }
-
-    const completeCount = progress.completeClinical.length + progress.completeTests.length;
-    const totalCount = progress.clinical.length + progress.tests.length;
-    const incompleteNames = progress.incompleteClinical.map((item) => item.name);
-    const waitingNames = progress.waitingTests.map((item) => item.name);
-    const completedClinicalNames = progress.completeClinical.map((item) => item.name);
-
-    const nameList = (names, emptyLabel) => names.length
-      ? names.map((name) => `<span class="cockpit-summary-chip">${esc(name)}</span>`).join("")
-      : `<span class="cockpit-summary-empty">${esc(emptyLabel)}</span>`;
-
-    return `
-      <div class="cockpit-summary-overview ${ready ? "ready" : "waiting"}">
-        <strong>${esc(label("Complete", "Kész"))}: ${completeCount}/${totalCount}</strong>
-        <span>${esc(label(
-          `${progress.completeClinical.length}/${progress.clinical.length} clinical · ${progress.completeTests.length}/${progress.tests.length} tests`,
-          `${progress.completeClinical.length}/${progress.clinical.length} klinikai · ${progress.completeTests.length}/${progress.tests.length} vizsgálat`
-        ))}</span>
-      </div>
-      <div class="cockpit-summary-group complete">
-        <b>✓ ${esc(label("Completed clinical", "Kész klinikai részek"))}</b>
-        <div class="cockpit-summary-chips">${nameList(completedClinicalNames, label("None yet", "Még nincs"))}</div>
-      </div>
-      <div class="cockpit-summary-group incomplete">
-        <b>○ ${esc(label("Still incomplete", "Még hiányos"))} · ${incompleteNames.length}</b>
-        <div class="cockpit-summary-chips">${nameList(incompleteNames, label("None", "Nincs"))}</div>
-      </div>
-      <div class="cockpit-summary-group waiting-tests">
-        <b>● ${esc(label("Waiting tests", "Függő vizsgálatok"))} · ${waitingNames.length}</b>
-        <div class="cockpit-summary-chips">${nameList(waitingNames, label("None", "Nincs"))}</div>
-      </div>
-    `;
-  }
 
   function documentationReviewEntries() {
     const caseId = selectedCaseId();

@@ -1793,6 +1793,7 @@ await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");
 await betaFeatures.locator("#betaGenerateStructuredStatus").click();
 await betaFeatures.waitForFunction(() =>
+  document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated") &&
   !document.querySelector("#betaStructuredStatusDone")?.classList.contains("hidden")
 );
 for (const selector of [
@@ -1800,8 +1801,18 @@ for (const selector of [
   '[data-status-param="pulse"]',
   '[data-status-section="E5"]'
 ]) {
+  if (await betaFeatures.locator(selector).isVisible()) {
+    throw new Error("Structured STATUS editor did not collapse after generation: " + selector);
+  }
+}
+await betaFeatures.locator("#betaStructuredStatusEdit").click();
+for (const selector of [
+  '[data-status-param="bloodPressure"]',
+  '[data-status-param="pulse"]',
+  '[data-status-section="E5"]'
+]) {
   if (!await betaFeatures.locator(selector).isVisible()) {
-    throw new Error("Structured STATUS input was hidden after generation: " + selector);
+    throw new Error("Structured STATUS editor did not reopen for editing: " + selector);
   }
 }
 const structuredStatusState = await betaFeatures.evaluate(() => {

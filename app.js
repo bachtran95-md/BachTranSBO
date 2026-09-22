@@ -1790,7 +1790,8 @@ function loadPatientForm() {
 
   renderAllTests(patient);
   renderRecommendations(patient);
-  updateDispositionVisibility();
+  normalizeDispositionBranches(patient);
+  renderDispositionUi(patient);
   wireNarrativeFields(patient);
   refreshNarrativeFields(patient);
   renderSummaryStatus(patient);
@@ -2299,21 +2300,7 @@ function collectForm() {
     (x) => x.value
   );
 
-  // Döntés is mutually exclusive. Never keep hidden data from another branch.
-  if (patient.disposition !== "discharged") {
-    patient.dischargeCondition = "";
-    patient.recommendations = [];
-  }
-  if (patient.disposition !== "admitted") {
-    patient.hospital = "";
-    patient.ward = "";
-    patient.physician = "";
-    patient.admissionNote = "";
-  }
-  if (patient.disposition !== "other") {
-    patient.otherOutcome = "";
-    patient.otherDetails = "";
-  }
+  normalizeDispositionBranches(patient);
   patient.updatedAt = nowIso();
 
   return patient;
@@ -2353,46 +2340,102 @@ async function savePatient() {
   }
 }
 
-function updateDispositionVisibility() {
-  const value = document.getElementById("fDisposition").value;
+function normalizeDisposition(value) {
+  const normalized = String(value || "").trim();
+  return ["discharged", "admitted", "other"].includes(normalized) ? normalized : "";
+}
 
-  // Clear inactive decision branches immediately, not just visually hide them.
-  if (value !== "discharged") {
-    const dischargeCondition = document.getElementById("fDischargeCondition");
-    if (dischargeCondition) dischargeCondition.value = "";
-    document.querySelectorAll("[data-rec]").forEach((input) => {
-      input.value = "";
-    });
+function normalizeDispositionBranches(patient) {
+  if (!patient) return patient;
+
+  patient.disposition = normalizeDisposition(patient.disposition);
+
+  if (patient.disposition !== "discharged") {
+    patient.dischargeCondition = "";
+    patient.recommendations = [];
   }
-  if (value !== "admitted") {
+  if (patient.disposition !== "admitted") {
+    patient.hospital = "";
+    patient.ward = "";
+    patient.physician = "";
+    patient.admissionNote = "";
+  }
+  if (patient.disposition !== "other") {
+    patient.otherOutcome = "";
+    patient.otherDetails = "";
+  }
+
+  return patient;
+}
+
+function renderDispositionUi(patient = patientById(selectedPatientId)) {
+  const disposition = normalizeDisposition(patient?.disposition);
+  const discharged = disposition === "discharged";
+  const admitted = disposition === "admitted";
+  const other = disposition === "other";
+
+  document.getElementById("dischargedFields")?.classList.toggle("hidden", !discharged);
+  document.getElementById("admittedFields")?.classList.toggle("hidden", !admitted);
+  document.getElementById("otherFields")?.classList.toggle("hidden", !other);
+  document.getElementById("fixedSummaryFooterField")?.classList.toggle("hidden", !discharged);
+
+  if (!discharged) {
+    const condition = document.getElementById("fDischargeCondition");
+    if (condition) condition.value = "";
+    document.querySelectorAll("[data-rec]").forEach((input) => { input.value = ""; });
+  }
+  if (!admitted) {
     ["fHospital", "fWard", "fPhysician", "fAdmissionNote"].forEach((id) => {
       const field = document.getElementById(id);
       if (field) field.value = "";
     });
   }
-  if (value !== "other") {
+  if (!other) {
     ["fOtherOutcome", "fOtherDetails"].forEach((id) => {
       const field = document.getElementById(id);
       if (field) field.value = "";
     });
   }
 
-  document
-    .getElementById("dischargedFields")
-    .classList.toggle("hidden", value !== "discharged");
-
-  document
-    .getElementById("admittedFields")
-    .classList.toggle("hidden", value !== "admitted");
-
-  document
-    .getElementById("otherFields")
-    .classList.toggle("hidden", value !== "other");
-
-  document
-    .getElementById("fixedSummaryFooterField")
-    ?.classList.toggle("hidden", value !== "discharged");
+  const wrap = document.getElementById("dischargeConditionWrap");
+  const condition = document.getElementById("fDischargeCondition");
+  const stateNode = document.getElementById("dischargeConditionState");
+  if (wrap && condition && stateNode) {
+    const complete = discharged && Boolean(String(condition.value || "").trim());
+    wrap.classList.toggle("hidden", !discharged);
+    wrap.classList.toggle("waiting", discharged && !complete);
+    wrap.classList.toggle("result", complete);
+    stateNode.textContent = complete ? t("complete") : t("required");
+    stateNode.className = `field-state ${complete ? "result" : "waiting"}`;
+  }
 }
+
+function updateDispositionFromControl() {
+  const patient = patientById(selectedPatientId);
+  const control = document.getElementById("fDisposition");
+  if (!patient || !control || isCompleted(patient)) return;
+
+  patient.disposition = normalizeDisposition(control.value);
+  normalizeDispositionBranches(patient);
+  touchPatient(patient);
+  renderDispositionUi(patient);
+  updateStatusCell(patient);
+  refreshSummaryControls(patient);
+}
+
+function updateDischargeConditionFromControl() {
+  const patient = patientById(selectedPatientId);
+  const field = document.getElementById("fDischargeCondition");
+  if (!patient || !field || isCompleted(patient)) return;
+
+  patient.dischargeCondition =
+    patient.disposition === "discharged" ? field.value : "";
+  touchPatient(patient);
+  renderDispositionUi(patient);
+  updateStatusCell(patient);
+  refreshSummaryControls(patient);
+}
+
 
 function renderRecommendations(patient) {
   const recList = document.getElementById("recList");
@@ -3493,6 +3536,8 @@ window.BachSBOClinicalUi = Object.freeze({
   ageFromYob,
   normalizeSex,
   normalizeArrivalMode,
+  normalizeDisposition,
+  renderDispositionUi,
   testEntryStatus: entryStatus,
   getPatientSnapshot,
   getPatientProgress,
@@ -3554,7 +3599,8 @@ document.getElementById("addPatientBtn").onclick = addPatient;
 });
 document.getElementById("savePatientBtn").onclick = savePatient;
 document.getElementById("reopenCaseBtn").onclick = reopenCase;
-document.getElementById("fDisposition").onchange = updateDispositionVisibility;
+document.getElementById("fDisposition").onchange = updateDispositionFromControl;
+document.getElementById("fDischargeCondition").oninput = updateDischargeConditionFromControl;
 document.getElementById("addRecBtn").onclick = addRecommendation;
 document.getElementById("addLabBtn").onclick = () => addInvestigation("lab");
 document.getElementById("addRadiologyBtn").onclick = () => addInvestigation("imaging");

@@ -432,6 +432,13 @@
 
       refreshOutput();
     }
+
+    // Cockpit may move #ekgCard into its unified investigations list after the
+    // Beta helper was first created. Always follow the canonical EKG host so
+    // the copy-only helper stays directly above the visible EKG cards.
+    if (host.parentNode && builder.nextElementSibling !== host) {
+      host.insertAdjacentElement("beforebegin", builder);
+    }
   }
 
   function refresh() {

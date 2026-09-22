@@ -88,6 +88,77 @@
     `;
   }
 
+  function decorateCaseTriage() {
+    const ui = window.BachSBOClinicalUi;
+    document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
+      const patient = ui?.getPatientSnapshot?.(row.dataset.id);
+      row.classList.remove("beta-triage-red", "beta-triage-yellow", "beta-triage-green");
+      const status = ui?.normalizeTriageStatus?.(patient?.triageStatus) || "";
+      if (status) row.classList.add(`beta-triage-${status}`);
+    });
+
+    const selected = document.querySelector("#patientTbody tr.selected[data-id]");
+    const patient = selected ? ui?.getPatientSnapshot?.(selected.dataset.id) : null;
+    const heading = document.querySelector("#recordHeader .record-patient-heading");
+    let control = document.getElementById("betaTriageControl");
+
+    if (!patient || !heading) {
+      control?.remove();
+      return;
+    }
+
+    if (!control) {
+      control = document.createElement("span");
+      control.id = "betaTriageControl";
+      control.className = "beta-triage-control";
+      control.innerHTML = `
+        <span class="beta-triage-label">— ${hu() ? "Triázs" : "Triage"}</span>
+        <span class="beta-triage-options" role="group" aria-label="${hu() ? "Case triázs" : "Case triage"}">
+          <button type="button" class="beta-triage-dot red" data-beta-triage="red" title="${hu() ? "Piros triázs" : "Red triage"}" aria-label="${hu() ? "Piros triázs" : "Red triage"}"></button>
+          <button type="button" class="beta-triage-dot yellow" data-beta-triage="yellow" title="${hu() ? "Sárga triázs" : "Yellow triage"}" aria-label="${hu() ? "Sárga triázs" : "Yellow triage"}"></button>
+          <button type="button" class="beta-triage-dot green" data-beta-triage="green" title="${hu() ? "Zöld triázs" : "Green triage"}" aria-label="${hu() ? "Zöld triázs" : "Green triage"}"></button>
+        </span>
+      `;
+      heading.appendChild(control);
+    }
+
+    const current = ui?.normalizeTriageStatus?.(patient.triageStatus) || "";
+    control.querySelector(".beta-triage-label").textContent = `— ${hu() ? "Triázs" : "Triage"}`;
+    control.querySelector(".beta-triage-options")?.setAttribute("aria-label", hu() ? "Case triázs" : "Case triage");
+    control.querySelectorAll("[data-beta-triage]").forEach((button) => {
+      const active = button.dataset.betaTriage === current;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.disabled = Boolean(patient.summaryFinalizedAt);
+    });
+    control.classList.toggle("readonly", Boolean(patient.summaryFinalizedAt));
+  }
+
+  async function changeCaseTriage(button) {
+    const ui = window.BachSBOClinicalUi;
+    const row = document.querySelector("#patientTbody tr.selected[data-id]");
+    const caseId = row?.dataset.id || "";
+    const patient = caseId ? ui?.getPatientSnapshot?.(caseId) : null;
+    if (!caseId || !patient || patient.summaryFinalizedAt) return;
+
+    const choice = ui?.normalizeTriageStatus?.(button.dataset.betaTriage) || "";
+    const previous = ui?.normalizeTriageStatus?.(patient.triageStatus) || "";
+    const next = previous === choice ? "" : choice;
+
+    const changed = ui?.setCaseTriageStatus?.(caseId, next);
+    if (!changed) return;
+    decorateCaseTriage();
+
+    try {
+      await ui?.autosaveCurrentCase?.();
+      decorateCaseTriage();
+    } catch (error) {
+      ui?.setCaseTriageStatus?.(caseId, previous);
+      decorateCaseTriage();
+      console.warn("Case triage save failed", error);
+    }
+  }
+
   function addBetaBadge() {
     const brand = document.querySelector(".brand");
     if (!brand || brand.querySelector(".beta-build-badge")) return;
@@ -101,6 +172,7 @@
     addBetaBadge();
     await refreshShiftSource({ force: forceShift });
     decorateShiftDashboard();
+    decorateCaseTriage();
   }
 
   function scheduleRefresh() {
@@ -115,6 +187,13 @@
   });
 
   document.addEventListener("click", (event) => {
+    const triageButton = event.target?.closest?.("[data-beta-triage]");
+    if (triageButton) {
+      event.preventDefault();
+      void changeCaseTriage(triageButton);
+      return;
+    }
+
     if (event.target?.id === "langHuBtn" || event.target?.id === "langEnBtn") {
       window.setTimeout(() => void refreshBetaUi(), 0);
     }

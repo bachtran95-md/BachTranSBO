@@ -38,13 +38,17 @@
     { key: "gcs", label: "GCS", target: "neuro", section: "D", group: "neuro" }
   ];
 
+  // Physical-status learning taxonomy follows the A-E clinical blocks used by
+  // statuszgenerator.hu. ECG/EKG is intentionally excluded here: BachTranSBO
+  // keeps it as a separate investigation, not as part of the physical status.
   const CUSTOM_TARGETS = [
-    { value: "respiratory", label: "B – Pulmo", section: "B", group: "respiratory" },
-    { value: "circulation", label: "C – Szív / keringés", section: "C", group: "circulation" },
+    { value: "airway", label: "A – Légút", section: "A", group: "airway" },
+    { value: "respiratory", label: "B – Légzés / Pulmo", section: "B", group: "respiratory" },
+    { value: "circulation", label: "C – Keringés / Szív", section: "C", group: "circulation" },
     { value: "neuro", label: "D – Neurológia", section: "D", group: "neuro" },
+    { value: "general", label: "E – Általános állapot / Bőr", section: "E", group: "general" },
     { value: "abdomen", label: "E – Has", section: "E", group: "abdomen" },
-    { value: "skin", label: "E – Bőr / általános", section: "E", group: "skin" },
-    { value: "locomotor", label: "E – Végtag / mozgásszerv", section: "E", group: "locomotor" },
+    { value: "locomotor", label: "E – Végtag / sérülés / mozgásszerv", section: "E", group: "locomotor" },
     { value: "urogenital", label: "E – Vese / húgy-ivarszerv", section: "E", group: "urogenital" },
     { value: "other", label: "E – Egyéb", section: "E", group: "other" }
   ];
@@ -630,6 +634,9 @@
     for (const finding of customFindings(findings)) {
       const rule = finding.customRule;
       switch (rule.target) {
+        case "airway":
+          intro = applyCustomRule(intro, rule);
+          break;
         case "respiratory":
           pulmo = applyCustomRule(pulmo, rule);
           break;
@@ -639,6 +646,7 @@
         case "neuro":
           neuro = applyCustomRule(neuro, rule);
           break;
+        case "general":
         case "skin":
           intro = applyCustomRule(intro, rule);
           break;
@@ -711,10 +719,10 @@
     const edema = map.has("edema") ? "ödéma észlelhető" : "ödéma nincs";
 
     const lines = [
-      "A: Légutak átjárhatók.",
-      `B: ${bDyspnea} Mellkas: részarányos. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs.`,
-      `C: ${cHeart} Nyaki vénák nem teltek.${cEdema}`,
-      `D: GCS: ${gcs}${gcs === 15 ? " (Sz:4, V:5, M:6)" : ""}. ${dNeuro}`,
+      "A: Légutak átjárhatók. A beteg beszél.",
+      `B: ${bDyspnea} Mellkas: részarányos. Rekeszek: szimmetrikusan kitérnek. Alaplégzés: érdessejtes. ${bNoises} Oldalkülönbség: nincs. Légzési munka normális. Cyanosis nincs.`,
+      `C: Jól tapintható perifériás pulzusok. CRT <2 s. ${cHeart} Nyaki vénák nem teltek.${cEdema}`,
+      `D: A (Alert). GCS: ${gcs}${gcs === 15 ? " (Sz:4, V:5, M:6)" : ""}. ${dNeuro}`,
       `E: Kp. fejlett, kp. táplált, jó általános állapotú beteg. Bőrszín: normál, turgora megtartott. Nyálkahártyák: kp. vértelt. Nyelv: nedves. Sclera: fehér. ${abdomen} Húgy és ivarszervek: Vesetájak ütögetésre nem érzékenyek. Végtagok: alakilag és funkcionálisan épek, ${edema}. MVT-re utaló jel nincs. Gerinc: alakilag ép, ütögetésre nem érzékeny. Külsérelmi nyoma: nincs.`
     ];
 

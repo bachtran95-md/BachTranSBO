@@ -305,6 +305,9 @@ function caseRowFromPatient(
     main_complaint: patient.mainComplaint || "",
     arrival_mode: patient.arrivalMode || "",
     arrival_other: patient.arrivalMode === "other" ? patient.arrivalOther || "" : "",
+    triage_status: ["red", "yellow", "green"].includes(String(patient.triageStatus || "").trim().toLowerCase())
+      ? String(patient.triageStatus || "").trim().toLowerCase()
+      : "",
     complaint: patient.complaint || "",
     complaint_skipped: Boolean(patient.complaintSkipped),
     history: patient.history || "",

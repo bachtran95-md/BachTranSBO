@@ -24,6 +24,9 @@ body.beta-build.cockpit-ui .topbar{
   padding-top:8px;
   padding-bottom:8px;
 }
+body.beta-build.cockpit-ui .main{
+  height:calc(100vh - 98px);
+}
 body.beta-build.cockpit-ui .shift-meta.beta-shift-dashboard{
   gap:9px;
 }

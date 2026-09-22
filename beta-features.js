@@ -112,7 +112,9 @@
     document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
       const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.(row.dataset.id);
       row.classList.remove("beta-stale-case");
+      row.querySelector(".beta-stale-chip")?.remove();
       delete row.dataset.staleLabel;
+      row.removeAttribute("title");
       if (!patient || patient.summaryFinalizedAt) return;
 
       const minutes = minutesSince(patient.updatedAt || patient.createdAt);
@@ -123,6 +125,15 @@
       row.title = hu()
         ? `${minutes} perce nincs frissítés ebben az esetben.`
         : `No update in this case for ${minutes} minutes.`;
+
+      const statusCell = row.querySelector(":scope > td:last-child");
+      if (statusCell) {
+        const chip = document.createElement("span");
+        chip.className = "beta-stale-chip";
+        chip.textContent = staleLabel(minutes);
+        chip.setAttribute("aria-label", row.title);
+        statusCell.appendChild(chip);
+      }
     });
   }
 

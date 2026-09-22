@@ -1571,7 +1571,7 @@ if (!finalizedState.finalizedAt || finalizedState.finalizedText !== "Mock summar
 }
 
 // Beta-only feature gate: beta.html must stay isolated from Stable while adding
-// shift readability and workflow inactivity indicators.
+// shift readability and manual case triage.
 await beta.evaluate(() => {
   const key = "__bach_sbo_e2e_state";
   const state = JSON.parse(localStorage.getItem(key) || "{}");
@@ -1579,7 +1579,6 @@ await beta.evaluate(() => {
   if (!p) throw new Error("Missing smoke patient before beta feature gate");
   p.summaryFinalizedAt = null;
   p.summaryFinalizedText = "";
-  p.updatedAt = new Date(Date.now() - 121 * 60 * 1000).toISOString();
   localStorage.setItem(key, JSON.stringify(state));
 });
 
@@ -1608,6 +1607,37 @@ for (const metricClass of ["beta-metric-cases", "beta-metric-active", "beta-metr
     throw new Error("Beta shift metric color class missing: " + metricClass);
   }
 }
+
+await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
+await betaFeatures.locator("#betaTriageControl").waitFor();
+if (await betaFeatures.locator('#betaTriageControl [data-beta-triage]').count() !== 3) {
+  throw new Error("Beta case triage must expose exactly red/yellow/green choices");
+}
+await betaFeatures.locator('#betaTriageControl [data-beta-triage="red"]').click();
+await betaFeatures.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return p?.triageStatus === "red" && row?.classList.contains("beta-triage-red");
+});
+await betaFeatures.waitForTimeout(80);
+const persistedTriage = await betaFeatures.evaluate(() =>
+  JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}")?.patients?.[0]?.triageStatus || ""
+);
+if (persistedTriage !== "red") {
+  throw new Error("Beta case triage did not persist: " + persistedTriage);
+}
+
+await betaFeatures.reload({ waitUntil: "domcontentloaded" });
+await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
+await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
+await betaFeatures.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return p?.triageStatus === "red" &&
+    row?.classList.contains("beta-triage-red") &&
+    document.querySelector('#betaTriageControl [data-beta-triage="red"]')?.getAttribute("aria-pressed") === "true";
+});
+
 await betaFeatures.close();
 
 if (errors.length) {

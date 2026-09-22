@@ -80,7 +80,7 @@ async function generateStyleProfile(
 ) {
   const model = Deno.env.get("STYLE_COACH_MODEL") ||
     Deno.env.get("STYLE_MODEL") ||
-    "gpt-5.6-luna";
+    "gpt-6-luna";
 
   const examples = revisions.map((r, index) => [
     `PAIR ${index + 1}`,

@@ -730,7 +730,7 @@ export async function handler(req: Request) {
             },
           },
         },
-        Deno.env.get("ASSISTANT_EXTRACTION_MODEL") || "gpt-5.6-luna",
+        Deno.env.get("ASSISTANT_EXTRACTION_MODEL") || "gpt-6-luna",
         "bachtransbo-case-extraction-v2",
       );
 
@@ -802,7 +802,7 @@ export async function handler(req: Request) {
           },
         },
       },
-      Deno.env.get("ASSISTANT_STRUCTURER_MODEL") || "gpt-5.6-luna",
+      Deno.env.get("ASSISTANT_STRUCTURER_MODEL") || "gpt-6-luna",
       "bachtransbo-case-structuring-v1",
     );
 

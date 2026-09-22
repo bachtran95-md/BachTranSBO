@@ -73,7 +73,7 @@ function clamp(value: unknown, max = 3500) {
 }
 
 async function generateSuggestion(skill: any, revisions: any[]) {
-  const model = Deno.env.get("SKILL_ANALYSIS_MODEL") || "gpt-5.6-luna";
+  const model = Deno.env.get("SKILL_ANALYSIS_MODEL") || "gpt-6-luna";
 
   const pairs = revisions.map((r, index) => [
     `PAIR ${index + 1}`,

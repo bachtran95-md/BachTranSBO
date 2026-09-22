@@ -1,7 +1,9 @@
 # OpenAI API review — 2026-09-22
 
 The application already uses Responses API. Keep the existing workload routing
-and configured model environment overrides while evaluating the GPT-6 family.
+and configured model environment overrides. GPT-6 Luna is now the proposed default
+for extraction, structuring, style and skill analysis. These changes are on the PR
+branch only; live access and clinical quality evaluation are still pending.
 
 ## Implemented
 
@@ -19,15 +21,16 @@ and configured model environment overrides while evaluating the GPT-6 family.
 - Upstream Responses error bodies are not echoed into client errors or logs.
 - No automatic retries, which could repeat billed work after a timeout.
 
-## Model migration candidates (not activated)
+## Proposed routing (not deployed)
 
-| Workload | Current code default | Candidate to evaluate |
+| Workload | PR code default | Candidate to evaluate |
 | --- | --- | --- |
 | Summary | gpt-5.6-terra | gpt-6-sol |
 | Clinical Case Assistant | gpt-5.6-terra | gpt-6-sol |
-| Extraction / structuring | gpt-5.6-luna | gpt-6-luna |
-| Style / skill analysis | gpt-5.6-luna | gpt-6-luna |
+| Extraction / structuring | gpt-6-luna | gpt-6-luna |
+| Style / skill analysis | gpt-6-luna | gpt-6-luna |
 
+GPT-5.6 Luna is the rollback setting for the upgraded workloads.
 Server environment overrides take precedence; these defaults do not establish
 which model the deployed functions actually use. Retain text-embedding-3-small:
 changing embedding models requires separate vector/retrieval migration work.

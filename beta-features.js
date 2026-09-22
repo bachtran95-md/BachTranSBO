@@ -852,11 +852,15 @@
     if (source !== lastPhysicalSource) {
       lastPhysicalSource = source;
       suppressedFindingKeys = new Set();
+      activeUnknownPhrase = "";
     }
 
     const all = parseFindings(source);
     const active = activeFindings(all);
+    const unknowns = unknownSegments(source);
     const chips = composer.querySelector("#betaFindingChips");
+    const unknownBlock = composer.querySelector("#betaUnknownBlock");
+    const unknownChips = composer.querySelector("#betaUnknownChips");
     const count = composer.querySelector("#betaFindingCount");
     const warning = composer.querySelector("#betaFindingWarning");
     const preview = composer.querySelector("#betaStatusPreview");
@@ -880,17 +884,43 @@
       chips.appendChild(button);
     });
 
-    count.textContent = all.length ? `${active.length}/${all.length} felismerve aktív` : "0 felismerve";
+    count.textContent = all.length
+      ? `${active.length} felismerve • ${unknowns.length} ismeretlen`
+      : `0 felismerve • ${unknowns.length} ismeretlen`;
+
+    if (unknownChips) {
+      unknownChips.innerHTML = "";
+      for (const phrase of unknowns) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "beta-unknown-chip";
+        button.dataset.unknownPhrase = phrase;
+        button.textContent = phrase;
+        button.title = "Kattintson a finding tanításához";
+        unknownChips.appendChild(button);
+      }
+    }
+    unknownBlock?.classList.toggle("hidden", unknowns.length === 0);
+
+    if (activeUnknownPhrase && !unknowns.includes(activeUnknownPhrase)) {
+      activeUnknownPhrase = "";
+    }
+    prepareUnknownEditor(composer, activeUnknownPhrase);
+    updateLearningOverviewUi(composer);
 
     const hasSource = Boolean(source.trim());
-    const safeToGenerate = hasSource && active.length > 0;
-    warning.classList.toggle("hidden", safeToGenerate || !hasSource);
-    warning.textContent = hasSource && !active.length
-      ? "Nem ismertem fel biztos findingot. A normál status létrehozása blokkolva van."
-      : "";
+    const safeToGenerate = hasSource && active.length > 0 && unknowns.length === 0;
+    warning.classList.toggle("hidden", !hasSource || (safeToGenerate && unknowns.length === 0));
+    warning.textContent = !hasSource
+      ? ""
+      : unknowns.length
+        ? `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez a STATUS MÁSOLÁSA előtt.`
+        : !active.length
+          ? "Nem ismertem fel biztos findingot. A normál status létrehozása blokkolva van."
+          : "";
 
-    preview.value = safeToGenerate ? generatedStatus(active) : "";
-    preview.classList.toggle("hidden", !safeToGenerate);
+    preview.value = active.length ? generatedStatus(active) : "";
+    preview.classList.toggle("hidden", !active.length);
     copy.disabled = !safeToGenerate;
   }
 
@@ -922,6 +952,7 @@
   function refreshBetaFeatures() {
     addBetaBadge();
     syncComposer();
+    void loadFindingLearningRegistry();
   }
 
   document.addEventListener("bachsbo:ui-rendered", () => {

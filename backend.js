@@ -382,6 +382,12 @@
         historySkipped: Boolean(row.history_skipped),
         physical: row.physical_exam || "",
         physicalSkipped: Boolean(row.physical_exam_skipped),
+        physicalStatus:
+          row.physical_status_data &&
+          typeof row.physical_status_data === "object" &&
+          Number(row.physical_status_data.version) === 1
+            ? row.physical_status_data
+            : null,
         diagnoses: row.diagnoses || "",
         diagnosesSkipped: Boolean(row.diagnoses_skipped),
         tests: {

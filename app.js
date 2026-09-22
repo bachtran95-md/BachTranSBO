@@ -605,12 +605,6 @@ function narrativeStatus(patient, key) {
   return "waiting";
 }
 
-function narrativeWaitingLabels(patient) {
-  return Object.entries(NARRATIVE_FIELDS)
-    .filter(([key]) => narrativeStatus(patient, key) === "waiting")
-    .map(([, config]) => t(config.labelKey));
-}
-
 function workflowStatus(patient) {
   if (!patient) {
     return {
@@ -3541,7 +3535,8 @@ window.BachSBOClinicalUi = Object.freeze({
   testEntryStatus: entryStatus,
   getPatientSnapshot,
   getPatientProgress,
-  getWorkflowStatus
+  getWorkflowStatus,
+  evaluateWorkflowStatus: (patient) => structuredClone(workflowStatus(patient))
 });
 
 function flash(message) {

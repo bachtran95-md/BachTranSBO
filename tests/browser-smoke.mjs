@@ -352,6 +352,41 @@ const backendMock = String.raw`
         overview: findingOverview()
       };
     },
+    async findingLearningSuggest(sourcePhrase) {
+      const phrase = String(sourcePhrase || "").trim();
+      if (/dörzszörej/i.test(phrase)) {
+        return {
+          sourcePhrase: phrase,
+          model: "mock",
+          suggestion: {
+            mappingKind: "new",
+            findingKey: "pleural-friction-rub",
+            canonicalLabel: "Pleuralis dörzszörej",
+            target: "respiratory",
+            section: "B",
+            outputText: "Bal oldalon pleuralis dörzszörej hallható.",
+            conflictText: "Zörejek: nincs.",
+            attributes: { laterality: "left", location: "bal oldalon", grade: "", value: "" },
+            reason: "A finding a légzési státuszhoz tartozik."
+          }
+        };
+      }
+      return {
+        sourcePhrase: phrase,
+        model: "mock",
+        suggestion: {
+          mappingKind: "existing",
+          findingKey: "systolic-murmur",
+          canonicalLabel: "Systolés zörej",
+          target: "circulation",
+          section: "C",
+          outputText: phrase,
+          conflictText: "zörej nem hallható",
+          attributes: { laterality: "", location: "", grade: "", value: "" },
+          reason: "Meglévő szívzörej finding."
+        }
+      };
+    },
     async findingLearningConfirmMapping(mapping) {
       const sourcePhrase = String(mapping.sourcePhrase || "").trim();
       const normalizedPhrase = sourcePhrase
@@ -1802,9 +1837,21 @@ await betaFeatures.waitForFunction(() =>
   document.querySelector("#betaCopyStatus")?.disabled
 );
 await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
-await betaFeatures.locator("#betaNewFindingLabel").fill("Pleuralis dörzszörej");
-await betaFeatures.locator("#betaNewFindingTarget").selectOption("respiratory");
-await betaFeatures.locator("#betaNewFindingOutput").fill("Bal oldalon pleuralis dörzszörej hallható.");
+
+// AI may populate a proposal, but it must not save anything before physician confirmation.
+await betaFeatures.locator("#betaSuggestFinding").click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelector("#betaNewFindingLabel")?.value === "Pleuralis dörzszörej" &&
+  document.querySelector("#betaNewFindingTarget")?.value === "respiratory" &&
+  (document.querySelector("#betaNewFindingOutput")?.value || "").includes("pleuralis dörzszörej")
+);
+if (!/0 tanítás/.test(await betaFeatures.locator("#betaLearningMeta").textContent())) {
+  throw new Error("AI finding suggestion was persisted without physician confirmation");
+}
+if (await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").count() !== 1) {
+  throw new Error("AI finding suggestion incorrectly resolved the unknown before confirmation");
+}
+
 await betaFeatures.locator("#betaSaveNewFinding").click();
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
@@ -1816,9 +1863,23 @@ const learnedPreview = await betaFeatures.locator("#betaStatusPreview").inputVal
 if (!learnedPreview.includes("Bal oldalon pleuralis dörzszörej hallható.")) {
   throw new Error("New learned finding was not rendered into the status preview");
 }
+
+// Existing-finding teaching must preserve structured attributes such as murmur grade.
+await betaFeatures.locator("#fPhysical").fill("Durva syst. zörej 4/6.");
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1
+);
+await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
+await betaFeatures.locator("#betaExistingFinding").selectOption("systolic-murmur");
+await betaFeatures.locator("#betaSaveExistingFinding").click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
+  (document.querySelector("#betaStatusPreview")?.value || "").includes("4/6 systolés zörej hallható")
+);
+
 await betaFeatures.locator("#betaBuildCandidates").click();
 await betaFeatures.waitForFunction(() =>
-  /1 tanítás.*1 jelölt/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
+  /2 tanítás.*2 jelölt/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
 );
 
 // Restore the earlier fixture for chip suppression coverage.

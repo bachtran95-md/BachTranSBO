@@ -758,9 +758,40 @@
             <strong>Finding preview</strong>
             <span class="beta-finding-count" id="betaFindingCount"></span>
           </div>
-          <span class="beta-local-only">LOCAL • NEM MENTŐDIK</span>
+          <span class="beta-local-only">STATUS NEM MENTŐDIK • TANÍTÁS KÜLÖN</span>
         </div>
         <div class="beta-finding-chips" id="betaFindingChips"></div>
+        <div class="beta-unknown-block hidden" id="betaUnknownBlock">
+          <div class="beta-unknown-title">Nem felismert finding — kattintson a tanításhoz</div>
+          <div class="beta-unknown-chips" id="betaUnknownChips"></div>
+        </div>
+        <div class="beta-learning-editor hidden" id="betaLearningEditor">
+          <div class="beta-learning-phrase" id="betaLearningPhrase"></div>
+          <div class="beta-learning-grid">
+            <div class="beta-learning-card">
+              <strong>Meglévő findinghez rendelés</strong>
+              <select id="betaExistingFinding"></select>
+              <button type="button" class="btn small" id="betaSaveExistingFinding">HOZZÁRENDELÉS + TANÍTÁS</button>
+            </div>
+            <div class="beta-learning-card">
+              <strong>Új finding hozzáadása</strong>
+              <label>Név<input id="betaNewFindingLabel" type="text" maxlength="180" /></label>
+              <label>Hely<select id="betaNewFindingTarget"></select></label>
+              <label>Output<input id="betaNewFindingOutput" type="text" maxlength="1000" /></label>
+              <label>Eltávolítandó normál rész — opcionális<input id="betaNewFindingConflict" type="text" maxlength="500" /></label>
+              <button type="button" class="btn small" id="betaSaveNewFinding">ÚJ FINDING + TANÍTÁS</button>
+            </div>
+          </div>
+        </div>
+        <div class="beta-learning-toolbar">
+          <span id="betaLearningMeta">0 tanítás • 0 jelölt</span>
+          <div>
+            <button type="button" class="btn small" id="betaUndoLearning" disabled>UNDO TANÍTÁS</button>
+            <button type="button" class="btn small" id="betaBuildCandidates">JELÖLTEK FRISSÍTÉSE</button>
+            <button type="button" class="btn small" id="betaCopyCandidatePatch">PATCH MÁSOLÁSA</button>
+          </div>
+        </div>
+        <div class="beta-learning-message hidden" id="betaLearningMessage"></div>
         <div class="beta-finding-warning hidden" id="betaFindingWarning"></div>
         <div class="beta-status-toolbar">
           <div class="beta-status-mode" role="group" aria-label="Status sablon">
@@ -788,6 +819,18 @@
         else suppressedFindingKeys.add(key);
         syncComposer();
       });
+      composer.querySelector("#betaUnknownChips")?.addEventListener("click", (event) => {
+        const chip = event.target.closest("[data-unknown-phrase]");
+        if (!chip) return;
+        prepareUnknownEditor(composer, chip.dataset.unknownPhrase || "");
+      });
+      composer.querySelector("#betaSaveExistingFinding")?.addEventListener("click", saveExistingLearning);
+      composer.querySelector("#betaSaveNewFinding")?.addEventListener("click", saveNewLearning);
+      composer.querySelector("#betaUndoLearning")?.addEventListener("click", undoLastLearning);
+      composer.querySelector("#betaBuildCandidates")?.addEventListener("click", buildFindingCandidates);
+      composer.querySelector("#betaCopyCandidatePatch")?.addEventListener("click", copyFindingCandidatePatch);
+      fillLearningSelectors(composer);
+      updateLearningOverviewUi(composer);
     }
 
     if (!physical.dataset.betaFindingBound) {

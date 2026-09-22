@@ -85,6 +85,24 @@ body.beta-build.cockpit-ui .beta-shift-metric b{
   font-size:17px;
   line-height:1;
 }
+body.beta-build.cockpit-ui .beta-metric-cases{
+  border-color:#2563eb;
+  background:#172554;
+  color:#bfdbfe;
+}
+body.beta-build.cockpit-ui .beta-metric-cases b{color:#93c5fd}
+body.beta-build.cockpit-ui .beta-metric-active{
+  border-color:#d97706;
+  background:#451a03;
+  color:#fed7aa;
+}
+body.beta-build.cockpit-ui .beta-metric-active b{color:#fdba74}
+body.beta-build.cockpit-ui .beta-metric-completed{
+  border-color:#16a34a;
+  background:#052e16;
+  color:#bbf7d0;
+}
+body.beta-build.cockpit-ui .beta-metric-completed b{color:#86efac}
 
 body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case{
   position:relative;

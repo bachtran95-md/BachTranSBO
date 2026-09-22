@@ -58,48 +58,48 @@ jobs:
             echo "case-ui.js must not maintain an independent cases data path; demographics must use BachSBOClinicalUi/app state."
             exit 1
           fi
-          if grep -R -E 'updateCaseMetadata|update_case_metadata|saveCaseMetadata' app.js case-ui.js backend.js cockpit-beta.js tests/browser-smoke.mjs supabase/functions/clinical-store/index.ts; then
+          if grep -R -E 'updateCaseMetadata|update_case_metadata|saveCaseMetadata' app.js case-ui.js backend.js cockpit.js cockpit-beta.js tests/browser-smoke.mjs supabase/functions/clinical-store/index.ts; then
             echo "Metadata must persist through the canonical patient save path, not a separate metadata action."
             exit 1
           fi
-          if grep -q "MutationObserver" cockpit-beta.js; then
-            echo "cockpit-beta.js must not use DOM mutation observers."
+          if grep -q "MutationObserver" cockpit.js; then
+            echo "cockpit.js must not use DOM mutation observers."
             exit 1
           fi
           if grep -E -q 'MutationObserver|setInterval\(' case-ui.js; then
             echo "case-ui.js must use explicit render/input events, not DOM observers or polling."
             exit 1
           fi
-          if grep -q 'setInterval(' cockpit-beta.js; then
-            echo "cockpit-beta.js must use explicit render/input events, not polling."
+          if grep -q 'setInterval(' cockpit.js; then
+            echo "cockpit.js must use explicit render/input events, not polling."
             exit 1
           fi
           if ! grep -q 'bachsbo:ui-rendered' app.js; then
             echo "app.js must emit the explicit UI render event."
             exit 1
           fi
-          if ! grep -q 'bachsbo:ui-rendered' case-ui.js || ! grep -q 'bachsbo:ui-rendered' cockpit-beta.js; then
+          if ! grep -q 'bachsbo:ui-rendered' case-ui.js || ! grep -q 'bachsbo:ui-rendered' cockpit.js; then
             echo "UI adapters must subscribe to the explicit app render event."
             exit 1
           fi
-          if ! grep -q 'cockpit-beta.js' beta.html; then
-            echo "beta.html must load cockpit-beta.js."
+          if ! grep -q 'cockpit.js' index.html || grep -q 'cockpit-beta.js' index.html; then
+            echo "Production index.html must load cockpit.js directly and never the compatibility shim."
             exit 1
           fi
-          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html; then
-            echo "beta.html must load beta-only feature assets."
+          if ! grep -q 'window.location.replace("./"' beta.html; then
+            echo "beta.html must remain a compatibility redirect to the stable entrypoint."
             exit 1
           fi
-          if grep -q 'beta-features.js\|beta-features.css' index.html; then
-            echo "Production index.html must not load beta-only feature assets."
+          if grep -E -q '<script[^>]+src="[^"]*cockpit' recovery.html; then
+            echo "recovery.html must remain free of cockpit scripts."
             exit 1
           fi
-          if ! grep -q 'cockpit-beta.js' index.html; then
-            echo "Production index.html must load the promoted cockpit UI."
+          if ! grep -q 'Production implementation lives in cockpit.js' cockpit-beta.js || grep -q 'function createTabBar' cockpit-beta.js; then
+            echo "cockpit-beta.js must remain only a compatibility shim."
             exit 1
           fi
-          if grep -q 'cockpit-beta.js' recovery.html; then
-            echo "recovery.html must remain on the pre-promotion UI."
+          if grep -q 'beta-features.js\|beta-features.css' index.html beta.html; then
+            echo "Stable and beta alias entrypoints must not load obsolete beta-only assets."
             exit 1
           fi
           if grep -E -q 'installBackendPayloadBridge|__inlineCaseDetailsBridge|patchedSavePatient|patchedFinalizePatient' case-ui.js; then
@@ -138,16 +138,16 @@ jobs:
             echo "app.js must expose canonical patient progress for cockpit reads."
             exit 1
           fi
-          if grep -E -q 'BachSBOBackend\?*\.?loadState|BachSBOBackend\.loadState' cockpit-beta.js; then
-            echo "cockpit-beta.js must read live patients from BachSBOClinicalUi, not reload backend state."
+          if grep -E -q 'BachSBOBackend\?*\.?loadState|BachSBOBackend\.loadState' cockpit.js; then
+            echo "cockpit.js must read live patients from BachSBOClinicalUi, not reload backend state."
             exit 1
           fi
-          if grep -E -q 'function (patientTestItems|patientProgress|progressFromVisibleForm|testEntryStatus)\(' cockpit-beta.js; then
-            echo "cockpit-beta.js must not duplicate canonical investigation/progress logic."
+          if grep -E -q 'function (patientTestItems|patientProgress|progressFromVisibleForm|testEntryStatus)\(' cockpit.js; then
+            echo "cockpit.js must not duplicate canonical investigation/progress logic."
             exit 1
           fi
-          if grep -E -q 'function (narrativeResolved|clinicalMetadata|validClinicalYob|validClinicalSex)\(' cockpit-beta.js; then
-            echo "cockpit-beta.js must not duplicate canonical workflow completion logic."
+          if grep -E -q 'function (narrativeResolved|clinicalMetadata|validClinicalYob|validClinicalSex)\(' cockpit.js; then
+            echo "cockpit.js must not duplicate canonical workflow completion logic."
             exit 1
           fi
           if ! grep -q 'getWorkflowStatus' app.js; then
@@ -162,15 +162,15 @@ jobs:
             echo "case-ui.js must remain a demographics adapter and must not own disposition."
             exit 1
           fi
-          if grep -q 'function syncDischargeConditionVisual' cockpit-beta.js; then
-            echo "cockpit-beta.js must not duplicate disposition visual state."
+          if grep -q 'function syncDischargeConditionVisual' cockpit.js; then
+            echo "cockpit.js must not duplicate disposition visual state."
             exit 1
           fi
           if grep -q 'Object.assign(current, result.patient)' app.js; then
             echo "Autosave must preserve canonical patient/test object identity."
             exit 1
           fi
-          if grep -q 'querySelectorAll('"'"'\[data-cockpit-panel="tests"\] \.test-card'"'"')' cockpit-beta.js; then
+          if grep -q 'querySelectorAll('"'"'\[data-cockpit-panel="tests"\] \.test-card'"'"')' cockpit.js; then
             echo "Cockpit must not derive investigation completion from rendered test-card classes."
             exit 1
           fi

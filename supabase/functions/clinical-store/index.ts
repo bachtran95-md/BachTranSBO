@@ -361,6 +361,78 @@ async function createEmbedding(input: string) {
   return { embedding, model };
 }
 
+function caseRowFromPatient(
+  patient: any,
+  ownerId: string,
+  now = new Date().toISOString(),
+) {
+  return {
+    id: patient.id,
+    shift_id: patient.shiftId,
+    owner_id: ownerId,
+    local_id: patient.localId,
+    sex: patient.sex || null,
+    year_of_birth: patient.yob ? Number(patient.yob) : null,
+    main_complaint: patient.mainComplaint || "",
+    arrival_mode: patient.arrivalMode || "",
+    arrival_other: patient.arrivalMode === "other" ? patient.arrivalOther || "" : "",
+    complaint: patient.complaint || "",
+    complaint_skipped: Boolean(patient.complaintSkipped),
+    history: patient.history || "",
+    history_skipped: Boolean(patient.historySkipped),
+    physical_exam: patient.physical || "",
+    physical_exam_skipped: Boolean(patient.physicalSkipped),
+    diagnoses: patient.diagnoses || "",
+    diagnoses_skipped: Boolean(patient.diagnosesSkipped),
+    others: patient.others || "",
+    therapy: patient.therapy || "",
+    therapy_skipped: Boolean(patient.therapySkipped),
+    clinical_course: patient.course || "",
+    clinical_course_skipped: Boolean(patient.courseSkipped),
+    disposition: patient.disposition || "",
+    discharge_condition: patient.disposition === "discharged" ? patient.dischargeCondition || "" : "",
+    recommendations: patient.disposition === "discharged" ? patient.recommendations || [""] : [],
+    hospital: patient.disposition === "admitted" ? patient.hospital || "" : "",
+    ward: patient.disposition === "admitted" ? patient.ward || "" : "",
+    accepting_physician: patient.disposition === "admitted" ? patient.physician || "" : "",
+    admission_note: patient.disposition === "admitted" ? patient.admissionNote || "" : "",
+    other_outcome: patient.disposition === "other" ? patient.otherOutcome || "" : "",
+    other_details: patient.disposition === "other" ? patient.otherDetails || "" : "",
+    status: patient.summaryFinalizedAt ? "completed" : "active",
+    completed_at: patient.summaryFinalizedAt || null,
+    created_at: patient.createdAt || now,
+    updated_at: patient.updatedAt || now,
+    deidentified_at: now,
+    deidentification_version: "v1",
+  };
+}
+
+function patientHasSummaryData(patient: any) {
+  return Boolean(
+    patient?.summary ||
+    patient?.summaryGeneratedAt ||
+    patient?.summaryFinalizedAt ||
+    patient?.summaryFinalizedText
+  );
+}
+
+function summaryRowFromPatient(
+  patient: any,
+  ownerId: string,
+  now = new Date().toISOString(),
+) {
+  return {
+    case_id: patient.id,
+    owner_id: ownerId,
+    generated_text: patient.summaryGeneratedText || patient.summary || "",
+    working_text: patient.summary || "",
+    finalized_text: patient.summaryFinalizedText || "",
+    generated_at: patient.summaryGeneratedAt || null,
+    finalized_at: patient.summaryFinalizedAt || null,
+    updated_at: now,
+  };
+}
+
 async function saveState(db: any, ownerId: string, inputState: any) {
   const { state, report } = await deidentifyState(inputState);
 
@@ -383,45 +455,9 @@ async function saveState(db: any, ownerId: string, inputState: any) {
   const now = new Date().toISOString();
 
   if (patients.length) {
-    const caseRows = patients.map((p: any) => ({
-      id: p.id,
-      shift_id: p.shiftId,
-      owner_id: ownerId,
-      local_id: p.localId,
-      sex: p.sex || null,
-      year_of_birth: p.yob ? Number(p.yob) : null,
-      main_complaint: p.mainComplaint || "",
-      arrival_mode: p.arrivalMode || "",
-      arrival_other: p.arrivalMode === "other" ? p.arrivalOther || "" : "",
-      complaint: p.complaint || "",
-      complaint_skipped: Boolean(p.complaintSkipped),
-      history: p.history || "",
-      history_skipped: Boolean(p.historySkipped),
-      physical_exam: p.physical || "",
-      physical_exam_skipped: Boolean(p.physicalSkipped),
-      diagnoses: p.diagnoses || "",
-      diagnoses_skipped: Boolean(p.diagnosesSkipped),
-      others: p.others || "",
-      therapy: p.therapy || "",
-      therapy_skipped: Boolean(p.therapySkipped),
-      clinical_course: p.course || "",
-      clinical_course_skipped: Boolean(p.courseSkipped),
-      disposition: p.disposition || "",
-      discharge_condition: p.disposition === "discharged" ? p.dischargeCondition || "" : "",
-      recommendations: p.disposition === "discharged" ? p.recommendations || [""] : [],
-      hospital: p.disposition === "admitted" ? p.hospital || "" : "",
-      ward: p.disposition === "admitted" ? p.ward || "" : "",
-      accepting_physician: p.disposition === "admitted" ? p.physician || "" : "",
-      admission_note: p.disposition === "admitted" ? p.admissionNote || "" : "",
-      other_outcome: p.disposition === "other" ? p.otherOutcome || "" : "",
-      other_details: p.disposition === "other" ? p.otherDetails || "" : "",
-      status: p.summaryFinalizedAt ? "completed" : "active",
-      completed_at: p.summaryFinalizedAt || null,
-      created_at: p.createdAt || now,
-      updated_at: p.updatedAt || now,
-      deidentified_at: now,
-      deidentification_version: "v1",
-    }));
+    const caseRows = patients.map((patient: any) =>
+      caseRowFromPatient(patient, ownerId, now)
+    );
 
     const { error: caseError } = await db
       .from("cases")
@@ -433,23 +469,8 @@ async function saveState(db: any, ownerId: string, inputState: any) {
     }
 
     const summaryRows = patients
-      .filter(
-        (p: any) =>
-          p.summary ||
-          p.summaryGeneratedAt ||
-          p.summaryFinalizedAt ||
-          p.summaryFinalizedText
-      )
-      .map((p: any) => ({
-        case_id: p.id,
-        owner_id: ownerId,
-        generated_text: p.summaryGeneratedText || p.summary || "",
-        working_text: p.summary || "",
-        finalized_text: p.summaryFinalizedText || "",
-        generated_at: p.summaryGeneratedAt || null,
-        finalized_at: p.summaryFinalizedAt || null,
-        updated_at: now,
-      }));
+      .filter(patientHasSummaryData)
+      .map((patient: any) => summaryRowFromPatient(patient, ownerId, now));
 
     if (summaryRows.length) {
       const { error: summaryError } = await db
@@ -487,45 +508,7 @@ async function savePatient(
   const now = new Date().toISOString();
 
   const { error: caseError } = await db.from("cases").upsert(
-    {
-      id: patient.id,
-      shift_id: shiftId,
-      owner_id: ownerId,
-      local_id: patient.localId,
-      sex: patient.sex || null,
-      year_of_birth: patient.yob ? Number(patient.yob) : null,
-      main_complaint: patient.mainComplaint || "",
-      arrival_mode: patient.arrivalMode || "",
-      arrival_other: patient.arrivalMode === "other" ? patient.arrivalOther || "" : "",
-      complaint: patient.complaint || "",
-      complaint_skipped: Boolean(patient.complaintSkipped),
-      history: patient.history || "",
-      history_skipped: Boolean(patient.historySkipped),
-      physical_exam: patient.physical || "",
-      physical_exam_skipped: Boolean(patient.physicalSkipped),
-      diagnoses: patient.diagnoses || "",
-      diagnoses_skipped: Boolean(patient.diagnosesSkipped),
-      others: patient.others || "",
-      therapy: patient.therapy || "",
-      therapy_skipped: Boolean(patient.therapySkipped),
-      clinical_course: patient.course || "",
-      clinical_course_skipped: Boolean(patient.courseSkipped),
-      disposition: patient.disposition || "",
-      discharge_condition: patient.disposition === "discharged" ? patient.dischargeCondition || "" : "",
-      recommendations: patient.disposition === "discharged" ? patient.recommendations || [""] : [],
-      hospital: patient.disposition === "admitted" ? patient.hospital || "" : "",
-      ward: patient.disposition === "admitted" ? patient.ward || "" : "",
-      accepting_physician: patient.disposition === "admitted" ? patient.physician || "" : "",
-      admission_note: patient.disposition === "admitted" ? patient.admissionNote || "" : "",
-      other_outcome: patient.disposition === "other" ? patient.otherOutcome || "" : "",
-      other_details: patient.disposition === "other" ? patient.otherDetails || "" : "",
-      status: patient.summaryFinalizedAt ? "completed" : "active",
-      completed_at: patient.summaryFinalizedAt || null,
-      created_at: patient.createdAt || now,
-      updated_at: patient.updatedAt || now,
-      deidentified_at: now,
-      deidentification_version: "v1",
-    },
+    caseRowFromPatient(patient, ownerId, now),
     { onConflict: "id" },
   );
 
@@ -533,24 +516,9 @@ async function savePatient(
 
   await syncTests(db, ownerId, patient);
 
-  if (
-    patient.summary ||
-    patient.summaryGeneratedAt ||
-    patient.summaryFinalizedAt ||
-    patient.summaryFinalizedText
-  ) {
+  if (patientHasSummaryData(patient)) {
     const { error: summaryError } = await db.from("summaries").upsert(
-      {
-        case_id: patient.id,
-        owner_id: ownerId,
-        generated_text:
-          patient.summaryGeneratedText || patient.summary || "",
-        working_text: patient.summary || "",
-        finalized_text: patient.summaryFinalizedText || "",
-        generated_at: patient.summaryGeneratedAt || null,
-        finalized_at: patient.summaryFinalizedAt || null,
-        updated_at: now,
-      },
+      summaryRowFromPatient(patient, ownerId, now),
       { onConflict: "case_id" },
     );
 
@@ -589,56 +557,9 @@ async function finalizePatient(
 
   const now = new Date().toISOString();
   const snapshot = corpusSnapshot(patient);
-  const caseRow = {
-    id: patient.id,
-    shift_id: shiftId,
-    owner_id: ownerId,
-    local_id: patient.localId,
-    sex: patient.sex || null,
-    year_of_birth: patient.yob ? Number(patient.yob) : null,
-    main_complaint: patient.mainComplaint || "",
-    arrival_mode: patient.arrivalMode || "",
-    arrival_other: patient.arrivalMode === "other" ? patient.arrivalOther || "" : "",
-    complaint: patient.complaint || "",
-    complaint_skipped: Boolean(patient.complaintSkipped),
-    history: patient.history || "",
-    history_skipped: Boolean(patient.historySkipped),
-    physical_exam: patient.physical || "",
-    physical_exam_skipped: Boolean(patient.physicalSkipped),
-    diagnoses: patient.diagnoses || "",
-    diagnoses_skipped: Boolean(patient.diagnosesSkipped),
-    others: patient.others || "",
-    therapy: patient.therapy || "",
-    therapy_skipped: Boolean(patient.therapySkipped),
-    clinical_course: patient.course || "",
-    clinical_course_skipped: Boolean(patient.courseSkipped),
-    disposition: patient.disposition || "",
-    discharge_condition: patient.disposition === "discharged" ? patient.dischargeCondition || "" : "",
-    recommendations: patient.disposition === "discharged" ? patient.recommendations || [""] : [],
-    hospital: patient.disposition === "admitted" ? patient.hospital || "" : "",
-    ward: patient.disposition === "admitted" ? patient.ward || "" : "",
-    accepting_physician: patient.disposition === "admitted" ? patient.physician || "" : "",
-    admission_note: patient.disposition === "admitted" ? patient.admissionNote || "" : "",
-    other_outcome: patient.disposition === "other" ? patient.otherOutcome || "" : "",
-    other_details: patient.disposition === "other" ? patient.otherDetails || "" : "",
-    status: "completed",
-    completed_at: patient.summaryFinalizedAt,
-    created_at: patient.createdAt || now,
-    updated_at: patient.updatedAt || now,
-    deidentified_at: now,
-    deidentification_version: "v1",
-  };
+  const caseRow = caseRowFromPatient(patient, ownerId, now);
 
-  const summaryRow = {
-    case_id: patient.id,
-    owner_id: ownerId,
-    generated_text: patient.summaryGeneratedText || patient.summary || "",
-    working_text: patient.summary || "",
-    finalized_text: patient.summaryFinalizedText,
-    generated_at: patient.summaryGeneratedAt || null,
-    finalized_at: patient.summaryFinalizedAt,
-    updated_at: now,
-  };
+  const summaryRow = summaryRowFromPatient(patient, ownerId, now);
 
   const revisionPayload = {
     generated_text: patient.summaryGeneratedText || patient.summary || "",

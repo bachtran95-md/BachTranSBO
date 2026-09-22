@@ -655,7 +655,7 @@ function workflowStatus(patient) {
     dispositionBlockers.push(t(NARRATIVE_FIELDS.diagnoses.labelKey));
   }
 
-  const disposition = String(patient.disposition || "").trim();
+  const disposition = normalizeDisposition(patient.disposition);
   if (!disposition) {
     dispositionBlockers.push(t("disposition"));
   } else if (disposition === "discharged") {

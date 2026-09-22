@@ -1316,7 +1316,8 @@
     parseFindings: (source) => parseFindings(source),
     unknownSegments: (source) => unknownSegments(source),
     abcdeStatus: (findings) => abcdeStatus(findings),
-    activeFindings: (findings) => activeFindings(findings)
+    activeFindings: (findings) => activeFindings(findings),
+    syncComposer: () => syncComposer()
   });
 
   function refreshBetaFeatures() {

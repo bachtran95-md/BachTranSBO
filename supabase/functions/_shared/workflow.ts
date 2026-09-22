@@ -34,9 +34,14 @@ export function patientWorkflowBlockers(patient: any) {
   ];
 
   for (const [label, value, skipped, structuredComplete] of requiredNarrative) {
-    if (!skipped && !structuredComplete && !String(value || "").trim()) {
-      blockers.push(String(label));
+    if (skipped) continue;
+
+    if (label === "Physical examination" && patient?.physicalStatus?.version === 1) {
+      if (!structuredComplete) blockers.push(String(label));
+      continue;
     }
+
+    if (!String(value || "").trim()) blockers.push(String(label));
   }
 
   const testEntries = [

@@ -153,7 +153,6 @@
     const copy = root.querySelector("#betaStructuredStatusCopy");
 
     done?.classList.toggle("hidden", !ready);
-    root.classList.toggle("is-generated", ready);
     if (!ready) preview?.classList.add("hidden");
     if (view) view.disabled = !ready;
     if (copy) copy.disabled = !ready;
@@ -228,7 +227,6 @@
           <div class="beta-structured-status-done-head">
             <strong>✓ Státusz elkészült</strong>
             <div>
-              <button type="button" class="btn small" id="betaStructuredStatusEdit">SZERKESZTÉS</button>
               <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
               <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
             </div>
@@ -275,11 +273,6 @@
             error.classList.remove("hidden");
           }
         }
-      });
-
-      root.querySelector("#betaStructuredStatusEdit")?.addEventListener("click", () => {
-        root.classList.remove("is-generated");
-        root.querySelector("[data-status-param]")?.focus();
       });
 
       root.querySelector("#betaStructuredStatusView")?.addEventListener("click", () => {

@@ -1585,7 +1585,6 @@ function getCaseMetadata(caseId = selectedPatientId) {
 function applyCaseMetadata(caseId, metadata = {}) {
   const patient = patientById(caseId);
   if (!patient) return null;
-  const activityBefore = JSON.stringify(caseMetadataFromPatient(patient));
 
   if (Object.prototype.hasOwnProperty.call(metadata, "sex")) {
     patient.sex = normalizeSex(metadata.sex);
@@ -1612,9 +1611,7 @@ function applyCaseMetadata(caseId, metadata = {}) {
   if (Object.prototype.hasOwnProperty.call(metadata, "other_details")) {
     patient.otherDetails = metadata.other_details || "";
   }
-  if (JSON.stringify(caseMetadataFromPatient(patient)) !== activityBefore) {
-    patient.updatedAt = nowIso();
-  }
+  patient.updatedAt = nowIso();
   syncPatientRowFromState(patient);
   return structuredClone(patient);
 }
@@ -2258,40 +2255,9 @@ function addInvestigation(kind, options = {}) {
   return true;
 }
 
-function patientFormActivitySignature(patient) {
-  if (!patient) return "";
-  return JSON.stringify({
-    mainComplaint: patient.mainComplaint || "",
-    complaint: patient.complaint || "",
-    complaintSkipped: Boolean(patient.complaintSkipped),
-    history: patient.history || "",
-    historySkipped: Boolean(patient.historySkipped),
-    physical: patient.physical || "",
-    physicalSkipped: Boolean(patient.physicalSkipped),
-    others: patient.others || "",
-    therapy: patient.therapy || "",
-    therapySkipped: Boolean(patient.therapySkipped),
-    course: patient.course || "",
-    courseSkipped: Boolean(patient.courseSkipped),
-    diagnoses: patient.diagnoses || "",
-    diagnosesSkipped: Boolean(patient.diagnosesSkipped),
-    disposition: patient.disposition || "",
-    dischargeCondition: patient.dischargeCondition || "",
-    recommendations: Array.isArray(patient.recommendations) ? patient.recommendations : [],
-    hospital: patient.hospital || "",
-    ward: patient.ward || "",
-    physician: patient.physician || "",
-    admissionNote: patient.admissionNote || "",
-    otherOutcome: patient.otherOutcome || "",
-    otherDetails: patient.otherDetails || "",
-    summary: patient.summary || ""
-  });
-}
-
 function collectForm() {
   const patient = patientById(selectedPatientId);
   if (!patient) return null;
-  const activityBefore = patientFormActivitySignature(patient);
 
   // Test entries are canonical in patient.tests. Each rendered control updates
   // its entry synchronously; collectForm must not scrape a second copy from DOM.
@@ -2329,9 +2295,7 @@ function collectForm() {
   );
 
   normalizeDispositionBranches(patient);
-  if (patientFormActivitySignature(patient) !== activityBefore) {
-    patient.updatedAt = nowIso();
-  }
+  patient.updatedAt = nowIso();
 
   return patient;
 }

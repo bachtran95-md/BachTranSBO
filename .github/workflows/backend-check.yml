@@ -145,6 +145,18 @@ jobs:
             echo "app.js must expose canonical workflow status."
             exit 1
           fi
+          if ! grep -q 'function normalizeDispositionBranches' app.js || ! grep -q 'function renderDispositionUi' app.js; then
+            echo "app.js must own canonical disposition state and rendering."
+            exit 1
+          fi
+          if grep -E -q 'fDisposition|fDischargeCondition|ensureDischargeConditionUi|commitDischargeDraft' case-ui.js; then
+            echo "case-ui.js must remain a demographics adapter and must not own disposition."
+            exit 1
+          fi
+          if grep -q 'function syncDischargeConditionVisual' cockpit-beta.js; then
+            echo "cockpit-beta.js must not duplicate disposition visual state."
+            exit 1
+          fi
           if grep -q 'Object.assign(current, result.patient)' app.js; then
             echo "Autosave must preserve canonical patient/test object identity."
             exit 1

@@ -1,7 +1,6 @@
 (() => {
   "use strict";
 
-  const STALE_AFTER_MINUTES = 90;
   const SHIFT_META_REFRESH_MS = 5 * 60 * 1000;
   let shiftStartedAt = null;
   let lastShiftFetchAt = 0;
@@ -89,99 +88,6 @@
     `;
   }
 
-  function minutesSince(value) {
-    const time = new Date(value || 0).getTime();
-    if (!Number.isFinite(time) || time <= 0) return 0;
-    return Math.max(0, Math.floor((Date.now() - time) / 60000));
-  }
-
-  function staleLabel(minutes) {
-    if (hu()) {
-      if (minutes < 120) return `⚠ ${minutes} p`;
-      const hours = Math.floor(minutes / 60);
-      const rest = minutes % 60;
-      return rest ? `⚠ ${hours} ó ${rest} p` : `⚠ ${hours} ó`;
-    }
-    if (minutes < 120) return `⚠ ${minutes} m`;
-    const hours = Math.floor(minutes / 60);
-    const rest = minutes % 60;
-    return rest ? `⚠ ${hours} h ${rest} m` : `⚠ ${hours} h`;
-  }
-
-  function decoratePatientRows() {
-    document.querySelectorAll("#patientTbody tr[data-id]").forEach((row) => {
-      const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.(row.dataset.id);
-      row.classList.remove("beta-stale-case");
-      row.querySelector(".beta-stale-chip")?.remove();
-      delete row.dataset.staleLabel;
-      row.removeAttribute("title");
-      if (!patient || patient.summaryFinalizedAt) return;
-
-      const minutes = minutesSince(patient.updatedAt || patient.createdAt);
-      if (minutes < STALE_AFTER_MINUTES) return;
-
-      row.classList.add("beta-stale-case");
-      row.dataset.staleLabel = staleLabel(minutes);
-      row.title = hu()
-        ? `${minutes} perce nincs frissítés ebben az esetben.`
-        : `No update in this case for ${minutes} minutes.`;
-
-      const statusCell = row.querySelector(":scope > td:last-child");
-      if (statusCell) {
-        const chip = document.createElement("span");
-        chip.className = "beta-stale-chip";
-        chip.textContent = staleLabel(minutes);
-        chip.setAttribute("aria-label", row.title);
-        statusCell.appendChild(chip);
-      }
-    });
-  }
-
-  function renderSelectedCaseStaleBanner() {
-    const selected = document.querySelector("#patientTbody tr.selected[data-id]");
-    const header = document.getElementById("recordHeader");
-    if (!header) return;
-
-    let banner = document.getElementById("betaStaleCaseBanner");
-    if (!selected) {
-      banner?.remove();
-      return;
-    }
-
-    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.(selected.dataset.id);
-    if (!patient || patient.summaryFinalizedAt) {
-      banner?.remove();
-      return;
-    }
-
-    const updatedAt = patient.updatedAt || patient.createdAt;
-    const minutes = minutesSince(updatedAt);
-    if (minutes < STALE_AFTER_MINUTES) {
-      banner?.remove();
-      return;
-    }
-
-    if (!banner) {
-      banner = document.createElement("div");
-      banner.id = "betaStaleCaseBanner";
-      banner.className = "beta-stale-case-banner";
-      header.insertAdjacentElement("afterend", banner);
-    }
-
-    const lastUpdate = new Intl.DateTimeFormat(hu() ? "hu-HU" : "en-GB", {
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(updatedAt));
-
-    banner.innerHTML = `
-      <span class="beta-stale-icon" aria-hidden="true">◷</span>
-      <span>
-        <strong>${hu() ? `${minutes} perce nincs frissítés` : `No update for ${minutes} minutes`}</strong>
-        <small>${hu() ? "Utolsó módosítás" : "Last modified"}: ${lastUpdate}</small>
-      </span>
-    `;
-  }
-
   function addBetaBadge() {
     const brand = document.querySelector(".brand");
     if (!brand || brand.querySelector(".beta-build-badge")) return;
@@ -195,8 +101,6 @@
     addBetaBadge();
     await refreshShiftSource({ force: forceShift });
     decorateShiftDashboard();
-    decoratePatientRows();
-    renderSelectedCaseStaleBanner();
   }
 
   function scheduleRefresh() {

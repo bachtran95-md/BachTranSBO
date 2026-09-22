@@ -1660,7 +1660,7 @@
         !event.target.disabled
       ) {
         window.BachSBOClinicalUi?.commitCurrentDraft?.();
-        scheduleCaseAutosave(600);
+        scheduleCaseAutosave(event.target.id === "fDisposition" ? 100 : 600);
       }
 
       setTimeout(syncRailState, 0);
@@ -1674,8 +1674,9 @@
         event.target.type !== "button"
       ) {
         // Keep blur lightweight: cache immediately, persist in the background.
+        // Discharge condition keeps its historical fast-save cadence.
         window.BachSBOClinicalUi?.commitCurrentDraft?.();
-        scheduleCaseAutosave(900);
+        scheduleCaseAutosave(event.target.id === "fDischargeCondition" ? 50 : 900);
       }
     }, true);
     document.addEventListener("click", (event) => {

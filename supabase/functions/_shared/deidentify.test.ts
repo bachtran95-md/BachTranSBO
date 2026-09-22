@@ -81,3 +81,43 @@ Deno.test("clinical text inventory includes free-text arrival details", () => {
   const scrubbed = ruleBasedDeidentify(item.text);
   if (!scrubbed.text.includes("[PERSON]")) throw new Error(scrubbed.text);
 });
+
+
+Deno.test("clinical text inventory includes structured positive status findings but excludes parameters", () => {
+  const items = clinicalTextItems({
+    physicalStatus: {
+      version: 1,
+      parameters: {
+        bloodPressure: "135/80",
+        pulse: "88",
+      },
+      sections: {
+        A: "",
+        B: "Név: Kovács János, jobb basalis crepitatio",
+        C: "",
+        D: "",
+        E1: "",
+        E2: "",
+        E3: "",
+        E4: "",
+        E5: "Hasa érzékeny.",
+        E6: "",
+      },
+      generatedAt: "2026-09-22T23:00:00.000Z",
+    },
+  });
+
+  const byKey = new Map(items.map((item) => [item.key, item.text]));
+  if (!byKey.has("physicalStatus.sections.B")) {
+    throw new Error("Missing structured B finding from clinical text inventory");
+  }
+  if (!byKey.has("physicalStatus.sections.E5")) {
+    throw new Error("Missing structured E5 finding from clinical text inventory");
+  }
+  if ([...byKey.keys()].some((key) => key.startsWith("physicalStatus.parameters."))) {
+    throw new Error("Structured status parameters must not enter AI text de-identification inventory");
+  }
+
+  const scrubbed = ruleBasedDeidentify(byKey.get("physicalStatus.sections.B"));
+  if (!scrubbed.text.includes("[PERSON]")) throw new Error(scrubbed.text);
+});

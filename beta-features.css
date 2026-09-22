@@ -451,3 +451,42 @@ body.beta-build #betaSuggestFinding{
     width:100%;
   }
 }
+
+
+/* Beta Notes workspace ---------------------------------------------------- */
+body.beta-build .beta-notes-card{
+  max-width:980px;
+}
+body.beta-build .beta-note-list{
+  display:grid;
+  gap:12px;
+}
+body.beta-build .beta-note-snippet{
+  border:1px solid #dbe3ec;
+  border-radius:10px;
+  background:#f8fafc;
+  padding:10px;
+}
+body.beta-build .beta-note-snippet-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:7px;
+}
+body.beta-build .beta-note-snippet-head strong{
+  font-size:12px;
+  color:#334155;
+}
+body.beta-build .beta-note-snippet textarea{
+  min-height:72px;
+  margin:0;
+  background:#fff;
+  font-size:12px;
+  line-height:1.45;
+}
+@media (max-width:760px){
+  body.beta-build .beta-note-snippet-head{
+    align-items:flex-start;
+  }
+}

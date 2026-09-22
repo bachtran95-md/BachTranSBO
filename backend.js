@@ -374,6 +374,7 @@
         yob: row.year_of_birth ? String(row.year_of_birth) : "",
         arrivalMode: row.arrival_mode || "",
         arrivalOther: row.arrival_other || "",
+        triageStatus: row.triage_status || "",
         mainComplaint: row.main_complaint || "",
         complaint: row.complaint || "",
         complaintSkipped: Boolean(row.complaint_skipped),

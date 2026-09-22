@@ -120,6 +120,7 @@
     const bridge = document.getElementById("fPhysical");
     if (bridge) {
       bridge.dispatchEvent(new Event("input", { bubbles: true }));
+      statusEngine()?.syncComposer?.();
     }
   }
 

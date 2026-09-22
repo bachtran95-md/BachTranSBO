@@ -119,7 +119,7 @@
     const congestion = text.search(/pang[aá]s/);
     if (congestion >= 0 && !hasNegationNear(text, congestion)) {
       const clause = clauseAt(text, congestion);
-      const location = /\bmko\.?\b|mindk[eé]t\s+oldal/.test(clause)
+      const location = /\bmko\b\.?|mindk[eé]t\s+oldal/.test(clause)
         ? "mko."
         : /\bjobb\b/.test(clause)
           ? "jobb oldalon"

@@ -32,6 +32,7 @@ jobs:
           node --check cockpit-beta.js
           node --check beta-finding-registry.generated.js
           node --check beta-features.js
+          node --check beta-status-module.js
 
       - name: Check security invariants
         run: |

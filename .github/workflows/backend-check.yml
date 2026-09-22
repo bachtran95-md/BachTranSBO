@@ -86,8 +86,16 @@ jobs:
             echo "Production index.html must load cockpit.js directly and never the compatibility shim."
             exit 1
           fi
-          if ! grep -q 'window.location.replace("./"' beta.html; then
-            echo "beta.html must remain a compatibility redirect to the stable entrypoint."
+          if ! grep -q 'cockpit.js' beta.html; then
+            echo "beta.html must load the production cockpit foundation."
+            exit 1
+          fi
+          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html; then
+            echo "beta.html must load beta-only feature assets."
+            exit 1
+          fi
+          if grep -q 'beta-features.js\|beta-features.css' index.html; then
+            echo "Production index.html must not load beta-only feature assets."
             exit 1
           fi
           if grep -E -q '<script[^>]+src="[^"]*cockpit' recovery.html; then
@@ -96,10 +104,6 @@ jobs:
           fi
           if ! grep -q 'Production implementation lives in cockpit.js' cockpit-beta.js || grep -q 'function createTabBar' cockpit-beta.js; then
             echo "cockpit-beta.js must remain only a compatibility shim."
-            exit 1
-          fi
-          if grep -q 'beta-features.js\|beta-features.css' index.html beta.html; then
-            echo "Stable and beta alias entrypoints must not load obsolete beta-only assets."
             exit 1
           fi
           if grep -E -q 'installBackendPayloadBridge|__inlineCaseDetailsBridge|patchedSavePatient|patchedFinalizePatient' case-ui.js; then

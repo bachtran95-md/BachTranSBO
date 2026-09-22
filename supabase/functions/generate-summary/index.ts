@@ -88,20 +88,52 @@ function testStatus(row: any) {
   return "waiting_for_result";
 }
 
+const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+function structuredPhysicalStatus(caseRow: any) {
+  const value = caseRow?.physical_status_data;
+  return value && typeof value === "object" && Number(value.version) === 1
+    ? value
+    : null;
+}
+
+function positivePhysicalText(caseRow: any) {
+  const status = structuredPhysicalStatus(caseRow);
+  if (!status) return String(caseRow?.physical_exam || "").trim();
+
+  const sections = status.sections && typeof status.sections === "object"
+    ? status.sections
+    : {};
+
+  return PHYSICAL_STATUS_SECTION_KEYS
+    .map((key) => {
+      const text = String(sections[key] || "").trim();
+      return text ? `${key}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 function workflowBlockers(caseRow: any, tests: any[]) {
   const blockers: string[] = [];
 
+  const physicalStructuredComplete = Boolean(
+    structuredPhysicalStatus(caseRow)?.generatedAt
+  );
+
   const requiredNarrative = [
-    ["Complaint", caseRow.complaint, caseRow.complaint_skipped],
-    ["Patient history", caseRow.history, caseRow.history_skipped],
-    ["Physical examination", caseRow.physical_exam, caseRow.physical_exam_skipped],
-    ["Diagnoses", caseRow.diagnoses, caseRow.diagnoses_skipped],
-    ["Therapy", caseRow.therapy, caseRow.therapy_skipped],
-    ["Clinical course", caseRow.clinical_course, caseRow.clinical_course_skipped],
+    ["Complaint", caseRow.complaint, caseRow.complaint_skipped, false],
+    ["Patient history", caseRow.history, caseRow.history_skipped, false],
+    ["Physical examination", caseRow.physical_exam, caseRow.physical_exam_skipped, physicalStructuredComplete],
+    ["Diagnoses", caseRow.diagnoses, caseRow.diagnoses_skipped, false],
+    ["Therapy", caseRow.therapy, caseRow.therapy_skipped, false],
+    ["Clinical course", caseRow.clinical_course, caseRow.clinical_course_skipped, false],
   ];
 
-  for (const [label, value, skipped] of requiredNarrative) {
-    if (!skipped && !String(value || "").trim()) blockers.push(String(label));
+  for (const [label, value, skipped, structuredComplete] of requiredNarrative) {
+    if (!skipped && !structuredComplete && !String(value || "").trim()) {
+      blockers.push(String(label));
+    }
   }
 
   for (const row of tests || []) {
@@ -159,8 +191,12 @@ function casePayload(caseRow: any, tests: any[]) {
     complaint_status: caseRow.complaint_skipped ? "none" : "provided",
     history: caseRow.history,
     history_status: caseRow.history_skipped ? "none" : "provided",
-    physical_examination: caseRow.physical_exam,
-    physical_examination_status: caseRow.physical_exam_skipped ? "none" : "provided",
+    physical_examination: positivePhysicalText(caseRow),
+    physical_examination_status: caseRow.physical_exam_skipped
+      ? "none"
+      : structuredPhysicalStatus(caseRow)?.generatedAt
+      ? "structured_positive_findings"
+      : "provided",
     diagnoses: caseRow.diagnoses || "",
     diagnoses_status: caseRow.diagnoses_skipped ? "none" : "provided",
     tests: tests.map((row) => ({
@@ -399,6 +435,9 @@ Deno.serve(async (req) => {
       "Never invent a diagnosis, result, treatment, consultation, disposition, or chronology.",
       "If a fact is absent or a result is still waiting, do not fabricate it.",
       "If arrival_to_sbo is present, include that arrival mode naturally in the Hungarian clinical narrative/anamnesis.",
+      "For structured physical status, physical_examination contains ONLY physician-entered positive findings. Vital parameters and the generated full normal-status text are intentionally excluded.",
+      "Use every supplied positive physical finding when clinically relevant to the narrative, but integrate them concisely rather than copying them as a mechanical status list.",
+      "Do not infer omitted normal findings or numeric vital signs that are not present in the CURRENT case payload.",
       "Follow the SBO Documentation Skill instructions exactly.",
       "Return ONLY the documentation text, without commentary, markdown fences, or explanations.",
       "",

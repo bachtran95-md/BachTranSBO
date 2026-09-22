@@ -131,9 +131,14 @@ function workflowBlockers(caseRow: any, tests: any[]) {
   ];
 
   for (const [label, value, skipped, structuredComplete] of requiredNarrative) {
-    if (!skipped && !structuredComplete && !String(value || "").trim()) {
-      blockers.push(String(label));
+    if (skipped) continue;
+
+    if (label === "Physical examination" && structuredPhysicalStatus(caseRow)) {
+      if (!structuredComplete) blockers.push(String(label));
+      continue;
     }
+
+    if (!String(value || "").trim()) blockers.push(String(label));
   }
 
   for (const row of tests || []) {

@@ -7,7 +7,6 @@
 
   const YEAR = new Date().getFullYear();
   const SAVE_DELAY_MS = 900;
-  const DISCHARGE_PREFIX = "Otthonába bocsátáskor: ";
   let lastLoadedCaseId = "";
   let lastSaveFailedAt = 0;
   let metadataDirtyCaseId = "";
@@ -260,14 +259,12 @@
     const age = document.getElementById("iceAge");
     const arrival = document.getElementById("iceArrival");
     const arrivalOther = document.getElementById("iceArrivalOther");
-    const discharge = document.getElementById("fDischargeCondition");
     if (sex) { sex.value = ""; syncSexChoiceUi(""); }
     if (yob) yob.value = "";
     if (age) age.value = "";
     if (arrival) arrival.value = "";
     if (arrivalOther) arrivalOther.value = "";
     document.getElementById("iceArrivalOtherWrap")?.classList.add("hidden");
-    if (discharge) discharge.value = "";
     lastLoadedCaseId = "";
     const host = inlineHost();
     if (host) {
@@ -279,54 +276,10 @@
   // Demographics are never reconstructed from rendered table text or subtitle.
   // Patient state in app.js is the only authority; loadSelected() only renders it.
 
-  function dischargeConditionTextFromStored(value) {
-    const text = String(value || "").trim();
-    return text.startsWith(DISCHARGE_PREFIX) ? text.slice(DISCHARGE_PREFIX.length).trim() : text;
-  }
-
-  function ensureDischargeConditionUi() {
-    const disposition = document.getElementById("fDisposition");
-    if (!disposition) return;
-    let wrap = document.getElementById("dischargeConditionWrap");
-    if (!wrap) {
-      wrap = document.createElement("div");
-      wrap.id = "dischargeConditionWrap";
-      wrap.className = "field narrative-field waiting hidden";
-      wrap.style.marginTop = "8px";
-      wrap.innerHTML = `
-        <div class="narrative-head">
-          <label data-discharge-label>Milyen állapotban, panasz?</label>
-          <div class="narrative-actions"><span class="field-state waiting" id="dischargeConditionState">KÖTELEZŐ</span></div>
-        </div>
-        <textarea id="fDischargeCondition" placeholder="Például: panaszmentesen, jó általános állapotban; mellkasi fájdalma nem jelentkezett..."></textarea>
-      `;
-      disposition.closest(".field")?.after(wrap);
-    }
-    const visible = disposition.value === "discharged";
-    wrap.classList.toggle("hidden", !visible);
-    const text = document.getElementById("fDischargeCondition")?.value.trim() || "";
-    wrap.classList.toggle("waiting", visible && !text);
-    wrap.classList.toggle("result", visible && Boolean(text));
-    const state = document.getElementById("dischargeConditionState");
-    if (state) {
-      state.textContent = text ? label("COMPLETE", "KÉSZ") : label("REQUIRED", "KÖTELEZŐ");
-      state.className = `field-state ${text ? "result" : "waiting"}`;
-    }
-    const lab = wrap.querySelector("[data-discharge-label]");
-    if (lab) lab.textContent = label("Condition / symptoms at discharge", "Milyen állapotban, panasz?");
-  }
-
-  function getDischargeCondition() {
-    return String(document.getElementById("fDischargeCondition")?.value || "").trim();
-  }
-
-  function commitDischargeDraft() {
-    return window.BachSBOClinicalUi?.commitCurrentDraft?.() || null;
-  }
 
   function isEditingCaseDetails() {
     const active = document.activeElement;
-    return Boolean(active && (active.closest?.("#inlineCaseEditor") || active.id === "fMainComplaint" || active.id === "fDischargeCondition"));
+    return Boolean(active && (active.closest?.("#inlineCaseEditor") || active.id === "fMainComplaint"));
   }
 
   function ensureUi() {
@@ -382,7 +335,6 @@
     wireSexChoiceUi();
     wireUi();
     enhanceSexUi();
-    ensureDischargeConditionUi();
     return true;
   }
 
@@ -462,16 +414,7 @@
       (data.arrival_mode || "") !== "other"
     );
 
-    if ((document.getElementById("fDisposition")?.value || "") === "discharged") {
-      const discharge = document.getElementById("fDischargeCondition");
-      if (discharge && !discharge.value) {
-        discharge.value =
-          String(data.discharge_condition || "").trim() ||
-          dischargeConditionTextFromStored(data.other_details);
-      }
-    }
 
-    ensureDischargeConditionUi();
     lastLoadedCaseId = id;
     if (host) {
       host.dataset.pendingCaseId = id;
@@ -488,15 +431,11 @@
     const partialYob = Boolean(yobText) && !validYob;
     const age = document.getElementById("iceAge");
     if (age) age.value = validYob ? ageFromYob(normalizedYob) : "";
-    const disposition = document.getElementById("fDisposition")?.value || "";
-    const discharge = getDischargeCondition();
     const payload = {
       sex: normalizeSex(document.getElementById("iceSex")?.value) || null,
       main_complaint: document.getElementById("fMainComplaint")?.value || "",
       arrival_mode: arrival,
       arrival_other: arrival === "other" ? document.getElementById("iceArrivalOther")?.value || "" : "",
-      disposition,
-      discharge_condition: disposition === "discharged" ? discharge : "",
       updated_at: new Date().toISOString()
     };
     if (!yobText || validYob) payload.year_of_birth = validYob ? Number(normalizedYob) : null;
@@ -675,31 +614,7 @@
       del.dataset.iceWired = "true";
       del.addEventListener("click", deleteSelectedCase);
     }
-    const disposition = document.getElementById("fDisposition");
-    if (disposition && disposition.dataset.dischargeWired !== "true") {
-      disposition.dataset.dischargeWired = "true";
-      disposition.addEventListener("change", () => {
-        ensureDischargeConditionUi();
-        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
-        commitDischargeDraft();
-        syncDraftIntoPatientState();
-        scheduleSave(100);
-      });
-    }
-    const discharge = document.getElementById("fDischargeCondition");
-    if (discharge && discharge.dataset.dischargeWired !== "true") {
-      discharge.dataset.dischargeWired = "true";
-      discharge.addEventListener("input", () => {
-        ensureDischargeConditionUi();
-        metadataDirtyCaseId = selectedId() || metadataDirtyCaseId;
-        commitDischargeDraft();
-        syncDraftIntoPatientState();
-        scheduleSave(SAVE_DELAY_MS);
-      });
-      discharge.addEventListener("blur", () => {
-        scheduleSave(50);
-      });
-    }
+
   }
 
   function install() {
@@ -726,7 +641,6 @@
 
     document.addEventListener("change", (event) => {
       if (event.target?.id === "newSex") styleSexSelect(event.target);
-      if (event.target?.id === "fDisposition") ensureDischargeConditionUi();
     }, true);
   }
 

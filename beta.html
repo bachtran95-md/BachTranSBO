@@ -6,10 +6,11 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
-  <title>ER Command Center — Cockpit Beta</title>
-  <link rel="stylesheet" href="styles.css?v=klinikum-narrative-height-20260921-1" />
+  <title>ER Command Center — Beta</title>
+  <link rel="stylesheet" href="styles.css?v=ai-data-drawer-20260921-1" />
+  <link rel="stylesheet" href="beta-features.css?v=shift-stale-20260922-1" />
 </head>
-<body>
+<body class="beta-build">
   <header class="topbar">
     <div>
       <div class="brand">ER COMMAND CENTER</div>
@@ -17,8 +18,8 @@
     </div>
     <div class="toolbar topbar-tools">
       <div class="lang-toggle" role="group" aria-label="Language">
-        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
         <button class="lang-btn active" id="langHuBtn" type="button">HU</button>
+        <button class="lang-btn" id="langEnBtn" type="button">EN</button>
       </div>
       <div class="toolbar" id="topActions"></div>
     </div>
@@ -27,7 +28,7 @@
   <nav class="workspace-nav" aria-label="Workspace">
     <div class="workspace-nav-main">
       <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
-      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span><span>β</span></button>
+      <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
       <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
     </div>
     <div class="workspace-nav-future">
@@ -39,6 +40,62 @@
   </nav>
 
   <main class="main">
+      <section id="rawTransferView" class="hidden">
+        <div class="raw-transfer-shell">
+          <div class="raw-transfer-intro">
+            <div>
+              <div class="raw-transfer-kicker">HEIDI → BACHTRANSBO</div>
+              <h1 data-i18n="rawTransferTitle">Raw data transfer</h1>
+              <p class="subtle" data-i18n="rawTransferDesc">Válasszon egy aktív esetet, illessze be a Heidi transcriptet, majd küldje el.</p>
+            </div>
+            <button class="btn" id="rawTransferRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+          </div>
+
+          <div id="rawTransferNoShift" class="empty hidden">
+            <div class="empty-card">
+              <h2 data-i18n="noActiveShift">Nincs aktív műszak</h2>
+              <p class="subtle" data-i18n="rawTransferNoShift">Raw Transfer csak aktív műszak alatt használható.</p>
+            </div>
+          </div>
+
+          <div id="rawTransferWorkspace" class="raw-transfer-grid hidden">
+            <div class="card raw-transfer-cases-card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="activeCases">Aktív esetek</h3>
+                  <div class="subtle" data-i18n="rawTransferCaseHint">Csak a beteg azonosításához szükséges minimális adatok jelennek meg.</div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div id="rawTransferCaseList" class="raw-transfer-case-list"></div>
+              </div>
+            </div>
+
+            <div class="card raw-transfer-editor-card">
+              <div class="card-h">
+                <div>
+                  <h3 id="rawTransferCaseTitle" data-i18n="selectCasePrompt">Válasszon egy esetet a listából.</h3>
+                  <div class="subtle" id="rawTransferCaseMeta"></div>
+                </div>
+              </div>
+              <div class="card-b">
+                <div class="field">
+                  <label data-i18n="rawDataLabel">Raw data / Heidi transcript</label>
+                  <textarea id="rawTransferText" class="raw-transfer-textarea" maxlength="100000"
+                    placeholder="Heidi transcript beillesztése…"></textarea>
+                </div>
+                <div class="raw-transfer-actions">
+                  <button class="btn primary raw-transfer-send" id="rawTransferSaveBtn" type="button" disabled>
+                    <span data-i18n="sendRawData">RAW DATA KÜLDÉSE</span>
+                  </button>
+                  <button class="btn" id="rawTransferClearLocalBtn" type="button" data-i18n="clear">TÖRLÉS</button>
+                </div>
+                <div id="rawTransferStatus" class="raw-transfer-status subtle"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="noShiftView" class="empty hidden">
         <div class="empty-card">
           <h1 data-i18n="noActiveShift">No active shift</h1>
@@ -131,6 +188,10 @@
                 </button>
               </div>
               <div class="record-actions">
+                <button class="raw-data-badge hidden" id="normalRawBadge" type="button" aria-haspopup="dialog" aria-controls="normalRawDrawer">
+                  <span aria-hidden="true">📥</span>
+                  <span id="normalRawBadgeLabel">RAW DATA</span>
+                </button>
                 <span id="patientStatusBadge"></span>
                 <button class="btn small hidden" id="reopenCaseBtn" type="button" data-i18n="reopenCase">REOPEN CASE</button>
               </div>
@@ -546,27 +607,49 @@
       </section>
   </main>
 
-  <div class="cockpit-data-entry-overlay hidden" id="cockpitDataEntryOverlay" aria-hidden="true">
-    <section class="cockpit-data-entry-dialog" role="dialog" aria-modal="true" aria-labelledby="cockpitPasteTitle">
-      <div class="cockpit-data-entry-head">
-        <div>
-          <strong id="cockpitPasteTitle">✨ AI-assisted data entry</strong>
-          <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Jegyzet / Heidi szöveg feldolgozása</div>
-        </div>
-        <button class="btn small" id="cockpitDataEntryClose" type="button" aria-label="Bezárás">×</button>
+  <div class="raw-data-drawer-backdrop" id="normalRawDrawerBackdrop" aria-hidden="true"></div>
+  <aside class="raw-data-drawer" id="normalRawDrawer" role="dialog" aria-modal="true" aria-labelledby="normalRawDrawerTitle" aria-hidden="true">
+    <div class="raw-data-drawer-head">
+      <div>
+        <div class="raw-data-drawer-kicker">HEIDI → BACHTRANSBO</div>
+        <strong id="normalRawDrawerTitle" data-i18n="rawDataInbox">Raw data inbox</strong>
+        <div class="subtle" id="normalRawDataMeta"></div>
       </div>
-      <div class="cockpit-data-entry-body">
-        <div class="cockpit-data-entry-safety">
-          <strong>AI-assisted data entry</strong>
-          <span>Az AI csak dokumentált tényeket javasol. Semmi nem kerül automatikusan a beteg dokumentációjába.</span>
-        </div>
-        <textarea id="cockpitPasteText" class="cockpit-paste-text cockpit-data-entry-text" maxlength="30000"></textarea>
-        <button class="btn primary cockpit-wide-btn" id="cockpitExtractText" type="button">TÉNYEK KINYERÉSE</button>
-        <div id="cockpitExtractStatus" class="cockpit-status"></div>
-        <div id="cockpitExtractPreview"></div>
+      <button class="btn small raw-data-drawer-close" id="normalRawDrawerClose" type="button" aria-label="Bezárás">×</button>
+    </div>
+    <div class="raw-data-drawer-body">
+      <div class="info-bar" data-i18n="rawDataInboxInfo">A telefonról küldött Heidi transcript itt jelenik meg. Ez a mező nem része a klinikai dokumentációnak.</div>
+      <textarea id="normalRawDataText" class="normal-raw-data-text" readonly
+        placeholder="Még nincs raw data ehhez az esethez."></textarea>
+    </div>
+    <div class="raw-data-drawer-actions">
+      <button class="btn small" id="normalRawRefreshBtn" type="button" data-i18n="refresh">FRISSÍTÉS</button>
+      <button class="btn primary" id="normalRawUseAiBtn" type="button" disabled data-i18n="useInAiEntry">BETÖLTÉS AI ADATBEVITELBE</button>
+      <button class="btn small" id="normalRawDeleteBtn" type="button" disabled data-i18n="deleteRawData">RAW DATA TÖRLÉSE</button>
+    </div>
+  </aside>
+
+  <div class="cockpit-data-entry-backdrop" id="cockpitDataEntryBackdrop" aria-hidden="true"></div>
+  <aside class="cockpit-data-entry-drawer" id="cockpitDataEntryOverlay" role="dialog" aria-modal="true" aria-labelledby="cockpitPasteTitle" aria-hidden="true">
+    <div class="cockpit-data-entry-head">
+      <div>
+        <div class="raw-data-drawer-kicker">HEIDI → AI ADATBEVITEL</div>
+        <strong id="cockpitPasteTitle">✨ AI-assisted data entry</strong>
+        <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Routing és adatkinyerés — a Heidi szöveg megfogalmazását megtartva</div>
       </div>
-    </section>
-  </div>
+      <button class="btn small" id="cockpitDataEntryClose" type="button" aria-label="Bezárás">×</button>
+    </div>
+    <div class="cockpit-data-entry-body">
+      <div class="cockpit-data-entry-safety">
+        <strong>AI-assisted data entry</strong>
+        <span>Az AI mezőt javasol és a Heidi szöveget a lehető legkevésbé módosítja. A célmező és a szöveg alkalmazás előtt felülírható.</span>
+      </div>
+      <textarea id="cockpitPasteText" class="cockpit-paste-text cockpit-data-entry-text" maxlength="30000"></textarea>
+      <button class="btn primary cockpit-wide-btn" id="cockpitExtractText" type="button">TÉNYEK KINYERÉSE</button>
+      <div id="cockpitExtractStatus" class="cockpit-status"></div>
+      <div id="cockpitExtractPreview"></div>
+    </div>
+  </aside>
 
   <div class="cockpit-extract-confirm-overlay hidden" id="cockpitExtractConfirmOverlay" aria-hidden="true">
     <section class="cockpit-extract-confirm-dialog" role="alertdialog" aria-modal="true">
@@ -583,10 +666,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?beta=discharge-db-persistence-20260921-1"></script>
-  <script src="backend.js?v=multi-ekg-avg-20260921-2"></script>
-  <script src="assistant-core.js?beta=validation-core-recovery-20260921-1"></script>
-  <script src="app.js?v=discharge-db-persistence-20260921-1"></script>
+  <script src="backend.js?v=raw-transfer-mode-20260921-1"></script>
+  <script src="assistant-core.js?beta=ai-override-20260921-1"></script>
+  <script src="app.js?v=raw-inbox-drawer-20260921-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit-beta.js?beta=arrival-required-orange-20260921-1"></script>
+  <script src="cockpit-beta.js?v=ai-data-drawer-20260921-1"></script>
+  <script src="beta-features.js?v=shift-stale-20260922-1"></script>
 </body>
 </html>

@@ -1764,6 +1764,9 @@ await betaFeatures.waitForFunction(() =>
   document.body.classList.contains("beta-build") &&
   document.body.classList.contains("cockpit-ui")
 );
+if (!await betaFeatures.evaluate(() => Boolean(window.BACH_SBO_BETA_FINDING_REGISTRY))) {
+  throw new Error("Beta generated finding registry did not load before beta features");
+}
 await betaFeatures.locator(".beta-build-badge").waitFor();
 await betaFeatures.waitForFunction(() => {
   const text = document.querySelector("#shiftMeta .shift-dashboard-pill")?.textContent || "";

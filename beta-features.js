@@ -206,11 +206,9 @@
       ["st. post", "st§ post"]
     ];
     for (const [raw, token] of protectedAbbreviations) {
-      const escaped = raw.replace(/[.*+?^$()|[\\]\\\\{}]/g, "\\    for (const [raw, token] of protectedAbbreviations) {
       text = text.replaceAll(raw, token);
       text = text.replaceAll(raw.toUpperCase(), token);
-    }");
-      text = text.replace(new RegExp(escaped, "giu"), token);
+      text = text.replaceAll(raw.charAt(0).toUpperCase() + raw.slice(1), token);
     }
 
     return text

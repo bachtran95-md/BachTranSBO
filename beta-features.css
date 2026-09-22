@@ -177,8 +177,14 @@ body.beta-build .beta-unknown-title{
 }
 body.beta-build .beta-unknown-chips{
   display:flex;
-  flex-wrap:wrap;
+  flex-direction:column;
   gap:5px;
+}
+body.beta-build .beta-unknown-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
 }
 body.beta-build .beta-unknown-chip{
   appearance:none;
@@ -194,6 +200,33 @@ body.beta-build .beta-unknown-chip{
 body.beta-build .beta-unknown-chip:hover{
   background:#fed7aa;
   border-color:#f97316;
+}
+body.beta-build .beta-unknown-item .beta-unknown-chip{
+  flex:1 1 auto;
+  min-width:0;
+  text-align:left;
+}
+body.beta-build .beta-unknown-ai{
+  flex:0 0 auto;
+  appearance:none;
+  min-height:27px;
+  border:1px solid #2563eb;
+  border-radius:7px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  padding:4px 8px;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.02em;
+  cursor:pointer;
+}
+body.beta-build .beta-unknown-ai:hover{
+  background:#dbeafe;
+  border-color:#1d4ed8;
+}
+body.beta-build .beta-unknown-ai:disabled{
+  opacity:.55;
+  cursor:progress;
 }
 body.beta-build .beta-learning-editor{
   margin-top:8px;
@@ -280,6 +313,13 @@ body.beta-build .beta-learning-message{
   font-weight:700;
 }
 @media (max-width:760px){
+  body.beta-build .beta-unknown-item{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  body.beta-build .beta-unknown-ai{
+    width:100%;
+  }
   body.beta-build .beta-learning-grid{
     grid-template-columns:1fr;
   }

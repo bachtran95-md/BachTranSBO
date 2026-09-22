@@ -64,7 +64,18 @@
     if (!meta) return;
 
     meta.classList.add("beta-shift-dashboard");
-    meta.querySelectorAll(".metric").forEach((metric) => metric.classList.add("beta-shift-metric"));
+    meta.querySelectorAll(".metric").forEach((metric) => {
+      metric.classList.add("beta-shift-metric");
+      metric.classList.remove("beta-metric-cases", "beta-metric-active", "beta-metric-completed");
+      const labelText = (metric.childNodes?.[0]?.textContent || metric.textContent || "").trim().toLowerCase();
+      if (labelText.startsWith("esetek") || labelText.startsWith("cases")) {
+        metric.classList.add("beta-metric-cases");
+      } else if (labelText.startsWith("aktív") || labelText.startsWith("active")) {
+        metric.classList.add("beta-metric-active");
+      } else if (labelText.startsWith("lezárt") || labelText.startsWith("completed")) {
+        metric.classList.add("beta-metric-completed");
+      }
+    });
 
     const pill = meta.querySelector(".shift-pill");
     if (!pill || !shiftStartedAt) return;

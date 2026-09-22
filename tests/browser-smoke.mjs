@@ -464,6 +464,19 @@ await page.locator("#switchModeBtn").click();
 await page.locator("#chooseNormalMode").click();
 await page.locator("#patientsView:not(.hidden)").waitFor();
 await page.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+
+// A no-op draft commit (including switching/refresh paths) must not reset case
+// inactivity. updatedAt changes only when meaningful clinical content changes.
+const noOpTimestamp = await page.evaluate(() => {
+  const before = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.updatedAt || "";
+  window.BachSBOClinicalUi?.commitCurrentDraft?.();
+  const after = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.updatedAt || "";
+  return { before, after };
+});
+if (!noOpTimestamp.before || noOpTimestamp.after !== noOpTimestamp.before) {
+  throw new Error("No-op draft commit reset updatedAt: " + JSON.stringify(noOpTimestamp));
+}
+
 await page.locator("#normalRawBadge:not(.hidden)").waitFor();
 if (await page.locator("#normalRawDataInbox").count()) {
   throw new Error("Permanent Raw Data Inbox still occupies case content space");
@@ -1602,6 +1615,11 @@ await betaFeatures.waitForFunction(() => {
   const text = document.querySelector("#shiftMeta .beta-shift-pill")?.textContent || "";
   return /\d{4}/.test(text) && /(Aktív|Active)\s*:/.test(text);
 });
+for (const metricClass of ["beta-metric-cases", "beta-metric-active", "beta-metric-completed"]) {
+  if (await betaFeatures.locator("#shiftMeta ." + metricClass).count() !== 1) {
+    throw new Error("Beta shift metric color class missing: " + metricClass);
+  }
+}
 await betaFeatures.waitForFunction(() =>
   document.querySelector("#patientTbody tr[data-id]")?.classList.contains("beta-stale-case")
 );

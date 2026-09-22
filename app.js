@@ -18,6 +18,7 @@ let caseCounterLastCheckedAt = 0;
 let passwordReauthTimer = null;
 let passwordReauthCountdownInterval = null;
 let passwordReauthInProgress = false;
+let shiftDurationTimer = null;
 const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
 const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
@@ -349,6 +350,55 @@ function nowIso() {
 
 function fmtTime(iso) {
   return iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+}
+
+function formatShiftStart(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(uiLang === "hu" ? "hu-HU" : "en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function formatShiftActiveDuration(value) {
+  const start = new Date(value).getTime();
+  if (!Number.isFinite(start)) return "—";
+  const totalMinutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (uiLang === "hu") {
+    if (days) return `${days} n ${hours} ó ${minutes} p`;
+    if (hours) return `${hours} ó ${minutes} p`;
+    return `${minutes} p`;
+  }
+  if (days) return `${days} d ${hours} h ${minutes} m`;
+  if (hours) return `${hours} h ${minutes} m`;
+  return `${minutes} m`;
+}
+
+function refreshShiftDurationDisplay() {
+  const node = document.getElementById("shiftActiveDuration");
+  if (!node || !state.shift) return;
+  node.textContent = `${uiLang === "hu" ? "Aktív" : "Active"}: ${formatShiftActiveDuration(state.shift.startedAt)}`;
+}
+
+function scheduleShiftDurationRefresh() {
+  clearTimeout(shiftDurationTimer);
+  shiftDurationTimer = null;
+  if (appMode !== "normal" || !state.shift) return;
+
+  const delay = 60_000 - (Date.now() % 60_000) + 150;
+  shiftDurationTimer = window.setTimeout(() => {
+    shiftDurationTimer = null;
+    refreshShiftDurationDisplay();
+    scheduleShiftDurationRefresh();
+  }, delay);
 }
 
 function normalizeYob(value) {
@@ -1315,6 +1365,8 @@ function renderHeader() {
 
   const hu = uiLang === "hu";
   if (!state.shift) {
+    clearTimeout(shiftDurationTimer);
+    shiftDurationTimer = null;
     meta.innerHTML = `<span class="metric">${hu ? "Nincs aktív műszak" : "No active shift"}</span>`;
     actions.innerHTML =
       sessionSecurityHtml() +
@@ -1331,11 +1383,17 @@ function renderHeader() {
   const active = pts.length - completed;
 
   meta.innerHTML = `
-    <span class="shift-pill"><span class="dot"></span> ${hu ? "AKTÍV MŰSZAK" : "SHIFT ACTIVE"} • ${hu ? "Kezdés" : "Started"} ${fmtTime(state.shift.startedAt)}</span>
-    <span class="metric">${hu ? "Esetek" : "Cases"} <b>${pts.length}</b></span>
-    <span class="metric">${hu ? "Aktív" : "Active"} <b>${active}</b></span>
-    <span class="metric">${hu ? "Lezárt" : "Completed"} <b>${completed}</b></span>
+    <span class="shift-pill shift-dashboard-pill">
+      <span class="dot"></span>
+      <span class="shift-dashboard-primary">${hu ? "AKTÍV MŰSZAK" : "SHIFT ACTIVE"}</span>
+      <span class="shift-dashboard-start">${hu ? "Kezdés" : "Started"}: ${formatShiftStart(state.shift.startedAt)}</span>
+      <span class="shift-dashboard-duration" id="shiftActiveDuration">${hu ? "Aktív" : "Active"}: ${formatShiftActiveDuration(state.shift.startedAt)}</span>
+    </span>
+    <span class="metric shift-dashboard-metric shift-metric-cases">${hu ? "Esetek" : "Cases"} <b>${pts.length}</b></span>
+    <span class="metric shift-dashboard-metric shift-metric-active">${hu ? "Aktív" : "Active"} <b>${active}</b></span>
+    <span class="metric shift-dashboard-metric shift-metric-completed">${hu ? "Lezárt" : "Completed"} <b>${completed}</b></span>
   `;
+  scheduleShiftDurationRefresh();
 
   actions.innerHTML =
     sessionSecurityHtml() +

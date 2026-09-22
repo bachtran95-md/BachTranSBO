@@ -477,6 +477,20 @@ if (!noOpTimestamp.before || noOpTimestamp.after !== noOpTimestamp.before) {
   throw new Error("No-op draft commit reset updatedAt: " + JSON.stringify(noOpTimestamp));
 }
 
+const noOpMetadataTimestamp = await page.evaluate(() => {
+  const before = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.updatedAt || "";
+  const metadata = window.BachSBOClinicalUi?.getCaseMetadata?.();
+  window.BachSBOClinicalUi?.applyCaseMetadata?.(
+    document.querySelector("#patientTbody tr.selected[data-id]")?.dataset.id || "",
+    metadata || {}
+  );
+  const after = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.updatedAt || "";
+  return { before, after };
+});
+if (!noOpMetadataTimestamp.before || noOpMetadataTimestamp.after !== noOpMetadataTimestamp.before) {
+  throw new Error("No-op metadata sync reset updatedAt: " + JSON.stringify(noOpMetadataTimestamp));
+}
+
 await page.locator("#normalRawBadge:not(.hidden)").waitFor();
 if (await page.locator("#normalRawDataInbox").count()) {
   throw new Error("Permanent Raw Data Inbox still occupies case content space");
@@ -1623,6 +1637,9 @@ for (const metricClass of ["beta-metric-cases", "beta-metric-active", "beta-metr
 await betaFeatures.waitForFunction(() =>
   document.querySelector("#patientTbody tr[data-id]")?.classList.contains("beta-stale-case")
 );
+if (await betaFeatures.locator("#patientTbody tr[data-id] .beta-stale-chip").count() !== 1) {
+  throw new Error("Visible stale-case chip was not rendered inside the patient row");
+}
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
 await betaFeatures.locator("#betaStaleCaseBanner").waitFor();
 const betaStaleText = await betaFeatures.locator("#betaStaleCaseBanner").textContent();

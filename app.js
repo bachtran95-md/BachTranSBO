@@ -1624,6 +1624,19 @@ function updateStatusCell(patient) {
   cell.innerHTML = patientListStatusHtml(patient);
 }
 
+function setCaseTriageStatus(caseId, value) {
+  const patient = patientById(caseId);
+  if (!patient || isCompleted(patient)) return null;
+
+  const next = normalizeTriageStatus(value);
+  if (patient.triageStatus === next) return structuredClone(patient);
+
+  patient.triageStatus = next;
+  touchPatient(patient);
+  syncPatientRowFromState(patient);
+  return structuredClone(patient);
+}
+
 async function addPatient() {
   if (!state.shift) return;
 
@@ -1673,6 +1686,7 @@ async function addPatient() {
     mainComplaint,
     arrivalMode: "",
     arrivalOther: "",
+    triageStatus: "",
     complaint: "",
     complaintSkipped: false,
     history: "",
@@ -2332,6 +2346,11 @@ async function savePatient() {
   } catch (error) {
     handleBackendError(error);
   }
+}
+
+function normalizeTriageStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["red", "yellow", "green"].includes(normalized) ? normalized : "";
 }
 
 function normalizeDisposition(value) {
@@ -3530,6 +3549,8 @@ window.BachSBOClinicalUi = Object.freeze({
   ageFromYob,
   normalizeSex,
   normalizeArrivalMode,
+  normalizeTriageStatus,
+  setCaseTriageStatus,
   normalizeDisposition,
   renderDispositionUi,
   testEntryStatus: entryStatus,

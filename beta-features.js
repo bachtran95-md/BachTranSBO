@@ -6,7 +6,7 @@
   let templateMode = "abcde";
   let suppressedFindingKeys = new Set();
   let lastPhysicalSource = "";
-  let learnedFindingRecords = [];
+  let learnedFindingRecords = generatedFindingRecords();
   let learningOverview = { approvedLearning: 0, pendingCandidates: 0 };
   let learningRegistryLoaded = false;
   let learningRegistryPromise = null;
@@ -82,6 +82,65 @@
       .replace(/\s+/g, " ")
       .replace(/[\s.,;:]+$/g, "")
       .trim();
+  }
+
+  function generatedFindingRecords() {
+    const records = window.BACH_SBO_BETA_FINDING_REGISTRY?.records;
+    if (!Array.isArray(records)) return [];
+
+    return records
+      .map((record, index) => {
+        const sourcePhrase = String(
+          record?.sourcePhrase || record?.sample || record?.alias || ""
+        ).trim();
+        const normalizedPhrase = normalizeLearningPhrase(
+          record?.normalizedPhrase || record?.alias || sourcePhrase
+        );
+        const findingKey = String(record?.findingKey || "").trim();
+        if (!normalizedPhrase || !findingKey) return null;
+
+        return {
+          id: String(record?.id || `generated-${index + 1}`),
+          sourcePhrase,
+          normalizedPhrase,
+          mappingKind: record?.mappingKind === "new" ? "new" : "existing",
+          findingKey,
+          canonicalLabel: String(record?.canonicalLabel || "").trim(),
+          target: String(record?.target || "").trim(),
+          section: String(record?.section || "").trim(),
+          outputText: String(record?.outputText || "").trim(),
+          conflictText: String(record?.conflictText || "").trim(),
+          attributes: record?.attributes && typeof record.attributes === "object"
+            ? { ...record.attributes }
+            : {},
+          createdAt: record?.createdAt || window.BACH_SBO_BETA_FINDING_REGISTRY?.generatedAt || null,
+          source: "generated-beta-registry"
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function learningRecordSignature(record) {
+    return [
+      normalizeLearningPhrase(record?.normalizedPhrase || record?.sourcePhrase),
+      String(record?.findingKey || "").trim(),
+      record?.mappingKind === "new" ? "new" : "existing"
+    ].join("::");
+  }
+
+  function mergeFindingLearningRecords(...groups) {
+    const merged = [];
+    const seen = new Set();
+    for (const group of groups) {
+      for (const record of Array.isArray(group) ? group : []) {
+        const signature = learningRecordSignature(record);
+        if (!signature || signature.startsWith("::")) continue;
+        if (seen.has(signature)) continue;
+        seen.add(signature);
+        merged.push(record);
+      }
+    }
+    return merged;
   }
 
   function coreFindingMeta(key) {
@@ -242,7 +301,10 @@
     learningRegistryPromise = (async () => {
       try {
         const result = await window.BachSBOBackend.findingLearningLoadRegistry();
-        learnedFindingRecords = Array.isArray(result?.records) ? result.records : [];
+        learnedFindingRecords = mergeFindingLearningRecords(
+          Array.isArray(result?.records) ? result.records : [],
+          generatedFindingRecords()
+        );
         learningOverview = result?.overview || learningOverview;
         learningRegistryLoaded = true;
         syncComposer();

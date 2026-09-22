@@ -189,6 +189,32 @@ function arrivalLabel(mode: string, other: string) {
   return labels[normalized] || "";
 }
 
+const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+function structuredPhysicalStatus(patient: any) {
+  const value = patient?.physicalStatus;
+  return value && typeof value === "object" && Number(value.version) === 1
+    ? value
+    : null;
+}
+
+function positivePhysicalText(patient: any) {
+  const status = structuredPhysicalStatus(patient);
+  if (!status) return String(patient?.physical || "").trim();
+
+  const sections = status.sections && typeof status.sections === "object"
+    ? status.sections
+    : {};
+
+  return PHYSICAL_STATUS_SECTION_KEYS
+    .map((key) => {
+      const text = String(sections[key] || "").trim();
+      return text ? `${key}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 function corpusSnapshot(patient: any) {
   const age = patient?.yob
     ? new Date().getUTCFullYear() - Number(patient.yob)
@@ -226,8 +252,12 @@ function corpusSnapshot(patient: any) {
     complaint_status: patient.complaintSkipped ? "none" : "provided",
     history: patient.history || "",
     history_status: patient.historySkipped ? "none" : "provided",
-    physical_examination: patient.physical || "",
-    physical_examination_status: patient.physicalSkipped ? "none" : "provided",
+    physical_examination: positivePhysicalText(patient),
+    physical_examination_status: patient.physicalSkipped
+      ? "none"
+      : structuredPhysicalStatus(patient)?.generatedAt
+      ? "structured"
+      : "provided",
     diagnoses: patient.diagnoses || "",
     diagnoses_status: patient.diagnosesSkipped ? "none" : "provided",
     tests,
@@ -312,8 +342,9 @@ function caseRowFromPatient(
     complaint_skipped: Boolean(patient.complaintSkipped),
     history: patient.history || "",
     history_skipped: Boolean(patient.historySkipped),
-    physical_exam: patient.physical || "",
+    physical_exam: positivePhysicalText(patient),
     physical_exam_skipped: Boolean(patient.physicalSkipped),
+    physical_status_data: structuredPhysicalStatus(patient) || {},
     diagnoses: patient.diagnoses || "",
     diagnoses_skipped: Boolean(patient.diagnosesSkipped),
     others: patient.others || "",
@@ -501,7 +532,7 @@ async function finalizePatient(
     case_snapshot: snapshot,
   };
 
-  const { data: revisionId, error } = await db.rpc("finalize_case_atomic", {
+  const { data: revisionId, error } = await db.rpc("finalize_case_atomic_status", {
     p_owner_id: ownerId,
     p_case: caseRow,
     p_tests: flattenTests(patient, ownerId),

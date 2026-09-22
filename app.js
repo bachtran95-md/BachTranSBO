@@ -31,7 +31,7 @@ A sürgősségi osztályon, sürgősségi körülmények között keletkezett le
 let uiLang = "hu";
 const I18N = {
   en: {
-    casesNav:"Cases", aiLearningNav:"AI Learning", adminNav:"Admin",
+    casesNav:"Cases", notesNav:"Notes", aiLearningNav:"AI Learning", adminNav:"Admin",
     futureModules:"Future modules", analytics:"Analytics", archive:"Archive",
     integrations:"Integrations", planned:"PLANNED",
     noActiveShift:"No active shift", oneShiftOnly:"Only one shift can be active at a time.",
@@ -95,7 +95,7 @@ const I18N = {
     chooseMode:"CHOOSE MODE"
   },
   hu: {
-    casesNav:"Esetek", aiLearningNav:"AI tanulás", adminNav:"Admin",
+    casesNav:"Esetek", notesNav:"Notes", aiLearningNav:"AI tanulás", adminNav:"Admin",
     futureModules:"Tervezett modulok", analytics:"Analitika", archive:"Archívum",
     integrations:"Integrációk", planned:"TERVEZETT",
     noActiveShift:"Nincs aktív műszak", oneShiftOnly:"Egyszerre csak egy aktív műszak lehet.",
@@ -1316,6 +1316,7 @@ function renderRawTransferMode() {
   document.getElementById("rawTransferView")?.classList.remove("hidden");
   document.getElementById("noShiftView")?.classList.add("hidden");
   document.getElementById("patientsView")?.classList.add("hidden");
+  document.getElementById("notesView")?.classList.add("hidden");
   document.getElementById("aiLearningView")?.classList.add("hidden");
   document.getElementById("adminView")?.classList.add("hidden");
 
@@ -1412,18 +1413,21 @@ function renderApp() {
   document.getElementById("rawTransferView")?.classList.add("hidden");
   renderHeader();
 
+  const notes = currentView === "notes";
   const learning = currentView === "learning";
   const admin = currentView === "admin";
   const patients = currentView === "patients";
 
   document.getElementById("patientsNav").classList.toggle("active", patients);
+  document.getElementById("notesNav")?.classList.toggle("active", notes);
   document.getElementById("aiLearningNav").classList.toggle("active", learning);
   document.getElementById("adminNav").classList.toggle("active", admin);
 
+  document.getElementById("notesView")?.classList.toggle("hidden", !notes);
   document.getElementById("aiLearningView").classList.toggle("hidden", !learning);
   document.getElementById("adminView").classList.toggle("hidden", !admin);
 
-  if (learning || admin) {
+  if (notes || learning || admin) {
     document.getElementById("noShiftView").classList.add("hidden");
     document.getElementById("patientsView").classList.add("hidden");
     if (admin) renderAdminView();
@@ -3618,6 +3622,26 @@ window.BachSBOClinicalUi = Object.freeze({
   evaluateWorkflowStatus: (patient) => structuredClone(workflowStatus(patient))
 });
 
+async function copyNoteSnippet(button) {
+  const card = button?.closest?.("[data-note-card]");
+  const textarea = card?.querySelector?.("textarea");
+  const text = String(textarea?.value || "").trim();
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    flash(uiLang === "hu" ? "Jegyzet a vágólapra másolva." : "Note copied to clipboard.");
+  } catch {
+    if (textarea) {
+      textarea.focus();
+      textarea.select();
+    }
+    flash(uiLang === "hu"
+      ? "A vágólap nem érhető el; a szöveg kijelölve."
+      : "Clipboard unavailable; text selected.");
+  }
+}
+
 function flash(message) {
   const el = document.createElement("div");
 
@@ -3651,8 +3675,14 @@ document.getElementById("patientForm").addEventListener("submit", (event) => {
 document.getElementById("langEnBtn").onclick = () => { applyLanguage("en"); renderCurrentMode(); };
 document.getElementById("langHuBtn").onclick = () => { applyLanguage("hu"); renderCurrentMode(); };
 document.getElementById("patientsNav").onclick = () => setView("patients");
+if (document.getElementById("notesNav")) {
+  document.getElementById("notesNav").onclick = () => setView("notes");
+}
 document.getElementById("aiLearningNav").onclick = () => setView("learning");
 document.getElementById("adminNav").onclick = () => setView("admin");
+document.querySelectorAll("[data-copy-note]").forEach((button) => {
+  button.addEventListener("click", () => void copyNoteSnippet(button));
+});
 document.getElementById("changeAdminPasswordBtn").onclick = changeAdminPassword;
 document.getElementById("adminSignOutBtn").onclick = signOut;
 document.getElementById("refreshLearningBtn").onclick = () =>

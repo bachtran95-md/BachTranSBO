@@ -359,6 +359,10 @@
       });
     }
 
+    for (const learned of parseLearnedFindings(source)) {
+      addFinding(findings, learned);
+    }
+
     return findings;
   }
 

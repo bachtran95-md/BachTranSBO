@@ -292,6 +292,12 @@ export function clinicalTextItems(patient: any): Array<{ key: string; text: stri
   add("complaint", patient.complaint);
   add("history", patient.history);
   add("physical", patient.physical);
+  for (const sectionKey of ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"]) {
+    add(
+      `physicalStatus.sections.${sectionKey}`,
+      patient?.physicalStatus?.sections?.[sectionKey],
+    );
+  }
   add("others", patient.others);
   add("therapy", patient.therapy);
   add("course", patient.course);

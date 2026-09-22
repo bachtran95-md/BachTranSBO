@@ -1840,11 +1840,20 @@ await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
 
 // AI may populate a proposal, but it must not save anything before physician confirmation.
 await betaFeatures.locator("#betaSuggestFinding").click();
-await betaFeatures.waitForFunction(() =>
-  document.querySelector("#betaNewFindingLabel")?.value === "Pleuralis dörzszörej" &&
-  document.querySelector("#betaNewFindingTarget")?.value === "respiratory" &&
-  (document.querySelector("#betaNewFindingOutput")?.value || "").includes("pleuralis dörzszörej")
-);
+await betaFeatures.waitForFunction(() => !document.querySelector("#betaSuggestFinding")?.disabled);
+const aiFindingState = await betaFeatures.evaluate(() => ({
+  label: document.querySelector("#betaNewFindingLabel")?.value || "",
+  target: document.querySelector("#betaNewFindingTarget")?.value || "",
+  output: document.querySelector("#betaNewFindingOutput")?.value || "",
+  message: document.querySelector("#betaLearningMessage")?.textContent || ""
+}));
+if (
+  aiFindingState.label !== "Pleuralis dörzszörej" ||
+  aiFindingState.target !== "respiratory" ||
+  !aiFindingState.output.includes("pleuralis dörzszörej")
+) {
+  throw new Error("AI finding suggestion did not populate review form: " + JSON.stringify(aiFindingState));
+}
 if (!/0 tanítás/.test(await betaFeatures.locator("#betaLearningMeta").textContent())) {
   throw new Error("AI finding suggestion was persisted without physician confirmation");
 }

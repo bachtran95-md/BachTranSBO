@@ -33,10 +33,17 @@
       .trim();
   }
 
-  function hasNegationNear(text, index, radius = 34) {
-    const start = Math.max(0, index - radius);
-    const end = Math.min(text.length, index + radius);
-    return /\b(nincs|nem|negat[ií]v|n\.v\.)\b/.test(text.slice(start, end));
+  function clauseAt(text, index) {
+    const separators = /[.;,\n]/;
+    let start = index;
+    let end = index;
+    while (start > 0 && !separators.test(text[start - 1])) start -= 1;
+    while (end < text.length && !separators.test(text[end])) end += 1;
+    return text.slice(start, end);
+  }
+
+  function hasNegationNear(text, index) {
+    return /\b(nincs|nem|negat[ií]v|n\.v\.)\b/.test(clauseAt(text, index));
   }
 
   function locationFor(text, index) {

@@ -153,6 +153,7 @@
     const copy = root.querySelector("#betaStructuredStatusCopy");
 
     done?.classList.toggle("hidden", !ready);
+    root.classList.toggle("is-generated", ready);
     if (!ready) preview?.classList.add("hidden");
     if (view) view.disabled = !ready;
     if (copy) copy.disabled = !ready;
@@ -227,6 +228,7 @@
           <div class="beta-structured-status-done-head">
             <strong>✓ Státusz elkészült</strong>
             <div>
+              <button type="button" class="btn small" id="betaStructuredStatusEdit">SZERKESZTÉS</button>
               <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
               <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
             </div>
@@ -275,6 +277,11 @@
         }
       });
 
+      root.querySelector("#betaStructuredStatusEdit")?.addEventListener("click", () => {
+        root.classList.remove("is-generated");
+        root.querySelector("[data-status-param]")?.focus();
+      });
+
       root.querySelector("#betaStructuredStatusView")?.addEventListener("click", () => {
         const preview = root.querySelector("#betaStructuredStatusPreview");
         if (!preview) return;
@@ -307,7 +314,35 @@
       });
     }
 
+    placeStructuredStatusUi(root);
     return root;
+  }
+
+  function placeStructuredStatusUi(root) {
+    if (!root) return;
+
+    const panel = document.querySelector('[data-cockpit-panel="tests"]');
+    if (!panel) return;
+
+    const anchor =
+      panel.querySelector("#cockpitInvestigationsHeader") ||
+      panel.querySelector(".test-group-toolbar");
+
+    if (anchor) {
+      if (root.nextElementSibling !== anchor) {
+        anchor.insertAdjacentElement("beforebegin", root);
+      }
+    } else if (root.parentElement !== panel) {
+      panel.prepend(root);
+    }
+
+    // Keep Finding Learning visible directly below STATUS. It still reads the
+    // hidden fPhysical compatibility bridge, but no longer lives in the hidden
+    // legacy physical wrapper.
+    const composer = document.getElementById("betaFindingComposer");
+    if (composer && composer.previousElementSibling !== root) {
+      root.insertAdjacentElement("afterend", composer);
+    }
   }
 
   function ensureEkgBuilder() {

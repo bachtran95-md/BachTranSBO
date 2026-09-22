@@ -1805,7 +1805,8 @@ if (abcdePreview.includes("Zörejek: nincs.")) {
 // Real-world shorthand coverage: abdominal tenderness + tachyarrhythmia + murmur + bilateral congestion.
 await betaFeatures.locator("#fPhysical").fill("Hasa érzékeny. Tachyarritmiás szívritmus, 6/5ös systolés zörej. Mko. tüdő fölött pangás hallható.");
 await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4
+  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4 &&
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
 );
 const realWorldChips = await betaFeatures.locator("#betaFindingComposer .beta-finding-chip").allTextContents();
 for (const expected of [

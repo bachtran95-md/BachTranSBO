@@ -33,7 +33,6 @@ jobs:
           node --check beta-finding-registry.generated.js
           node --check beta-features.js
           node --check beta-status-module.js
-          node --check beta-status-module.js
 
       - name: Check security invariants
         run: |
@@ -101,7 +100,7 @@ jobs:
             echo "beta.html must load the generated finding registry."
             exit 1
           fi
-          if grep -q 'beta-features.js\|beta-features.css\|beta-finding-registry.generated.js' index.html; then
+          if grep -q 'beta-features.js\|beta-features.css\|beta-finding-registry.generated.js\|beta-status-module.js' index.html; then
             echo "Production index.html must not load beta-only feature assets."
             exit 1
           fi

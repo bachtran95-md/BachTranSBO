@@ -537,7 +537,7 @@ if (!afterDelete.includes("Existing smoke case")) {
   throw new Error("Existing case was lost during smoke flow");
 }
 
-// Prepare three meaningful pending investigations for Beta Case-list coverage.
+// Prepare three meaningful pending investigations for Stable Case-list coverage.
 await page.evaluate(() => {
   const key = "__bach_sbo_e2e_state";
   const state = JSON.parse(localStorage.getItem(key) || "{}");
@@ -581,7 +581,7 @@ if (await beta.locator("#chooseNormalMode").count()) {
 await beta.locator("#patientsView:not(.hidden)").waitFor();
 await beta.waitForFunction(() => document.body.classList.contains("cockpit-ui"));
 if (await beta.locator("#patientTbody tr[data-id]").count() !== 1) {
-  throw new Error("Beta did not restore the expected case state");
+  throw new Error("Stable cockpit did not restore the expected case state");
 }
 
 await beta.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
@@ -605,13 +605,13 @@ if (/\+\d+/.test(pendingSummary)) {
   throw new Error(`Case list still truncates waiting tests with +N: ${pendingSummary}`);
 }
 
-// Beta case tabs must be five distinct workflow steps in the requested order.
+// Stable case tabs must be five distinct workflow steps in the requested order.
 const tabOrder = await beta.locator("#cockpitCaseTabs [data-cockpit-tab]").evaluateAll((nodes) =>
   nodes.map((node) => node.dataset.cockpitTab)
 );
 const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary"];
 if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
-  throw new Error(`Unexpected Beta tab order: ${JSON.stringify(tabOrder)}`);
+  throw new Error(`Unexpected Stable tab order: ${JSON.stringify(tabOrder)}`);
 }
 if (await beta.locator("#cockpitSummaryTitle").count()) {
   throw new Error("Right-side Summary card still exists");
@@ -629,7 +629,7 @@ if (await beta.locator('[data-cockpit-tab="summary"].has-summary-gap').count()) 
 
 // Klinikum demographics must be native-visible markup, not a late dynamic insertion.
 if (await beta.locator("#cockpitDemographicsMount > #inlineCaseEditor").count() !== 1) {
-  throw new Error("Klinikum demographics editor is not mounted in the Beta clinical section");
+  throw new Error("Klinikum demographics editor is not mounted in the Stable clinical section");
 }
 
 // Klinikum demographics must stay visible and editable.
@@ -1029,11 +1029,11 @@ await beta.locator("#fDischargeCondition").blur();
 await beta.waitForTimeout(220);
 
 // Regression from the uploaded recording: typing into a result must not remove
-// Beta's compact test-row class and temporarily expand the card.
+// Stable cockpit's compact test-row class and temporarily expand the card.
 await beta.locator('[data-cockpit-tab="tests"]').click();
 await beta.locator('[data-card="ekg-0"].cockpit-test-row').waitFor();
 if (await beta.locator('[data-card="ekg-0"] .test-save').isVisible()) {
-  throw new Error("Beta still shows the redundant Save Result button");
+  throw new Error("Stable cockpit still shows the redundant Save Result button");
 }
 await beta.locator('[data-card="ekg-0"] textarea[data-text="ekg-0"]').fill("temporary EKG text");
 await beta.waitForFunction(() =>
@@ -1197,7 +1197,7 @@ await beta.waitForTimeout(80);
 const blockedCaseRowHeight = await caseRow.evaluate((node) => node.getBoundingClientRect().height);
 if (Math.abs(blockedCaseRowHeight - initialCaseRowHeight) > 1.5 || blockedCaseRowHeight > 56) {
   throw new Error(
-    `Beta Case list row resized with unresolved items: ${initialCaseRowHeight} -> ${blockedCaseRowHeight}`
+    `Stable Case list row resized with unresolved items: ${initialCaseRowHeight} -> ${blockedCaseRowHeight}`
   );
 }
 // Restore the seeded "none" state for the remainder of the smoke flow.

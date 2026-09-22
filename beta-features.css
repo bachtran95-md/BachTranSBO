@@ -292,3 +292,29 @@ body.beta-build .beta-learning-message{
     width:100%;
   }
 }
+
+body.beta-build .beta-learning-editor-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:7px;
+}
+body.beta-build .beta-learning-editor-head .beta-learning-phrase{
+  flex:1 1 auto;
+  min-width:0;
+  margin-bottom:0;
+}
+body.beta-build #betaSuggestFinding{
+  flex:0 0 auto;
+  min-height:29px;
+  font-size:9px!important;
+}
+@media (max-width:760px){
+  body.beta-build .beta-learning-editor-head{
+    flex-direction:column;
+  }
+  body.beta-build #betaSuggestFinding{
+    width:100%;
+  }
+}

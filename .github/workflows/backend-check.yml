@@ -30,6 +30,7 @@ jobs:
           node --check case-ui.js
           node --check cockpit.js
           node --check cockpit-beta.js
+          node --check beta-features.js
 
       - name: Check security invariants
         run: |
@@ -83,6 +84,14 @@ jobs:
           fi
           if ! grep -q 'cockpit-beta.js' beta.html; then
             echo "beta.html must load cockpit-beta.js."
+            exit 1
+          fi
+          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html; then
+            echo "beta.html must load beta-only feature assets."
+            exit 1
+          fi
+          if grep -q 'beta-features.js\|beta-features.css' index.html; then
+            echo "Production index.html must not load beta-only feature assets."
             exit 1
           fi
           if ! grep -q 'cockpit-beta.js' index.html; then

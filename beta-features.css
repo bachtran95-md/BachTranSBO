@@ -615,14 +615,6 @@ body.beta-build .beta-structured-status-error{
   font-size:10px;
   font-weight:750;
 }
-body.beta-build .beta-structured-status.is-generated .beta-status-block-head,
-body.beta-build .beta-structured-status.is-generated .beta-status-parameters,
-body.beta-build .beta-structured-status.is-generated .beta-status-positive-head,
-body.beta-build .beta-structured-status.is-generated .beta-status-positive-grid,
-body.beta-build .beta-structured-status.is-generated .beta-structured-status-actions,
-body.beta-build .beta-structured-status.is-generated .beta-structured-status-error{
-  display:none!important;
-}
 body.beta-build .beta-structured-status-done{
   padding:10px 12px;
   border-top:1px solid #bbf7d0;

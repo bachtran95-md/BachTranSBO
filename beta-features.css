@@ -108,56 +108,6 @@ body.beta-build.cockpit-ui .beta-metric-completed{
 }
 body.beta-build.cockpit-ui .beta-metric-completed b{color:#475569}
 
-body.beta-build.cockpit-ui #patientTbody tr.beta-stale-case{
-  background:#fffafa;
-}
-body.beta-build.cockpit-ui .beta-stale-chip{
-  margin-left:6px;
-  min-width:48px;
-  height:21px;
-  padding:0 6px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid #fda29b;
-  border-radius:999px;
-  background:#fef3f2;
-  color:#b42318;
-  font-size:10px;
-  line-height:1;
-  font-weight:900;
-  white-space:nowrap;
-  box-shadow:0 1px 2px rgba(16,24,40,.05);
-}
-
-.beta-stale-case-banner{
-  margin:8px 10px 0;
-  padding:9px 11px;
-  display:flex;
-  align-items:center;
-  gap:9px;
-  border:1px solid #fda29b;
-  border-radius:9px;
-  background:#fef3f2;
-  color:#b42318;
-}
-.beta-stale-case-banner .beta-stale-icon{
-  flex:0 0 auto;
-  font-size:21px;
-  line-height:1;
-}
-.beta-stale-case-banner strong{
-  display:block;
-  font-size:12px;
-  line-height:1.25;
-}
-.beta-stale-case-banner small{
-  display:block;
-  margin-top:2px;
-  color:#912018;
-  font-size:10px;
-}
-
 @media (max-width:1180px){
   body.beta-build.cockpit-ui .beta-shift-start{display:none}
   body.beta-build.cockpit-ui .beta-shift-pill{
@@ -178,8 +128,5 @@ body.beta-build.cockpit-ui .beta-stale-chip{
   body.beta-build.cockpit-ui .beta-shift-pill,
   body.beta-build.cockpit-ui .beta-shift-metric{
     flex:0 0 auto;
-  }
-  .beta-stale-case-banner{
-    margin:7px 8px 0;
   }
 }

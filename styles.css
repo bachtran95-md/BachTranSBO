@@ -2790,10 +2790,12 @@ body.cockpit-ui .shift-metric-completed{
 body.cockpit-ui .shift-metric-completed b{color:#475569}
 
 body.cockpit-ui #recordHeader .record-patient-heading{
-  overflow:visible;
+  overflow:hidden;
+  gap:8px;
 }
 body.cockpit-ui #recordHeader #recordSubtitle{
-  flex:0 1 auto;
+  flex:1 1 auto;
+  min-width:80px;
 }
 body.cockpit-ui .case-triage-control{
   flex:0 0 auto;

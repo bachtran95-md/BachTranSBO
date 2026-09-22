@@ -7,6 +7,10 @@ Personal emergency-department command center for one active shift at a time, wit
 ## Current architecture
 
 - Frontend: standalone HTML/CSS/JavaScript served by GitHub Pages.
+- Stable entrypoint: `index.html` + production `cockpit.js`.
+- Experimental entrypoint: `beta.html`, which reuses the production cockpit and adds isolated `beta-features.js/css`.
+- Recovery entrypoint: `recovery.html`, the single pre-cockpit fallback UI.
+- `cockpit-beta.js` is compatibility-only for stale browser caches; it must not contain production UI logic.
 - Backend foundation: Supabase Auth + PostgreSQL + Row Level Security.
 - Persistence: shifts, cases, test entries, summaries, and finalized-summary revisions.
 - Authentication: single-owner Supabase email/password login with in-app password change.
@@ -79,8 +83,12 @@ Raw identifiers must not be stored as a separate lookup table or training datase
 
 ```text
 index.html
+beta.html
+recovery.html
 styles.css
 app.js
+case-ui.js
+cockpit.js
 backend.js
 config.js
 

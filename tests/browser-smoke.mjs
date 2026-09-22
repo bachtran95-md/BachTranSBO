@@ -1874,6 +1874,33 @@ if (ekgStateAfter !== ekgStateBefore) {
   throw new Error("Local-only EKG helper mutated persisted EKG test state");
 }
 
+// Reload regression: structured STATUS survives; EKG helper resets because it
+// is intentionally copy-only and never part of patient persistence.
+await betaFeatures.reload({ waitUntil: "domcontentloaded" });
+if (await betaFeatures.locator("#authPassword").count()) {
+  await betaFeatures.locator("#authPassword").fill("smoke-test-password");
+  await betaFeatures.locator("#passwordSignIn").click();
+}
+if (await betaFeatures.locator("#chooseNormalMode").count()) {
+  await betaFeatures.locator("#chooseNormalMode").click();
+}
+await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
+await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
+await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
+await betaFeatures.locator("#betaStructuredStatus").waitFor();
+await betaFeatures.waitForFunction(() =>
+  document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated")
+);
+if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80") {
+  throw new Error("Structured STATUS blood pressure did not survive reload");
+}
+if ((await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
+  throw new Error("Structured STATUS positive E5 finding did not survive reload");
+}
+if ((await betaFeatures.locator("#betaEkgFr").inputValue()) !== "") {
+  throw new Error("Local-only EKG helper incorrectly survived reload");
+}
+
 // Beta-only physical finding composer: deterministic local parsing only.
 // fPhysical is now an intentionally hidden compatibility bridge behind the
 // structured STATUS UI, so parser regression coverage writes to it directly.

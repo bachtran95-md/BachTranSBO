@@ -1616,6 +1616,8 @@ await beta.evaluate(() => {
   if (!p) throw new Error("Missing smoke patient before beta shell gate");
   p.summaryFinalizedAt = null;
   p.summaryFinalizedText = "";
+  p.physical = "";
+  p.physicalSkipped = false;
   localStorage.setItem(key, JSON.stringify(state));
 });
 

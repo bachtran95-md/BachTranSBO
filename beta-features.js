@@ -71,7 +71,7 @@
       addFinding(findings, { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", group: "abdomen" });
     }
 
-    const abdomenTender = text.search(/(?:has|abd)[^.;,]{0,32}(nyom[aá]s?[ée]rz|nyom[ée]rz|[ée]rz[ée]keny)/);
+    const abdomenTender = text.search(/(?:\bhas(?:a|i)?\b|\babd(?:omen)?\b)[^.;,\n]{0,40}(nyom[aá]s?[ée]rz|nyom[ée]rz|[ée]rz[ée]keny|f[aá]jdalmas)/);
     if (abdomenTender >= 0 && !hasNegationNear(text, abdomenTender) && epig < 0) {
       addFinding(findings, { key: "abdomen-tender", label: "Hasi nyomásérzékenység", group: "abdomen" });
     }
@@ -116,6 +116,24 @@
       });
     }
 
+    const congestion = text.search(/pang[aá]s/);
+    if (congestion >= 0 && !hasNegationNear(text, congestion)) {
+      const clause = clauseAt(text, congestion);
+      const location = /\bmko\.?\b|mindk[eé]t\s+oldal/.test(clause)
+        ? "mko."
+        : /\bjobb\b/.test(clause)
+          ? "jobb oldalon"
+          : /\bbal\b/.test(clause)
+            ? "bal oldalon"
+            : "";
+      addFinding(findings, {
+        key: "pulmonary-congestion",
+        label: location ? `${location} tüdő felett pangás` : "Pulmonalis pangás",
+        group: "respiratory",
+        location
+      });
+    }
+
     const edema = text.search(/[oö]d[eé]ma|oedema/);
     if (edema >= 0) {
       if (hasNegationNear(text, edema)) {
@@ -125,12 +143,31 @@
       }
     }
 
-    const irregular = text.search(/arrhyth|aritmi|irregular|szab[aá]lytalan/);
-    if (irregular >= 0 && !hasNegationNear(text, irregular)) {
+    const tachyarrhythmia = text.search(/tachy\s*arr?itmi|tachy\s*arrhyth/);
+    if (tachyarrhythmia >= 0 && !hasNegationNear(text, tachyarrhythmia)) {
+      addFinding(findings, { key: "tachyarrhythmia", label: "Tachyarrhythmiás szívritmus", group: "circulation" });
+    }
+
+    const murmurMatch = text.match(/(?:([1-6]\s*\/\s*[1-6])(?:-?(?:es|ös|as|os))?\s*)?(?:systol[eé]s|szisztol[eé]s)\s+z[oö]rej/);
+    if (murmurMatch) {
+      const index = murmurMatch.index ?? text.indexOf(murmurMatch[0]);
+      if (!hasNegationNear(text, index)) {
+        const grade = String(murmurMatch[1] || "").replace(/\s+/g, "");
+        addFinding(findings, {
+          key: "systolic-murmur",
+          label: grade ? `${grade} systolés zörej` : "Systolés zörej",
+          group: "circulation",
+          grade
+        });
+      }
+    }
+
+    const irregular = text.search(/arrhyth|arr?itmi|irregular|szab[aá]lytalan/);
+    if (tachyarrhythmia < 0 && irregular >= 0 && !hasNegationNear(text, irregular)) {
       addFinding(findings, { key: "irregular", label: "Szabálytalan szívritmus", group: "circulation" });
     }
     const tachy = text.search(/tachycard|tachykard|szapora\s+sz[ií]v/);
-    if (tachy >= 0 && !hasNegationNear(text, tachy)) {
+    if (tachyarrhythmia < 0 && tachy >= 0 && !hasNegationNear(text, tachy)) {
       addFinding(findings, { key: "tachycardia", label: "Tachycardia", group: "circulation" });
     }
     const brady = text.search(/bradycard|bradykard/);
@@ -186,14 +223,27 @@
       const loc = map.get("wheeze").location;
       respiratory.push(`${loc ? loc + " " : ""}sípoló légzési hang hallható.`);
     }
+    if (map.has("pulmonary-congestion")) {
+      const loc = map.get("pulmonary-congestion").location;
+      respiratory.push(`${loc ? loc + " " : ""}tüdő felett pangás hallható.`);
+    }
     if (respiratory.length) {
       pulmo = "Pulmo: puha sejtes alaplégzés. " + respiratory.join(" ");
     }
 
     let heart = STANDARD_BASE.heart;
-    if (map.has("irregular")) heart = heart.replace("ritmusos", "arrhythmiás");
-    if (map.has("tachycardia")) heart = heart.replace("Szívhangok:", "Szívhangok: tachycard,");
-    if (map.has("bradycardia")) heart = heart.replace("Szívhangok:", "Szívhangok: bradycard,");
+    if (map.has("tachyarrhythmia")) {
+      heart = "Szívhangok: tachyarrhythmiásak.";
+    } else {
+      if (map.has("irregular")) heart = heart.replace("ritmusos", "arrhythmiás");
+      if (map.has("tachycardia")) heart = heart.replace("Szívhangok:", "Szívhangok: tachycard,");
+      if (map.has("bradycardia")) heart = heart.replace("Szívhangok:", "Szívhangok: bradycard,");
+    }
+    if (map.has("systolic-murmur")) {
+      const grade = map.get("systolic-murmur").grade;
+      heart = heart.replace(/(?:,?\s*tiszta\.?|zörej nem hallható\.?)/g, "").trim();
+      heart += ` ${grade ? grade + " " : ""}systolés zörej hallható.`;
+    }
     if (map.has("edema")) heart += " Perifériás ödéma észlelhető.";
 
     let abdomen = STANDARD_BASE.abdomen;
@@ -227,12 +277,25 @@
       const loc = map.get("wheeze").location;
       noises.push(`${loc ? loc + " " : ""}sípoló légzési hang hallható`);
     }
+    if (map.has("pulmonary-congestion")) {
+      const loc = map.get("pulmonary-congestion").location;
+      noises.push(`${loc ? loc + " " : ""}tüdő felett pangás hallható`);
+    }
     const bNoises = noises.length ? `Zörejek: ${noises.join(", ")}.` : "Zörejek: nincs.";
 
     let cHeart = "Szívhangok: ritmusos, tiszta, zörej nem hallható.";
-    if (map.has("irregular")) cHeart = "Szívhangok: arrhythmiásak, tiszták, zörej nem hallható.";
-    if (map.has("tachycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: tachycard,");
-    if (map.has("bradycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: bradycard,");
+    if (map.has("tachyarrhythmia")) {
+      cHeart = "Szívhangok: tachyarrhythmiásak.";
+    } else {
+      if (map.has("irregular")) cHeart = "Szívhangok: arrhythmiásak, tiszták, zörej nem hallható.";
+      if (map.has("tachycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: tachycard,");
+      if (map.has("bradycardia")) cHeart = cHeart.replace("Szívhangok:", "Szívhangok: bradycard,");
+    }
+    if (map.has("systolic-murmur")) {
+      const grade = map.get("systolic-murmur").grade;
+      cHeart = cHeart.replace(/(?:,?\s*tiszt[aá]k?\.?|zörej nem hallható\.?)/g, "").trim();
+      cHeart += ` ${grade ? grade + " " : ""}systolés zörej hallható.`;
+    }
     const cEdema = map.has("edema") ? " Perifériás ödéma észlelhető." : "";
 
     const gcs = map.has("gcs") ? map.get("gcs").value : 15;

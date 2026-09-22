@@ -1784,8 +1784,16 @@ if (await betaFeatures.locator("#betaTriageControl").count()) {
 }
 
 // Beta-only physical finding composer: deterministic local parsing only.
+// fPhysical is now an intentionally hidden compatibility bridge behind the
+// structured STATUS UI, so parser regression coverage writes to it directly.
 await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
-await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+const fillBetaPhysicalBridge = async (value) => {
+  await betaFeatures.locator("#fPhysical").evaluate((element, text) => {
+    element.value = text;
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  }, value);
+};
+await fillBetaPhysicalBridge("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 3 &&
   !(document.querySelector("#betaCopyStatus")?.disabled)
@@ -1806,7 +1814,7 @@ if (abcdePreview.includes("Zörejek: nincs.")) {
 }
 
 // Real-world shorthand coverage: abdominal tenderness + tachyarrhythmia + murmur + bilateral congestion.
-await betaFeatures.locator("#fPhysical").fill("Hasa érzékeny. Tachyarritmiás szívritmus, 6/5ös systolés zörej. Mko. tüdő fölött pangás hallható.");
+await fillBetaPhysicalBridge("Hasa érzékeny. Tachyarritmiás szívritmus, 6/5ös systolés zörej. Mko. tüdő fölött pangás hallható.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
@@ -1835,7 +1843,7 @@ for (const expected of [
 }
 
 // Every line must be reviewed independently: a known first line must not hide an unknown second line.
-await betaFeatures.locator("#fPhysical").fill("Hasa érzékeny.\nBal oldalon pleuralis dörzszörej hallható.");
+await fillBetaPhysicalBridge("Hasa érzékeny.\nBal oldalon pleuralis dörzszörej hallható.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
@@ -1886,7 +1894,7 @@ if (!learnedPreview.includes("Bal oldalon pleuralis dörzszörej hallható.")) {
 }
 
 // Existing-finding teaching must preserve structured attributes such as murmur grade.
-await betaFeatures.locator("#fPhysical").fill("Durva syst. zörej 4/6.");
+await fillBetaPhysicalBridge("Durva syst. zörej 4/6.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1
 );
@@ -1913,7 +1921,7 @@ if (await betaFeatures.locator("#betaUndoLearning").isHidden()) {
 }
 
 // Restore the earlier fixture for chip suppression coverage.
-await betaFeatures.locator("#fPhysical").fill("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+await fillBetaPhysicalBridge("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
 await betaFeatures.waitForFunction(() =>
   document.querySelector('[data-finding-key="crackles"]')
 );
@@ -1926,7 +1934,7 @@ await betaFeatures.waitForFunction(() =>
 );
 
 // Standard template uses the same reviewed finding set.
-await betaFeatures.locator('[data-status-mode="standard"]').click();
+await betaFeatures.locator('[data-status-mode="standard"]').evaluate((button) => button.click());
 await betaFeatures.waitForFunction(() =>
   (document.querySelector("#betaStatusPreview")?.value || "").startsWith("Kp táplált.")
 );
@@ -1949,6 +1957,81 @@ if (
   composerPersistenceCheck.generatedLeaked
 ) {
   throw new Error("Generated beta status leaked into patient state: " + JSON.stringify(composerPersistenceCheck));
+}
+
+// Structured STATUS v1: Parameters + positive findings persist; generated full
+// normal-status prose remains copy-only and must not leak into patient state.
+await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
+await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
+await betaFeatures.locator('[data-status-section="B"]').fill("jobb basalis crepitatio");
+await betaFeatures.locator('[data-status-section="E5"]').fill("epig nyomérz");
+await betaFeatures.locator("#betaGenerateStructuredStatus").click();
+await betaFeatures.locator("#betaStructuredStatusDone:not(.hidden)").waitFor();
+
+const structuredPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
+for (const expected of [
+  "Paraméterek: vérnyomás 135/80 Hgmm, pulsus 88/perc.",
+  "B:",
+  "jobb basalis crepitatio hallható",
+  "E1 – Általános állapot:",
+  "E5 – Has:",
+  "epigastriumban nyomásérzékeny",
+  "E6 – Vese / urogenitalis:"
+]) {
+  if (!structuredPreview.includes(expected)) {
+    throw new Error("Structured STATUS preview missing: " + expected + "\n" + structuredPreview);
+  }
+}
+
+const structuredPersistence = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const serialized = JSON.stringify(patient || {});
+  return {
+    status: patient?.physicalStatus || null,
+    physical: patient?.physical || "",
+    generatedFullStatusLeaked:
+      serialized.includes("Légutak átjárhatók") ||
+      serialized.includes("E1 – Általános állapot:")
+  };
+});
+if (
+  structuredPersistence.status?.version !== 1 ||
+  structuredPersistence.status?.parameters?.bloodPressure !== "135/80" ||
+  structuredPersistence.status?.parameters?.pulse !== "88" ||
+  structuredPersistence.status?.sections?.B !== "jobb basalis crepitatio" ||
+  structuredPersistence.status?.sections?.E5 !== "epig nyomérz" ||
+  !structuredPersistence.status?.generatedAt ||
+  structuredPersistence.physical !== "B: jobb basalis crepitatio\nE5: epig nyomérz" ||
+  structuredPersistence.generatedFullStatusLeaked
+) {
+  throw new Error("Structured STATUS persistence contract failed: " + JSON.stringify(structuredPersistence));
+}
+
+// EKG quick template is deliberately local/copy-only and must never touch the case.
+await betaFeatures.locator("#betaEkgTemplate").selectOption("detailed");
+await betaFeatures.locator("#betaEkgFr").fill("70");
+await betaFeatures.locator("#betaEkgPq").fill("160");
+await betaFeatures.locator("#betaEkgQrs").fill("90");
+await betaFeatures.locator("#betaEkgQtc").fill("420");
+await betaFeatures.locator("#betaEkgTransition").fill("V3–V4");
+const ekgQuickText = await betaFeatures.locator("#betaEkgOutput").inputValue();
+for (const expected of [
+  "EKG: SR, fr: 70/min",
+  "PQ: 160 ms",
+  "QRS: 90 ms",
+  "QTc: 420 ms",
+  "Mellkasi átm: V3–V4"
+]) {
+  if (!ekgQuickText.includes(expected)) {
+    throw new Error("Local EKG helper missing: " + expected + " -> " + ekgQuickText);
+  }
+}
+const ekgDidNotPersist = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return !JSON.stringify(patient || {}).includes("EKG: SR, fr: 70/min");
+});
+if (!ekgDidNotPersist) {
+  throw new Error("Local EKG quick template leaked into patient state");
 }
 
 await betaFeatures.close();

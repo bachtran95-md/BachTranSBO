@@ -65,6 +65,22 @@ jobs:
             echo "cockpit-beta.js must not use DOM mutation observers."
             exit 1
           fi
+          if grep -E -q 'MutationObserver|setInterval\(' case-ui.js; then
+            echo "case-ui.js must use explicit render/input events, not DOM observers or polling."
+            exit 1
+          fi
+          if grep -q 'setInterval(' cockpit-beta.js; then
+            echo "cockpit-beta.js must use explicit render/input events, not polling."
+            exit 1
+          fi
+          if ! grep -q 'bachsbo:ui-rendered' app.js; then
+            echo "app.js must emit the explicit UI render event."
+            exit 1
+          fi
+          if ! grep -q 'bachsbo:ui-rendered' case-ui.js || ! grep -q 'bachsbo:ui-rendered' cockpit-beta.js; then
+            echo "UI adapters must subscribe to the explicit app render event."
+            exit 1
+          fi
           if ! grep -q 'cockpit-beta.js' beta.html; then
             echo "beta.html must load cockpit-beta.js."
             exit 1

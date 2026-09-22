@@ -832,7 +832,7 @@
       if (!window.BachSBOBackend?.caseAssistantExtract) {
         throw new Error(label("Case Assistant extraction bridge is unavailable.", "A Case Assistant szövegkinyerő kapcsolat nem érhető el."));
       }
-      // A mixed/stale browser cache can load cockpit-beta.js without the matching
+      // A mixed/stale browser cache can load the legacy compatibility shim without the matching
       // assistant-core.js. Recover the local validation module before spending an
       // extraction request, while still failing closed if the module cannot load.
       const assistantCore = await ensureAssistantCore();

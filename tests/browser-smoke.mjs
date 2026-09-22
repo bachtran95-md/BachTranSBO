@@ -465,6 +465,35 @@ await page.locator("#chooseNormalMode").click();
 await page.locator("#patientsView:not(.hidden)").waitFor();
 await page.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
 
+// Promoted Stable header: dated shift start, live active duration, and light status counters.
+await page.waitForFunction(() => {
+  const text = document.querySelector("#shiftMeta .shift-dashboard-pill")?.textContent || "";
+  return /\d{4}/.test(text) && /(Aktív|Active)\s*:/.test(text);
+});
+for (const metricClass of ["shift-metric-cases", "shift-metric-active", "shift-metric-completed"]) {
+  if (await page.locator("#shiftMeta ." + metricClass).count() !== 1) {
+    throw new Error("Stable shift metric class missing: " + metricClass);
+  }
+}
+
+// Manual triage is Stable workflow metadata: it persists and changes only the case-list border.
+await page.locator("#caseTriageControl").waitFor();
+if (await page.locator('#caseTriageControl [data-case-triage]').count() !== 3) {
+  throw new Error("Stable case triage must expose exactly red/yellow/green choices");
+}
+await page.locator('#caseTriageControl [data-case-triage="yellow"]').click();
+await page.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return p?.triageStatus === "yellow" && row?.classList.contains("triage-yellow");
+});
+const stablePersistedTriage = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}")?.patients?.[0]?.triageStatus || ""
+);
+if (stablePersistedTriage !== "yellow") {
+  throw new Error("Stable case triage did not persist: " + stablePersistedTriage);
+}
+
 await page.locator("#normalRawBadge:not(.hidden)").waitFor();
 if (await page.locator("#normalRawDataInbox").count()) {
   throw new Error("Permanent Raw Data Inbox still occupies case content space");
@@ -542,6 +571,14 @@ if (afterDelete.includes("E2E synthetic complaint")) {
 if (!afterDelete.includes("Existing smoke case")) {
   throw new Error("Existing case was lost during smoke flow");
 }
+await page.locator("#patientTbody tr[data-id]", { hasText: "Existing smoke case" }).click();
+await page.waitForFunction(() => {
+  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const row = document.querySelector("#patientTbody tr.selected[data-id]");
+  return p?.triageStatus === "yellow" &&
+    row?.classList.contains("triage-yellow") &&
+    document.querySelector('#caseTriageControl [data-case-triage="yellow"]')?.getAttribute("aria-pressed") === "true";
+});
 
 // Prepare three meaningful pending investigations for Stable Case-list coverage.
 await page.evaluate(() => {
@@ -1570,13 +1607,13 @@ if (!finalizedState.finalizedAt || finalizedState.finalizedText !== "Mock summar
   throw new Error("Finalize did not persist the generated summary: " + JSON.stringify(finalizedState));
 }
 
-// Beta-only feature gate: beta.html must stay isolated from Stable while adding
-// shift readability and manual case triage.
+// Beta remains an isolated experiment entrypoint. Promoted features come from
+// Stable production assets; the beta-only layer adds only the BETA identity.
 await beta.evaluate(() => {
   const key = "__bach_sbo_e2e_state";
   const state = JSON.parse(localStorage.getItem(key) || "{}");
   const p = state?.patients?.[0];
-  if (!p) throw new Error("Missing smoke patient before beta feature gate");
+  if (!p) throw new Error("Missing smoke patient before beta shell gate");
   p.summaryFinalizedAt = null;
   p.summaryFinalizedText = "";
   localStorage.setItem(key, JSON.stringify(state));
@@ -1599,45 +1636,19 @@ await betaFeatures.waitForFunction(() =>
 );
 await betaFeatures.locator(".beta-build-badge").waitFor();
 await betaFeatures.waitForFunction(() => {
-  const text = document.querySelector("#shiftMeta .beta-shift-pill")?.textContent || "";
+  const text = document.querySelector("#shiftMeta .shift-dashboard-pill")?.textContent || "";
   return /\d{4}/.test(text) && /(Aktív|Active)\s*:/.test(text);
 });
-for (const metricClass of ["beta-metric-cases", "beta-metric-active", "beta-metric-completed"]) {
+for (const metricClass of ["shift-metric-cases", "shift-metric-active", "shift-metric-completed"]) {
   if (await betaFeatures.locator("#shiftMeta ." + metricClass).count() !== 1) {
-    throw new Error("Beta shift metric color class missing: " + metricClass);
+    throw new Error("Beta shell is not tracking Stable shift metric: " + metricClass);
   }
 }
-
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
-await betaFeatures.locator("#betaTriageControl").waitFor();
-if (await betaFeatures.locator('#betaTriageControl [data-beta-triage]').count() !== 3) {
-  throw new Error("Beta case triage must expose exactly red/yellow/green choices");
+await betaFeatures.locator("#caseTriageControl").waitFor();
+if (await betaFeatures.locator("#betaTriageControl").count()) {
+  throw new Error("Promoted triage is still duplicated in the beta-only layer");
 }
-await betaFeatures.locator('#betaTriageControl [data-beta-triage="red"]').click();
-await betaFeatures.waitForFunction(() => {
-  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const row = document.querySelector("#patientTbody tr.selected[data-id]");
-  return p?.triageStatus === "red" && row?.classList.contains("beta-triage-red");
-});
-await betaFeatures.waitForTimeout(80);
-const persistedTriage = await betaFeatures.evaluate(() =>
-  JSON.parse(localStorage.getItem("__bach_sbo_e2e_state") || "{}")?.patients?.[0]?.triageStatus || ""
-);
-if (persistedTriage !== "red") {
-  throw new Error("Beta case triage did not persist: " + persistedTriage);
-}
-
-await betaFeatures.reload({ waitUntil: "domcontentloaded" });
-await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
-await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
-await betaFeatures.waitForFunction(() => {
-  const p = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const row = document.querySelector("#patientTbody tr.selected[data-id]");
-  return p?.triageStatus === "red" &&
-    row?.classList.contains("beta-triage-red") &&
-    document.querySelector('#betaTriageControl [data-beta-triage="red"]')?.getAttribute("aria-pressed") === "true";
-});
-
 await betaFeatures.close();
 
 if (errors.length) {

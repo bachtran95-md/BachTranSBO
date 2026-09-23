@@ -542,6 +542,7 @@ function defaultPhysicalStatusData() {
       oxygen: ""
     },
     sections: Object.fromEntries(PHYSICAL_STATUS_SECTION_KEYS.map((key) => [key, ""])),
+    freeText: "",
     generatedAt: null
   };
 }
@@ -564,6 +565,7 @@ function normalizePhysicalStatusData(value) {
     base.sections[key] = String(sections[key] ?? "").trim();
   }
 
+  base.freeText = String(value.freeText ?? "").trim();
   base.generatedAt = value.generatedAt ? String(value.generatedAt) : null;
   return base;
 }
@@ -571,11 +573,14 @@ function normalizePhysicalStatusData(value) {
 function physicalStatusPositiveText(value) {
   if (!value || typeof value !== "object") return "";
   const status = normalizePhysicalStatusData(value);
-  return PHYSICAL_STATUS_SECTION_KEYS
+  const structured = PHYSICAL_STATUS_SECTION_KEYS
     .map((key) => {
       const text = String(status.sections[key] || "").trim();
       return text ? `${key}: ${text}` : "";
     })
+    .filter(Boolean);
+
+  return [String(status.freeText || "").trim(), ...structured]
     .filter(Boolean)
     .join("\n");
 }
@@ -583,7 +588,7 @@ function physicalStatusPositiveText(value) {
 function structuredPhysicalStatusComplete(patient) {
   return Boolean(
     patient?.physicalStatus?.version === 1 &&
-    patient.physicalStatus.generatedAt
+    (patient.physicalStatus.generatedAt || String(patient.physicalStatus.freeText || "").trim())
   );
 }
 

@@ -32,7 +32,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp index.html recovery.html beta.html styles.css beta-features.css app.js backend.js config.js case-ui.js assistant-core.js cockpit.js cockpit-beta.js beta-finding-registry.generated.js beta-features.js .nojekyll _site/
+          cp index.html recovery.html beta.html styles.css beta-features.css beta-status-generator.css app.js backend.js config.js case-ui.js assistant-core.js cockpit.js cockpit-beta.js beta-features.js beta-status-generator.js .nojekyll _site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

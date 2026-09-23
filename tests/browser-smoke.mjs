@@ -1964,17 +1964,34 @@ if ((await betaFeatures.locator("#betaEkgFr").inputValue()) !== "") {
   throw new Error("Local-only EKG helper incorrectly survived reload");
 }
 
-// Beta-only physical finding composer: deterministic local parsing only.
-// fPhysical is now an intentionally hidden compatibility bridge behind the
-// structured STATUS UI, so parser regression coverage writes to it directly.
+// Beta-only physical finding composer: deterministic local parsing reads the
+// visible structured STATUS fields, never the hidden legacy fPhysical bridge.
 await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
-const fillBetaPhysicalBridge = async (value) => {
-  await betaFeatures.locator("#fPhysical").evaluate((element, text) => {
-    element.value = text;
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-  }, value);
+const clearStructuredStatusSections = async () => {
+  await betaFeatures.evaluate(() => {
+    document.querySelectorAll("#betaStructuredStatus [data-status-section]").forEach((element) => {
+      element.value = "";
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
 };
-await fillBetaPhysicalBridge("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+const fillStructuredStatusSection = async (section, value) => {
+  await betaFeatures.locator(`[data-status-section="${section}"]`).fill(value);
+};
+
+// Stale legacy bridge content must not leak into Finding Learning.
+await clearStructuredStatusSections();
+await betaFeatures.locator("#fPhysical").evaluate((element) => {
+  element.value = "mko. tüdő felett pangás. bal o. dörzszörej";
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+});
+await betaFeatures.waitForFunction(() =>
+  (document.querySelector("#betaFindingCount")?.textContent || "").includes("0 felismerve") &&
+  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
+);
+
+await fillStructuredStatusSection("B", "dyspnoe nincs, jobb basalis crepitatio");
+await fillStructuredStatusSection("E5", "epig nyomérz");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 3 &&
   !(document.querySelector("#betaCopyStatus")?.disabled)
@@ -1995,7 +2012,10 @@ if (abcdePreview.includes("Zörejek: nincs.")) {
 }
 
 // Real-world shorthand coverage: abdominal tenderness + tachyarrhythmia + murmur + bilateral congestion.
-await fillBetaPhysicalBridge("Hasa érzékeny. Tachyarritmiás szívritmus, 6/5ös systolés zörej. Mko. tüdő fölött pangás hallható.");
+await clearStructuredStatusSections();
+await fillStructuredStatusSection("B", "Mko. tüdő fölött pangás hallható.");
+await fillStructuredStatusSection("C", "Tachyarritmiás szívritmus, 6/5ös systolés zörej.");
+await fillStructuredStatusSection("E5", "Hasa érzékeny.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
@@ -2024,7 +2044,9 @@ for (const expected of [
 }
 
 // Every line must be reviewed independently: a known first line must not hide an unknown second line.
-await fillBetaPhysicalBridge("Hasa érzékeny.\nBal oldalon pleuralis dörzszörej hallható.");
+await clearStructuredStatusSections();
+await fillStructuredStatusSection("B", "Bal oldalon pleuralis dörzszörej hallható.");
+await fillStructuredStatusSection("E5", "Hasa érzékeny.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
@@ -2075,7 +2097,8 @@ if (!learnedPreview.includes("Bal oldalon pleuralis dörzszörej hallható.")) {
 }
 
 // Existing-finding teaching must preserve structured attributes such as murmur grade.
-await fillBetaPhysicalBridge("Durva syst. zörej 4/6.");
+await clearStructuredStatusSections();
+await fillStructuredStatusSection("C", "Durva syst. zörej 4/6.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1
 );
@@ -2102,7 +2125,9 @@ if (await betaFeatures.locator("#betaUndoLearning").isHidden()) {
 }
 
 // Restore the earlier fixture for chip suppression coverage.
-await fillBetaPhysicalBridge("epig nyomérz, dyspnoe nincs, jobb basalis crepitatio");
+await clearStructuredStatusSections();
+await fillStructuredStatusSection("B", "dyspnoe nincs, jobb basalis crepitatio");
+await fillStructuredStatusSection("E5", "epig nyomérz");
 await betaFeatures.waitForFunction(() =>
   document.querySelector('[data-finding-key="crackles"]')
 );

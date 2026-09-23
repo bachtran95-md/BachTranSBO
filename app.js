@@ -570,7 +570,11 @@ function normalizePhysicalStatusData(value) {
   return base;
 }
 
-function usesSimplePhysicalStatus() {\n  return document.body.classList.contains("beta-simple-status");\n}\n\nfunction physicalStatusPositiveText(value) {
+function usesSimplePhysicalStatus() {
+  return document.body.classList.contains("beta-simple-status");
+}
+
+function physicalStatusPositiveText(value) {
   if (!value || typeof value !== "object") return "";
   const status = normalizePhysicalStatusData(value);
   return PHYSICAL_STATUS_SECTION_KEYS

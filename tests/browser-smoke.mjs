@@ -1979,6 +1979,25 @@ for (const [input, expected] of quadrantCases) {
   }
 }
 
+// Regression: common Hungarian abdominal location/tenderness variants.
+for (const [input, expected] of [
+  ["epigasztrális nyomásérzékenység", "epigastrialis nyomásérzékenység észlelhető."],
+  ["jobb bordaív alatt nyomásérzékenység", "jobb felső hasi / JFQ nyomásérzékenység észlelhető."],
+  ["jobb bordaív alatt érzékenység", "jobb felső hasi / JFQ nyomásérzékenység észlelhető."],
+  ["bal bordaív alatti érzékenység", "bal felső hasi / BFQ nyomásérzékenység észlelhető."]
+]) {
+  await betaFeatures.locator('[data-status-section="E5"]').fill(input);
+  await betaFeatures.waitForFunction((needle) => {
+    const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+    return preview.includes(needle) &&
+      document.querySelectorAll('[data-status-unknown-host="E5"] .beta-status-unknown').length === 0;
+  }, expected);
+  const preview = await betaFeatures.locator("#betaStatusFinalPreview").textContent();
+  if (!preview.includes(expected)) {
+    throw new Error("Abdominal tenderness wording regression for " + input + ": " + preview);
+  }
+}
+
 // Regression: explicit negative dyspnoea must override the positive dyspnoea token
 // and remain an explicit normal finding for Summary context.
 await betaFeatures.locator('[data-status-section="B"]').fill(

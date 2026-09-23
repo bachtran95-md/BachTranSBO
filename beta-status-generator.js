@@ -130,17 +130,17 @@
 
   function sideOf(text) {
     const n = fold(text);
-    if (/\b(mko\.?|mindket|bilat|bilateralis)\b/.test(n)) return "bilateral";
-    if (/\bjobb\b/.test(n)) return "right";
-    if (/\bbal\b/.test(n)) return "left";
+    if (/\b(mko\.?|m\.k\.o\.?|mindket|ketoldali|bilat|bilateralis|bilateral)\b/.test(n)) return "bilateral";
+    if (/\b(jobb|jobb oldali|j\.o\.?)\b/.test(n)) return "right";
+    if (/\b(bal|bal oldali|b\.o\.?)\b/.test(n)) return "left";
     return "";
   }
 
   function locationOf(text) {
     const n = fold(text);
-    if (/basal|bazal/.test(n)) return "basal";
-    if (/apical/.test(n)) return "apical";
-    if (/diffuz/.test(n)) return "diffuse";
+    if (/basal|bazal|basis|tudobazis/.test(n)) return "basal";
+    if (/apical|csucsi/.test(n)) return "apical";
+    if (/diffuz|diffuse/.test(n)) return "diffuse";
     if (/epigastr/.test(n)) return "epigastric";
     if (/periumbil/.test(n)) return "periumbilical";
     if (/\b(jfq|jobb also|jobb alhas|right lower)\b/.test(n)) return "RLQ";
@@ -162,18 +162,18 @@
   function parseA(raw) {
     const n = fold(raw);
     const out = [];
-    if (/legut.*atjarhat|airway.*patent/.test(n)) addFinding(out, "A", "airway_patency", "patent", {}, raw, true);
-    if (/legut.*(nem atjar|obstruct)/.test(n)) addFinding(out, "A", "airway_patency", "obstructed", {}, raw);
+    if (/legut.*(atjarhat|szabad)|szabad legut|airway.*patent/.test(n)) addFinding(out, "A", "airway_patency", "patent", {}, raw, true);
+    if (/legut.*(nem atjar|obstruct|elzart)|airway.*obstruct/.test(n)) addFinding(out, "A", "airway_patency", "obstructed", {}, raw);
     if (/nem tud beszel/.test(n)) addFinding(out, "A", "speech", "unable", {}, raw);
     else if (/\bbeszel\b/.test(n)) addFinding(out, "A", "speech", "speaks", {}, raw, true);
-    if (/szivast igenyel|valadek/.test(n)) addFinding(out, "A", "airway_secretions", "present", {}, raw);
+    if (/szivast igenyel|szivas szukseges|suction|valadek|valadekos/.test(n)) addFinding(out, "A", "airway_secretions", "present", {}, raw);
     if (/stridor/.test(n)) addFinding(out, "A", "stridor", "present", {}, raw);
     if (/horkol/.test(n)) addFinding(out, "A", "snoring_respiration", "present", {}, raw);
     if (/gurgul/.test(n)) addFinding(out, "A", "gurgling_respiration", "present", {}, raw);
     if (/idegentest/.test(n)) addFinding(out, "A", "foreign_body", "present", {}, raw);
-    if (/tracheost/.test(n)) addFinding(out, "A", "airway_device", "tracheostomy", {}, raw);
-    else if (/tubus|intubal/.test(n)) addFinding(out, "A", "airway_device", "ett", {}, raw);
-    else if (/airway adjunct|guedel|wendel/.test(n)) addFinding(out, "A", "airway_device", "adjunct", {}, raw);
+    if (/tracheost|tracheostoma|tracheostomia/.test(n)) addFinding(out, "A", "airway_device", "tracheostomy", {}, raw);
+    else if (/ett\b|et tubus|endotrache|tubus|intubal/.test(n)) addFinding(out, "A", "airway_device", "ett", {}, raw);
+    else if (/airway adjunct|guedel|wendel|nasopharyngealis tubus|oropharyngealis tubus/.test(n)) addFinding(out, "A", "airway_device", "adjunct", {}, raw);
     return out;
   }
 
@@ -193,39 +193,39 @@
     else if (/eupno/.test(n)) addFinding(out, "B", "respiratory_pattern", "eupnoea", {}, raw, true);
 
     if (/emphysem/.test(n)) addFinding(out, "B", "chest_shape", "emphysematous", {}, raw);
-    if (/hordo alak/.test(n)) addFinding(out, "B", "chest_shape", "barrel", {}, raw);
+    if (/hordo alak|hordomellkas/.test(n)) addFinding(out, "B", "chest_shape", "barrel", {}, raw);
     if (/mellkas.*aszim|aszimmetrikus mellkas/.test(n)) addFinding(out, "B", "chest_shape", "asymmetric", { side }, raw);
     if (/mellkas.*serul/.test(n)) addFinding(out, "B", "chest_shape", "trauma", { side }, raw);
     if (/mellkas.*deform/.test(n)) addFinding(out, "B", "chest_shape", "deformity", { side }, raw);
     if (/mellkas.*reszaranyos/.test(n)) addFinding(out, "B", "chest_shape", "normal", {}, raw, true);
 
     let breathType = "";
-    if (/legzes.*hianyz|nem hallhato.*legzes/.test(n)) breathType = "absent";
-    else if (/gyengult.*legzes|legzes.*gyengult/.test(n)) breathType = "diminished";
-    else if (/erdes.*legzes|legzes.*erdes/.test(n)) breathType = "harsh";
-    else if (/bronchialis/.test(n)) breathType = "bronchial";
-    else if (/pulmo.*tiszta|alaplegzes.*normal|normal.*alaplegzes/.test(n)) breathType = "normal";
+    if (/legzes.*hianyz|nem hallhato.*legzes|legzes.*nem hallhato|silent lung/.test(n)) breathType = "absent";
+    else if (/gyengult.*legzes|legzes.*gyengult|halkabb.*legzes|csokkent.*legzes/.test(n)) breathType = "diminished";
+    else if (/erdes.*legzes|legzes.*erdes|durva.*legzes/.test(n)) breathType = "harsh";
+    else if (/bronchialis|bronchial breathing/.test(n)) breathType = "bronchial";
+    else if (/pulmo.*tiszta|tiszta.*pulmo|tiszta legzes|alaplegzes.*normal|normal.*alaplegzes|sejtes alaplegzes|vesicularis/.test(n)) breathType = "normal";
     if (breathType) addFinding(out, "B", "breath_sound", breathType, { side, location }, raw, breathType === "normal");
 
-    let extraType = "";
-    if (/aproholyagu.*szorty/.test(n)) extraType = "fine_crackles";
-    else if (/nagyholyagu.*szorty/.test(n)) extraType = "coarse_crackles";
-    else if (/crepitat/.test(n)) extraType = "crepitation";
-    else if (/sipol/.test(n)) extraType = "wheeze";
-    else if (/bugas|bugo/.test(n)) extraType = "rhonchus";
-    else if (/stridor/.test(n)) extraType = "stridor";
-    if (extraType) addFinding(out, "B", "adventitious_sound", extraType, { side, location }, raw);
+    const fineCrackles = /aproholyagu.*szorty|finom.*(crep|szorty)|fine crackles/.test(n);
+    const coarseCrackles = /nagyholyagu.*szorty|durva.*szorty|coarse crackles/.test(n);
+    if (fineCrackles) addFinding(out, "B", "adventitious_sound", "fine_crackles", { side, location }, raw);
+    if (coarseCrackles) addFinding(out, "B", "adventitious_sound", "coarse_crackles", { side, location }, raw);
+    if (!fineCrackles && !coarseCrackles && /crepitat|crep\b|crackles|ropogas/.test(n)) addFinding(out, "B", "adventitious_sound", "crepitation", { side, location }, raw);
+    if (/sipol|wheez|sibil/.test(n)) addFinding(out, "B", "adventitious_sound", "wheeze", { side, location }, raw);
+    if (/bugas|bugo|rhonch/.test(n)) addFinding(out, "B", "adventitious_sound", "rhonchus", { side, location }, raw);
+    if (/stridor/.test(n)) addFinding(out, "B", "adventitious_sound", "stridor", { side, location }, raw);
 
-    if (/segedlegzoizm/.test(n)) addFinding(out, "B", "breathing_work", "accessory_muscles", {}, raw);
-    if (/intercostalis.*behuz/.test(n)) addFinding(out, "B", "breathing_work", "intercostal_retraction", {}, raw);
+    if (/segedlegzoizm|accessory muscle/.test(n)) addFinding(out, "B", "breathing_work", "accessory_muscles", {}, raw);
+    if (/intercostalis.*behuz|bordakozi.*behuz|retractio/.test(n)) addFinding(out, "B", "breathing_work", "intercostal_retraction", {}, raw);
     if (/paradox.*legzes/.test(n)) addFinding(out, "B", "breathing_work", "paradoxical", {}, raw);
     if (/legzesi munka.*fokoz|fokozott.*legzesi munka/.test(n)) addFinding(out, "B", "breathing_work", "increased", {}, raw);
     if (/legzesi munka.*normal/.test(n)) addFinding(out, "B", "breathing_work", "normal", {}, raw, true);
 
-    if (/periferias.*cyanos/.test(n)) addFinding(out, "B", "cyanosis", "peripheral", {}, raw);
-    else if (/centralis.*cyanos/.test(n)) addFinding(out, "B", "cyanosis", "central", {}, raw);
-    else if (/gallercyan/.test(n)) addFinding(out, "B", "cyanosis", "collar", {}, raw);
-    else if (/cyanos.*nincs/.test(n)) addFinding(out, "B", "cyanosis", "none", {}, raw, true);
+    if (/periferias.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "peripheral", {}, raw);
+    else if (/centralis.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "central", {}, raw);
+    else if (/galler.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "collar", {}, raw);
+    else if (/(cyanos|cianoz).*nincs/.test(n)) addFinding(out, "B", "cyanosis", "none", {}, raw, true);
 
     return out;
   }
@@ -235,8 +235,8 @@
     const out = [];
     const side = sideOf(raw);
 
-    if (/jol tapinthato.*periferias pulzus/.test(n)) addFinding(out, "C", "peripheral_pulse", "normal", {}, raw, true);
-    if (/gyengen tapinthato.*periferias pulzus|gyenge.*periferias pulzus/.test(n)) addFinding(out, "C", "peripheral_pulse", "weak", {}, raw);
+    if (/jol tapinthato.*periferias pulzus|periferias pulzus.*jol tapinthato|perif.*pulzus.*jo/.test(n)) addFinding(out, "C", "peripheral_pulse", "normal", {}, raw, true);
+    if (/gyengen tapinthato.*periferias pulzus|gyenge.*periferias pulzus|filiformis.*pulzus|perif.*pulzus.*gyenge/.test(n)) addFinding(out, "C", "peripheral_pulse", "weak", {}, raw);
     if (/periferian.*nem tapinthato.*centralisan.*tapinthato/.test(n)) addFinding(out, "C", "peripheral_pulse", "central_only", {}, raw);
     if (/pulzusaszim/.test(n)) addFinding(out, "C", "peripheral_pulse", "asymmetric", { side }, raw);
 
@@ -246,20 +246,20 @@
       addFinding(out, "C", "crt", "numeric", { seconds }, raw, seconds < 2);
     }
 
-    if (/huvos.*perifer/.test(n)) addFinding(out, "C", "peripheral_perfusion", "cool", {}, raw);
-    if (/verejtezik|verejtekezes/.test(n)) addFinding(out, "C", "peripheral_perfusion", "sweating", {}, raw);
+    if (/huvos.*perifer|hideg.*perifer|hideg acr/.test(n)) addFinding(out, "C", "peripheral_perfusion", "cool", {}, raw);
+    if (/verejtezik|verejtekezes|diaphoresis/.test(n)) addFinding(out, "C", "peripheral_perfusion", "sweating", {}, raw);
     if (/sapadt/.test(n)) addFinding(out, "C", "peripheral_perfusion", "pallor", {}, raw);
     if (/marvanyoz/.test(n)) addFinding(out, "C", "peripheral_perfusion", "mottled", {}, raw);
 
     if (/tachyarrhythmi/.test(n)) addFinding(out, "C", "heart_rhythm", "tachyarrhythmic", {}, raw);
-    else if (/arrhythmi/.test(n)) addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
-    else if (/ritmusos/.test(n)) addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
+    else if (/arrhythmi|irregularis|szabalytalan.*ritmus/.test(n)) addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
+    else if (/ritmusos|regularis|szabalyos.*ritmus/.test(n)) addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
 
     if (/tachycard/.test(n)) addFinding(out, "C", "heart_rate_state", "tachycardic", {}, raw);
     if (/bradycard/.test(n)) addFinding(out, "C", "heart_rate_state", "bradycardic", {}, raw);
 
-    if (/zorej.*nem hallhato|szivzorej.*nincs/.test(n)) addFinding(out, "C", "cardiac_murmur", "none", {}, raw, true);
-    if (/systoles.*zorej|zorej.*systoles/.test(n)) {
+    if (/zorej.*nem hallhato|szivzorej.*nincs|zorejmentes/.test(n)) addFinding(out, "C", "cardiac_murmur", "none", {}, raw, true);
+    if (/systoles.*zorej|zorej.*systoles|syst\.?\s*zorej/.test(n)) {
       const grade = raw.match(/([1-6])\s*\/\s*6/);
       addFinding(out, "C", "cardiac_murmur", "systolic", {
         grade: grade ? grade[1] + "/6" : "",
@@ -267,13 +267,13 @@
         radiation: /axilla/i.test(raw) ? "axilla" : ""
       }, raw);
     }
-    if (/diastoles.*zorej|zorej.*diastoles/.test(n)) {
+    if (/diastoles.*zorej|zorej.*diastoles|diast\.?\s*zorej/.test(n)) {
       const grade = raw.match(/([1-6])\s*\/\s*6/);
       addFinding(out, "C", "cardiac_murmur", "diastolic", { grade: grade ? grade[1] + "/6" : "" }, raw);
     }
 
-    if (/nyaki venak.*teltek|jugularis.*telt/.test(n) && !/nem teltek/.test(n)) addFinding(out, "C", "jvp", "distended", {}, raw);
-    else if (/nyaki venak.*nem teltek/.test(n)) addFinding(out, "C", "jvp", "normal", {}, raw, true);
+    if (/nyaki venak.*teltek|jugularis.*(telt|tagult)|jvp.*emelkedett/.test(n) && !/nem teltek/.test(n)) addFinding(out, "C", "jvp", "distended", {}, raw);
+    else if (/nyaki venak.*nem teltek|jugularis.*nem telt|jvp.*normal/.test(n)) addFinding(out, "C", "jvp", "normal", {}, raw, true);
 
     if (/aktiv.*verzes|eros.*verzes/.test(n)) addFinding(out, "C", "active_bleeding", "present", { location: locationOf(raw) }, raw);
     return out;
@@ -302,9 +302,11 @@
     if (/terben.*idoben.*sajat szemelyere.*orient/.test(n)) addFinding(out, "D", "orientation", "oriented", {}, raw, true);
     if (/dezorient/.test(n)) addFinding(out, "D", "orientation", "disoriented", {}, raw);
     if (/demencia/.test(n)) addFinding(out, "D", "mental_state", "known_dementia", {}, raw);
-    if (/zavart/.test(n)) addFinding(out, "D", "mental_state", "confused", {}, raw);
-    if (/agitalt/.test(n)) addFinding(out, "D", "mental_state", "agitated", {}, raw);
+    if (/zavart|confus/.test(n)) addFinding(out, "D", "mental_state", "confused", {}, raw);
+    if (/agitalt|agitat/.test(n)) addFinding(out, "D", "mental_state", "agitated", {}, raw);
     if (/somnol/.test(n)) addFinding(out, "D", "mental_state", "somnolent", {}, raw);
+    if (/sopor/.test(n)) addFinding(out, "D", "mental_state", "soporous", {}, raw);
+    if (/comat|coma\b/.test(n)) addFinding(out, "D", "mental_state", "comatose", {}, raw);
 
     if (/aphasia.*nincs|aphasia nincs/.test(n)) addFinding(out, "D", "aphasia", "none", {}, raw, true);
     if (/motoros.*aphasia/.test(n)) addFinding(out, "D", "aphasia", "motor", {}, raw);
@@ -312,7 +314,11 @@
     if (/globalis.*aphasia/.test(n)) addFinding(out, "D", "aphasia", "global", {}, raw);
 
     if (/latens.*paresis/.test(n)) addFinding(out, "D", "paresis", "latent", { side }, raw);
-    if (/vegtagparesis|paresis/.test(n) && !/facialis/.test(n) && !/latens/.test(n) && !/nincs/.test(n)) {
+    if (/hemiparesis/.test(n)) addFinding(out, "D", "paresis", "hemiparesis", { side }, raw);
+    else if (/monoparesis/.test(n)) addFinding(out, "D", "paresis", "monoparesis", { side }, raw);
+    else if (/paraparesis/.test(n)) addFinding(out, "D", "paresis", "paraparesis", { side }, raw);
+    else if (/tetraparesis/.test(n)) addFinding(out, "D", "paresis", "tetraparesis", { side }, raw);
+    else if (/vegtagparesis|paresis/.test(n) && !/facialis/.test(n) && !/latens/.test(n) && !/nincs/.test(n)) {
       addFinding(out, "D", "paresis", "limb", { side }, raw);
     }
     if (/paresis.*nincs/.test(n) && !/facialis/.test(n)) addFinding(out, "D", "paresis", "none", {}, raw, true);
@@ -324,7 +330,7 @@
     if (/myosis/.test(n)) addFinding(out, "D", "pupil", "miosis", { side }, raw);
     if (/mydriasis/.test(n)) addFinding(out, "D", "pupil", "mydriasis", { side }, raw);
     if (/fenymerev|fenyre nem reag/.test(n)) addFinding(out, "D", "pupil", "nonreactive", { side }, raw);
-    if (/pupillak.*kerek.*egyenlo.*fenyre reag/.test(n)) addFinding(out, "D", "pupil", "normal", {}, raw, true);
+    if (/pupillak.*kerek.*egyenlo.*fenyre reag|pupillak.*isocor.*fotoreag|isocor.*fenyreakcio.*megtartott/.test(n)) addFinding(out, "D", "pupil", "normal", {}, raw, true);
 
     if (/horizontalis.*nystag/.test(n)) addFinding(out, "D", "nystagmus", "horizontal", { side }, raw);
     else if (/vertikalis.*nystag/.test(n)) addFinding(out, "D", "nystagmus", "vertical", {}, raw);
@@ -333,11 +339,11 @@
 
     if (/tarkokotott/.test(n)) addFinding(out, "D", "meningeal", "neck_stiffness", {}, raw);
     if (/meningealis.*pozitiv/.test(n)) addFinding(out, "D", "meningeal", "positive", {}, raw);
-    if (/meningealis.*nincsenek|meningealis.*nincs/.test(n)) addFinding(out, "D", "meningeal", "none", {}, raw, true);
+    if (/meningealis.*nincsenek|meningealis.*nincs|meningealis.*negativ|tarko.*szabad/.test(n)) addFinding(out, "D", "meningeal", "none", {}, raw, true);
 
     if (/sensorium.*szimmetrikusan.*megtartott/.test(n)) addFinding(out, "D", "sensorium", "symmetric", {}, raw, true);
-    if (/goc(tunet|jel).*nincs|neurologiai.*goc.*nincs/.test(n)) addFinding(out, "D", "focal_neuro", "none", {}, raw, true);
-    if (/goc(tunet|jel).*pozitiv|neurologiai.*goc/.test(n) && !/nincs/.test(n)) addFinding(out, "D", "focal_neuro", "present", { side }, raw);
+    if (/goc(tunet|jel).*nincs|neurologiai.*goc.*nincs|focalis.*neurologiai.*elteres.*nincs/.test(n)) addFinding(out, "D", "focal_neuro", "none", {}, raw, true);
+    if (/goc(tunet|jel).*pozitiv|neurologiai.*goc|focalis.*neurologiai.*deficit/.test(n) && !/nincs/.test(n)) addFinding(out, "D", "focal_neuro", "present", { side }, raw);
     return out;
   }
 
@@ -345,8 +351,8 @@
     const n = fold(raw);
     const out = [];
     if (/jo altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "good", {}, raw, true);
-    if (/kozepes|kp\.? altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "medium", {}, raw);
-    if (/rossz altalanos allapot|elesett/.test(n)) addFinding(out, "E1", "general_condition", "poor", {}, raw);
+    if (/kozepes|kp\.? altalanos allapot|kozepsulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "medium", {}, raw);
+    if (/rossz altalanos allapot|elesett|sulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "poor", {}, raw);
     if (/kp\.? fejlett/.test(n)) addFinding(out, "E1", "build", "medium", {}, raw, true);
     if (/kp\.? taplalt/.test(n)) addFinding(out, "E1", "nutrition", "medium", {}, raw, true);
     if (/sovany/.test(n)) addFinding(out, "E1", "nutrition", "thin", {}, raw);
@@ -359,8 +365,8 @@
     const n = fold(raw);
     const out = [];
     if (/borszin.*normal/.test(n)) addFinding(out, "E2", "skin_color", "normal", {}, raw, true);
-    if (/sapadt/.test(n)) addFinding(out, "E2", "skin_color", "pallor", {}, raw);
-    if (/icter/.test(n)) addFinding(out, "E2", "skin_color", "jaundice", {}, raw);
+    if (/sapadt|pallor/.test(n)) addFinding(out, "E2", "skin_color", "pallor", {}, raw);
+    if (/icter|subicter/.test(n)) addFinding(out, "E2", "skin_color", "jaundice", {}, raw);
     if (/exsic|dehydrat/.test(n)) addFinding(out, "E2", "hydration", "dehydrated", {}, raw);
     if (/csokkent.*turgor/.test(n)) addFinding(out, "E2", "skin_turgor", "reduced", {}, raw);
     if (/turgor.*megtartott/.test(n)) addFinding(out, "E2", "skin_turgor", "normal", {}, raw, true);
@@ -375,7 +381,7 @@
     const n = fold(raw);
     const out = [];
     if (/kulserelmi nyom.*nincs|serules.*nincs/.test(n)) addFinding(out, "E3", "injury", "none", {}, raw, true);
-    if (/serules|seb|haematoma|hematoma|horzsol|laceratio|zuzodas/.test(n) && !/nincs/.test(n)) {
+    if (/serules|seb|haematoma|hematoma|horzsol|laceratio|zuzodas|contusio|vagas|szurt seb|harapott seb/.test(n) && !/nincs/.test(n)) {
       addFinding(out, "E3", "injury", "present", { side: sideOf(raw), location: locationOf(raw) }, raw);
     }
     return out;
@@ -386,11 +392,11 @@
     const out = [];
     const side = sideOf(raw);
     if (/vegtagok.*alakilag.*funkcionalisan.*epek/.test(n)) addFinding(out, "E4", "limb_status", "normal", {}, raw, true);
-    if (/oedema|odema/.test(n)) addFinding(out, "E4", "limb_edema", /nincs/.test(n) ? "none" : "present", { side }, raw, /nincs/.test(n));
+    if (/oedema|odema|vizeny|vizenyos|pitting/.test(n)) addFinding(out, "E4", "limb_edema", /nincs|nem eszlelheto/.test(n) ? "none" : "present", { side }, raw, /nincs|nem eszlelheto/.test(n));
     if (/aszimmetri/.test(n)) addFinding(out, "E4", "limb_asymmetry", "present", { side }, raw);
     if (/korfogatkulonbseg/.test(n)) addFinding(out, "E4", "circumference_difference", "present", { side }, raw);
     if (/homersekletkulonbseg/.test(n)) addFinding(out, "E4", "temperature_difference", "present", { side }, raw);
-    if (/mvt|dvt/.test(n)) addFinding(out, "E4", "dvt_sign", /nincs|negativ/.test(n) ? "none" : "present", { side }, raw, /nincs|negativ/.test(n));
+    if (/mvt|dvt|homans/.test(n)) addFinding(out, "E4", "dvt_sign", /nincs|negativ/.test(n) ? "none" : "present", { side }, raw, /nincs|negativ/.test(n));
     if (/deformitas/.test(n)) addFinding(out, "E4", "limb_deformity", "present", { side }, raw);
     if (/mozgas.*korlatoz/.test(n)) addFinding(out, "E4", "restricted_movement", "present", { side }, raw);
     return out;
@@ -401,7 +407,7 @@
     const out = [];
     const location = locationOf(raw);
 
-    if (/mellkas szintjeben.*puha.*betapinthato/.test(n)) addFinding(out, "E5", "abdomen_shape", "normal", {}, raw, true);
+    if (/mellkas szintjeben.*puha.*betapinthato|has.*puha.*betapinthato|puha.*has/.test(n)) addFinding(out, "E5", "abdomen_shape", "normal", {}, raw, true);
     if (/elodomborodo/.test(n)) addFinding(out, "E5", "abdomen_shape", "distended", {}, raw);
     if (/beesett/.test(n)) addFinding(out, "E5", "abdomen_shape", "scaphoid", {}, raw);
     if (/deszkakemeny/.test(n)) addFinding(out, "E5", "abdomen_shape", "board_like", {}, raw);
@@ -414,8 +420,8 @@
       else if (/szuro/.test(n)) character = "stabbing";
       addFinding(out, "E5", "abdominal_pain", "present", { location, character }, raw);
     }
-    if (/nyomaserzekeny/.test(n)) addFinding(out, "E5", "abdominal_tenderness", /nem nyomaserzekeny/.test(n) ? "none" : "present", { location }, raw, /nem nyomaserzekeny/.test(n));
-    if (/defanz|defense/.test(n)) addFinding(out, "E5", "guarding", /nincs/.test(n) ? "none" : "present", { location }, raw, /nincs/.test(n));
+    if (/nyomaserzekeny|ny\.?\s*erz|nyom\.?\s*erz/.test(n)) addFinding(out, "E5", "abdominal_tenderness", /nem nyomaserzekeny|nem ny\.?\s*erz|nem nyom\.?\s*erz/.test(n) ? "none" : "present", { location }, raw, /nem nyomaserzekeny|nem ny\.?\s*erz|nem nyom\.?\s*erz/.test(n));
+    if (/defanz|defense|muscularis vedekezes/.test(n)) addFinding(out, "E5", "guarding", /nincs|negativ/.test(n) ? "none" : "present", { location }, raw, /nincs|negativ/.test(n));
     if (/resistentia/.test(n)) addFinding(out, "E5", "abdominal_mass", /nincs|nem tap/.test(n) ? "none" : "present", { location }, raw, /nincs|nem tap/.test(n));
 
     if (/hepar/.test(n)) addFinding(out, "E5", "liver_palpation", /nem tap/.test(n) ? "not_palpable" : "palpable", {}, raw, /nem tap/.test(n));
@@ -423,9 +429,9 @@
 
     if (/belhang/.test(n)) {
       let value = "normal";
-      if (/elenk/.test(n)) value = "increased";
-      else if (/renyhe/.test(n)) value = "decreased";
-      else if (/nincs|nem hall/.test(n)) value = "absent";
+      if (/elenk|fokozott|hyperactiv/.test(n)) value = "increased";
+      else if (/renyhe|csokkent|hypoactiv/.test(n)) value = "decreased";
+      else if (/nincs|nem hall|silent/.test(n)) value = "absent";
       addFinding(out, "E5", "bowel_sounds", value, {}, raw, value === "normal");
     }
     return out;
@@ -435,9 +441,9 @@
     const n = fold(raw);
     const out = [];
     const side = sideOf(raw);
-    if (/vesetajak.*nem erzekeny|vesetaj.*nem erzekeny/.test(n)) {
+    if (/vesetajak.*nem erzekeny|vesetaj.*nem erzekeny|giordano.*negativ|veseutes.*negativ/.test(n)) {
       addFinding(out, "E6", "renal_angle_tenderness", "none", {}, raw, true);
-    } else if (/vesetaj.*erzekeny/.test(n)) {
+    } else if (/vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv/.test(n)) {
       addFinding(out, "E6", "renal_angle_tenderness", "present", { side }, raw);
     }
     return out;

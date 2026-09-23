@@ -620,7 +620,11 @@ body.beta-build .beta-structured-status-error{
 }
 body.beta-build .beta-structured-status-done{
   padding:10px 12px;
-  border-top:1px solid #bbf7d0;
+  border-top:1px solid #cbd5e1;
+  background:#f8fafc;
+}
+body.beta-build .beta-structured-status.is-generated .beta-structured-status-done{
+  border-top-color:#bbf7d0;
   background:#f0fdf4;
 }
 body.beta-build .beta-structured-status-done-head{
@@ -629,13 +633,26 @@ body.beta-build .beta-structured-status-done-head{
   justify-content:space-between;
   gap:8px;
 }
-body.beta-build .beta-structured-status-done-head strong{
-  font-size:11px;
-  color:#166534;
-}
 body.beta-build .beta-structured-status-done-head > div{
   display:flex;
-  gap:6px;
+  align-items:baseline;
+  gap:8px;
+  flex-wrap:wrap;
+}
+body.beta-build .beta-structured-status-done-head strong{
+  font-size:11px;
+  color:#334155;
+}
+body.beta-build .beta-structured-status.is-generated .beta-structured-status-done-head strong{
+  color:#166534;
+}
+body.beta-build .beta-structured-status-state{
+  font-size:9px;
+  font-weight:800;
+  color:#64748b;
+}
+body.beta-build .beta-structured-status.is-generated .beta-structured-status-state{
+  color:#166534;
 }
 body.beta-build .beta-structured-status-preview{
   margin-top:8px;

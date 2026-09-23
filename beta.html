@@ -297,7 +297,109 @@
                         <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
                       </div>
                     </div>
-                    <div id="betaStructuredStatus" class="beta-structured-status" data-static-status-host></div>
+                    <div id="betaStructuredStatus" class="beta-structured-status" data-static-status-host>
+                      <div class="beta-status-block-head">
+                        <div>
+                          <strong>PARAMÉTEREK</strong>
+                          <span>külön mentve • Summary AI nem kapja meg</span>
+                        </div>
+                      </div>
+
+                      <div class="beta-status-parameters">
+                        <label>
+                          <span>Vérnyomás</span>
+                          <input type="text" inputmode="decimal" data-status-param="bloodPressure" placeholder="pl. 135/80" autocomplete="off" />
+                        </label>
+                        <label>
+                          <span>Pulsus</span>
+                          <input type="text" inputmode="decimal" data-status-param="pulse" placeholder="pl. 88" autocomplete="off" />
+                        </label>
+                        <label>
+                          <span>Testhőmérséklet</span>
+                          <input type="text" inputmode="decimal" data-status-param="temperature" placeholder="pl. 36,7" autocomplete="off" />
+                        </label>
+                        <label>
+                          <span>Légzésszám</span>
+                          <input type="text" inputmode="decimal" data-status-param="respiratoryRate" placeholder="pl. 18" autocomplete="off" />
+                        </label>
+                        <label>
+                          <span>SpO₂</span>
+                          <input type="text" inputmode="decimal" data-status-param="spo2" placeholder="pl. 97" autocomplete="off" />
+                        </label>
+                        <label>
+                          <span>Oxigén</span>
+                          <input type="text" data-status-param="oxygen" placeholder="pl. szobalevegő / 2 l/perc" autocomplete="off" />
+                        </label>
+                      </div>
+
+                      <div class="beta-status-positive-head">
+                        <div>
+                          <strong>Pozitív fizikális eltérések</strong>
+                          <span>Csak az eltérést írja be. Üres sor = generáláskor normál alapstátusz.</span>
+                        </div>
+                      </div>
+
+                      <div class="beta-status-positive-grid">
+                        <label class="beta-status-positive-row" data-status-row="A" style="order:1">
+                          <span>A – Légút</span>
+                          <textarea data-status-section="A" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="B" style="order:2">
+                          <span>B – Légzés / Mellkas / Pulmo</span>
+                          <textarea data-status-section="B" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="C" style="order:3">
+                          <span>C – Keringés / Szív</span>
+                          <textarea data-status-section="C" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="D" style="order:4">
+                          <span>D – Neurológia</span>
+                          <textarea data-status-section="D" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E1" style="order:5">
+                          <span>E1 – Általános állapot</span>
+                          <textarea data-status-section="E1" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E2" style="order:6">
+                          <span>E2 – Bőr / nyálkahártyák</span>
+                          <textarea data-status-section="E2" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E3" style="order:7">
+                          <span>E3 – Sérülés</span>
+                          <textarea data-status-section="E3" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E4" style="order:8">
+                          <span>E4 – Végtagok / oedema / MVT</span>
+                          <textarea data-status-section="E4" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E5" style="order:9">
+                          <span>E5 – Has</span>
+                          <textarea data-status-section="E5" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                        <label class="beta-status-positive-row" data-status-row="E6" style="order:10">
+                          <span>E6 – Vese / urogenitalis</span>
+                          <textarea data-status-section="E6" placeholder="+ csak pozitív eltérés"></textarea>
+                        </label>
+                      </div>
+
+                      <div class="beta-structured-status-actions">
+                        <button type="button" class="btn primary" id="betaGenerateStructuredStatus">STATUS GENERÁLÁSA</button>
+                        <span class="subtle">A paraméterek és pozitív findingok mentődnek; a teljes generált szöveg nem.</span>
+                      </div>
+
+                      <div class="beta-structured-status-error hidden" id="betaStructuredStatusError"></div>
+
+                      <div class="beta-structured-status-done hidden" id="betaStructuredStatusDone">
+                        <div class="beta-structured-status-done-head">
+                          <strong>✓ Státusz elkészült</strong>
+                          <div>
+                            <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
+                            <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
+                          </div>
+                        </div>
+                        <textarea class="beta-structured-status-preview hidden" id="betaStructuredStatusPreview" readonly></textarea>
+                      </div>
+                    </div>
                     <textarea id="fPhysical"></textarea>
                   </div>
 

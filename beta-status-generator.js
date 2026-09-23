@@ -758,11 +758,18 @@
     // "Bélhang nincs" remains abnormal by definition, so this concept intentionally
     // does NOT use the general negation-to-normal rule.
     if (/belhang/.test(n)) {
-      let value = "normal";
+      let value = "";
       if (/nincs|nem\s+hall|silent/.test(n)) value = "absent";
       else if (/elenk(?:ebb)?|fokozott|hyperactiv|hangosabb/.test(n)) value = "increased";
       else if (/renyhe|csokkent|halk(?:abb)?|gyer|ritka|hypoactiv/.test(n)) value = "decreased";
-      addFinding(out, "E5", "bowel_sounds", value, {}, raw, value === "normal");
+      else if (/normal|megtartott|szabalyos|hallhato|hallhatok/.test(n)) value = "normal";
+
+      // Never silently convert an unfamiliar bowel-sound description to normal.
+      // If no supported intensity/state is found, leave it unresolved so the
+      // physician review UI can classify it explicitly.
+      if (value) {
+        addFinding(out, "E5", "bowel_sounds", value, {}, raw, value === "normal");
+      }
     }
     return out;
   }

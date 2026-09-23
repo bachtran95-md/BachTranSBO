@@ -1788,6 +1788,30 @@ await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
 // Structured STATUS: parameters + positive findings are persisted, while the
 // full generated copy text remains derived UI output only.
 await betaFeatures.locator("#betaStructuredStatus").waitFor();
+
+// Beta migration invariant: once the structured module is active, legacy
+// physical text must never make the field complete by itself.
+const betaPhysicalMigrationState = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const fieldState = document.querySelector('[data-field-state="physical"]')?.textContent || "";
+  return {
+    version: patient?.physicalStatus?.version || null,
+    legacyPhysical: patient?.physicalStatus?.legacyPhysical || "",
+    hasStructuredInput: [
+      ...Object.values(patient?.physicalStatus?.parameters || {}),
+      ...Object.values(patient?.physicalStatus?.sections || {})
+    ].some((value) => String(value || "").trim()),
+    fieldState
+  };
+});
+if (
+  betaPhysicalMigrationState.version !== 1 ||
+  (!betaPhysicalMigrationState.hasStructuredInput &&
+    /KÉSZ|COMPLETE/i.test(betaPhysicalMigrationState.fieldState))
+) {
+  throw new Error("Legacy physical text incorrectly completed Beta STATUS: " + JSON.stringify(betaPhysicalMigrationState));
+}
+
 const statusPlacementOk = await betaFeatures.evaluate(() => {
   const root = document.getElementById("betaStructuredStatus");
   const field = root?.closest?.('[data-narrative-field="physical"]');

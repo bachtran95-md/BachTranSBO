@@ -1839,6 +1839,45 @@ const statusVisibility = await betaFeatures.evaluate(() => {
 if (!statusVisibility.allParamsVisible || !statusVisibility.allSectionsVisible || !statusVisibility.strictlyVertical) {
   throw new Error("STATUS inputs are not visibly ordered on screen: " + JSON.stringify(statusVisibility));
 }
+
+// Empty structured STATUS must remain incomplete even if a stale generatedAt existed.
+await betaFeatures.evaluate(() => {
+  document.querySelectorAll("#betaStructuredStatus [data-status-param], #betaStructuredStatus [data-status-section]")
+    .forEach((element) => {
+      element.value = "";
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+});
+await betaFeatures.waitForFunction(() =>
+  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Még nincs adat")
+);
+const emptyStatusState = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  return {
+    generatedAt: patient?.physicalStatus?.generatedAt || null,
+    physical: patient?.physical || "",
+    physicalBlocked: Boolean(workflow?.sections?.tests?.blockers?.some((x) =>
+      /Fizik|Physical examination/i.test(String(x))
+    )),
+    generatedClass: document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated")
+  };
+});
+if (
+  emptyStatusState.generatedAt ||
+  emptyStatusState.physical ||
+  !emptyStatusState.physicalBlocked ||
+  emptyStatusState.generatedClass
+) {
+  throw new Error("Empty STATUS was incorrectly marked complete: " + JSON.stringify(emptyStatusState));
+}
+if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').getAttribute("inputmode")) !== "text") {
+  throw new Error("Blood pressure input must allow slash on mobile keyboard");
+}
+if (!await betaFeatures.locator("#betaStructuredStatusPreview").isVisible()) {
+  throw new Error("Realtime STATUS preview is not always visible");
+}
+
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");
@@ -1847,7 +1886,7 @@ if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
 }
 await betaFeatures.waitForFunction(() =>
   document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated") &&
-  !document.querySelector("#betaStructuredStatusDone")?.classList.contains("hidden")
+  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
 );
 for (const selector of [
   '[data-status-param="bloodPressure"]',
@@ -1887,7 +1926,6 @@ if (
 if (!structuredStatusState.physicalReady) {
   throw new Error("Generated structured STATUS did not resolve the Physical examination workflow blocker");
 }
-await betaFeatures.locator("#betaStructuredStatusView").click();
 const structuredCopyPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
 for (const expected of [
   "Paraméterek: vérnyomás 135/80 Hgmm, pulsus 88/perc.",
@@ -1899,8 +1937,6 @@ for (const expected of [
     throw new Error("Structured STATUS copy preview missing: " + expected + "\n" + structuredCopyPreview);
   }
 }
-await betaFeatures.locator("#betaStructuredStatusView").click();
-
 // EKG helper is deliberately ephemeral: editing its two templates must not
 // mutate the patient test state or feed the Summary data path.
 await betaFeatures.locator("#betaEkgCopyBuilder").waitFor();
@@ -1945,7 +1981,9 @@ await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
 await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
 await betaFeatures.locator("#betaStructuredStatus").waitFor();
-await betaFeatures.locator("#betaStructuredStatusDone:not(.hidden)").waitFor();
+await betaFeatures.waitForFunction(() =>
+  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
+);
 if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80") {
   throw new Error("Structured STATUS blood pressure did not survive reload");
 }
@@ -1956,8 +1994,8 @@ if (!await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible
     !await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
   throw new Error("Structured STATUS facts should remain visible after reload");
 }
-if (!await betaFeatures.locator("#betaStructuredStatusPreview").isHidden()) {
-  throw new Error("Generated full STATUS preview should stay hidden after reload");
+if (!await betaFeatures.locator("#betaStructuredStatusPreview").isVisible()) {
+  throw new Error("Realtime STATUS preview should remain visible after reload");
 }
 if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80" ||
     (await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
@@ -2177,7 +2215,9 @@ await betaFeatures.locator('[data-status-section="E5"]').fill("epig nyomérz");
 if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
   throw new Error("Realtime STATUS must not expose a Generate button");
 }
-await betaFeatures.locator("#betaStructuredStatusDone:not(.hidden)").waitFor();
+await betaFeatures.waitForFunction(() =>
+  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
+);
 
 const structuredPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
 for (const expected of [

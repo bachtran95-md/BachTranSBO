@@ -1820,6 +1820,25 @@ if (JSON.stringify(statusOrder.sections) !== JSON.stringify([
 ])) {
   throw new Error("STATUS ABCDE order is wrong: " + JSON.stringify(statusOrder.sections));
 }
+const statusVisibility = await betaFeatures.evaluate(() => {
+  const paramNodes = [...document.querySelectorAll("#betaStructuredStatus [data-status-param]")];
+  const sectionNodes = [...document.querySelectorAll("#betaStructuredStatus [data-status-section]")];
+  const visible = (node) => {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+  };
+  const sectionTops = sectionNodes.map((node) => node.getBoundingClientRect().top);
+  return {
+    allParamsVisible: paramNodes.length === 6 && paramNodes.every(visible),
+    allSectionsVisible: sectionNodes.length === 10 && sectionNodes.every(visible),
+    sectionTops,
+    strictlyVertical: sectionTops.every((top, index) => index === 0 || top > sectionTops[index - 1])
+  };
+});
+if (!statusVisibility.allParamsVisible || !statusVisibility.allSectionsVisible || !statusVisibility.strictlyVertical) {
+  throw new Error("STATUS inputs are not visibly ordered on screen: " + JSON.stringify(statusVisibility));
+}
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");

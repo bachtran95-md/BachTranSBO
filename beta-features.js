@@ -1210,14 +1210,6 @@
         });
       });
       composer.querySelector("#betaCopyStatus")?.addEventListener("click", copyGeneratedStatus);
-      composer.querySelector("#betaFindingChips")?.addEventListener("click", (event) => {
-        const chip = event.target.closest("[data-finding-key]");
-        if (!chip) return;
-        const key = chip.dataset.findingKey;
-        if (suppressedFindingKeys.has(key)) suppressedFindingKeys.delete(key);
-        else suppressedFindingKeys.add(key);
-        syncComposer();
-      });
       composer.querySelector("#betaSuggestFinding")?.addEventListener("click", () => suggestUnknownFinding());
       composer.querySelector("#betaExistingFindingSearch")?.addEventListener("input", () => renderExistingFindingPicker(composer));
       composer.querySelector("#betaExistingFindingList")?.addEventListener("click", (event) => {
@@ -1316,6 +1308,11 @@
       button.title = suppressedFindingKeys.has(finding.key)
         ? "Kattintson a finding visszakapcsolásához"
         : "Kattintson, ha ezt a findingot nem szeretné alkalmazni";
+      button.addEventListener("click", () => {
+        if (suppressedFindingKeys.has(finding.key)) suppressedFindingKeys.delete(finding.key);
+        else suppressedFindingKeys.add(finding.key);
+        syncComposer();
+      });
       chips.appendChild(button);
     });
 

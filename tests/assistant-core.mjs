@@ -10,6 +10,41 @@ const core = context.BachAssistantCore;
 
 assert.ok(core, "BachAssistantCore should be exported");
 
+const snapshot = core.snapshot({
+  sex: "male",
+  yob: "1958",
+  triageStatus: "yellow",
+  dischargeCondition: "Panaszmentes",
+  physicalStatus: {
+    version: 1,
+    parameters: {
+      bloodPressure: "148/86",
+      pulse: "92",
+      temperature: "37.2",
+      respiratoryRate: "18",
+      spo2: "96",
+      oxygen: "2 L/min"
+    },
+    sections: {
+      A: "Légút szabad",
+      B: "Basalis crepitatio",
+      C: "Perifériásan meleg",
+      D: "GCS 15",
+      E1: "Közepes általános állapot"
+    },
+    generatedAt: "2026-09-23T12:00:00Z",
+    legacyPhysical: "should not be duplicated"
+  }
+});
+assert.equal(snapshot.triageStatus, "yellow");
+assert.equal(snapshot.dischargeCondition, "Panaszmentes");
+assert.equal(snapshot.physicalStatus.parameters.bloodPressure, "148/86");
+assert.equal(snapshot.physicalStatus.parameters.spo2, "96");
+assert.equal(snapshot.physicalStatus.sections.B, "Basalis crepitatio");
+assert.equal(snapshot.physicalStatus.sections.E6, "");
+assert.equal(snapshot.physicalStatus.generatedAt, undefined);
+assert.equal(snapshot.physicalStatus.legacyPhysical, undefined);
+
 const patient = {
   complaint: "Existing complaint",
   complaintSkipped: false,

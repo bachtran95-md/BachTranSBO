@@ -182,6 +182,11 @@
       root = document.createElement("div");
       root.id = "betaStructuredStatus";
       root.className = "beta-structured-status";
+      field.insertBefore(root, physical);
+    }
+
+    if (!root.dataset.statusInitialized) {
+      root.className = "beta-structured-status";
       root.innerHTML = `
         <div class="beta-status-block-head">
           <div>
@@ -238,8 +243,7 @@
         </div>
       `;
 
-      const composer = document.getElementById("betaFindingComposer");
-      field.insertBefore(root, composer || physical.nextSibling);
+      root.dataset.statusInitialized = "true";
 
       root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
         input.addEventListener("input", () => markEdited(root));
@@ -316,24 +320,13 @@
   function placeStructuredStatusUi(root) {
     if (!root) return;
 
-    const panel = document.querySelector('[data-cockpit-panel="tests"]');
-    if (!panel) return;
-
-    const anchor =
-      panel.querySelector("#cockpitInvestigationsHeader") ||
-      panel.querySelector(".test-group-toolbar");
-
-    if (anchor) {
-      if (root.nextElementSibling !== anchor) {
-        anchor.insertAdjacentElement("beforebegin", root);
-      }
-    } else if (root.parentElement !== panel) {
-      panel.prepend(root);
+    const physicalField = document.querySelector('[data-narrative-field="physical"]');
+    const physicalBridge = document.getElementById("fPhysical");
+    if (physicalField && root.parentElement !== physicalField) {
+      physicalField.insertBefore(root, physicalBridge || null);
     }
 
-    // Keep Finding Learning visible directly below STATUS. It still reads the
-    // hidden fPhysical compatibility bridge, but no longer lives in the hidden
-    // legacy physical wrapper.
+    // Finding Learning stays directly below the structured STATUS controls.
     const composer = document.getElementById("betaFindingComposer");
     if (composer && composer.previousElementSibling !== root) {
       root.insertAdjacentElement("afterend", composer);

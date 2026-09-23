@@ -828,6 +828,78 @@ async function deleteRawData(
   return { deleted: true, caseId };
 }
 
+async function saveStatusGeneratorRecords(
+  db: any,
+  ownerId: string,
+  recordsInput: any,
+) {
+  const records = Array.isArray(recordsInput) ? recordsInput.slice(0, 500) : [];
+  const caseIds = [...new Set(records
+    .map((record: any) => String(record?.caseId || ""))
+    .filter(Boolean))];
+
+  if (!caseIds.length) return { saved: 0 };
+
+  const { data: caseRows, error: caseError } = await db
+    .from("cases")
+    .select("id, shift_id")
+    .eq("owner_id", ownerId)
+    .in("id", caseIds);
+
+  if (caseError) throw caseError;
+
+  const casesById = new Map(
+    (caseRows || []).map((row: any) => [String(row.id), String(row.shift_id)]),
+  );
+
+  const rows = records.map((record: any) => {
+    const caseId = String(record?.caseId || "");
+    const shiftId = String(record?.shiftId || "");
+    const payload = record?.payload && typeof record.payload === "object"
+      ? record.payload
+      : {};
+    const ownedShiftId = casesById.get(caseId);
+
+    if (!ownedShiftId || ownedShiftId !== shiftId) {
+      throw new Error("Státusz case/shift ownership mismatch.");
+    }
+
+    return {
+      owner_id: ownerId,
+      shift_id: shiftId,
+      case_id: caseId,
+      generator_version: String(payload.generator_version || "unknown"),
+      parameters: payload.parameters && typeof payload.parameters === "object"
+        ? payload.parameters
+        : {},
+      section_inputs: payload.section_inputs && typeof payload.section_inputs === "object"
+        ? payload.section_inputs
+        : {},
+      canonical_findings: Array.isArray(payload.canonical_findings)
+        ? payload.canonical_findings
+        : [],
+      explicit_normal_findings: Array.isArray(payload.explicit_normal_findings)
+        ? payload.explicit_normal_findings
+        : [],
+      confirmed_custom_findings: Array.isArray(payload.confirmed_custom_findings)
+        ? payload.confirmed_custom_findings
+        : [],
+      renderer_output: String(payload.renderer_output || ""),
+      final_status: String(payload.final_status || ""),
+      copied_at: payload.copied_at || null,
+      finalized_at: payload.finalized_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  });
+
+  const { error } = await db
+    .from("status_generator_revisions")
+    .upsert(rows, { onConflict: "owner_id,case_id" });
+
+  if (error) throw error;
+  return { saved: rows.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -857,6 +929,12 @@ Deno.serve(async (req) => {
     if (body?.action === "save_patient") {
       return json(
         await savePatient(db, user.id, String(body.shiftId || ""), body.patient),
+      );
+    }
+
+    if (body?.action === "save_status_generator_records") {
+      return json(
+        await saveStatusGeneratorRecords(db, user.id, body.records),
       );
     }
 

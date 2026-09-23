@@ -30,9 +30,8 @@ jobs:
           node --check case-ui.js
           node --check cockpit.js
           node --check cockpit-beta.js
-          node --check beta-finding-registry.generated.js
           node --check beta-features.js
-          node --check beta-status-module.js
+          node --check beta-status-generator.js
 
       - name: Check security invariants
         run: |
@@ -92,20 +91,16 @@ jobs:
             echo "beta.html must load the production cockpit foundation."
             exit 1
           fi
-          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html || ! grep -q 'beta-status-module.js' beta.html; then
-            echo "beta.html must load beta-only feature assets."
+          if ! grep -q 'beta-features.js' beta.html || ! grep -q 'beta-features.css' beta.html || ! grep -q 'beta-status-generator.js' beta.html || ! grep -q 'beta-status-generator.css' beta.html; then
+            echo "beta.html must load current beta-only feature and Státusz generator assets."
             exit 1
           fi
-          if ! grep -q 'beta-finding-registry.generated.js' beta.html; then
-            echo "beta.html must load the generated finding registry."
+          if grep -q 'beta-status-module.js\|beta-finding-registry.generated.js' beta.html; then
+            echo "beta.html must not load retired structured-status assets."
             exit 1
           fi
-          if grep -q 'beta-features.js\|beta-features.css\|beta-finding-registry.generated.js\|beta-status-module.js' index.html; then
+          if grep -q 'beta-features.js\|beta-features.css\|beta-status-generator.js\|beta-status-generator.css\|beta-finding-registry.generated.js\|beta-status-module.js' index.html; then
             echo "Production index.html must not load beta-only feature assets."
-            exit 1
-          fi
-          if grep -E -q 'patient(Id|_id)|case(Id|_id)|year_of_birth|main_complaint|physical_examination' beta-finding-registry.generated.js; then
-            echo "Generated finding registry must contain rules only, never patient/case data."
             exit 1
           fi
           if grep -E -q '<script[^>]+src="[^"]*cockpit' recovery.html; then

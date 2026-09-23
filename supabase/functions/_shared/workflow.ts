@@ -21,7 +21,10 @@ export function patientWorkflowBlockers(patient: any) {
 
   const physicalStructuredComplete = Boolean(
     patient?.physicalStatus?.version === 1 &&
-    patient?.physicalStatus?.generatedAt
+    (
+      patient?.physicalStatus?.generatedAt ||
+      String(patient?.physicalStatus?.freeText || "").trim()
+    )
   );
 
   const requiredNarrative = [

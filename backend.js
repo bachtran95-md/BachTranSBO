@@ -845,7 +845,7 @@
 
   async function listNotes() {
     return invokeAuthedFunction(
-      "clinical-store",
+      "notes-store",
       { action: "list_notes" },
       "Notes load"
     );
@@ -853,7 +853,7 @@
 
   async function createNote(note = {}) {
     return invokeAuthedFunction(
-      "clinical-store",
+      "notes-store",
       {
         action: "create_note",
         note: {
@@ -869,7 +869,7 @@
     if (!noteId) throw new Error("Missing note ID.");
 
     return invokeAuthedFunction(
-      "clinical-store",
+      "notes-store",
       {
         action: "update_note",
         noteId,
@@ -886,7 +886,7 @@
     if (!noteId) throw new Error("Missing note ID.");
 
     return invokeAuthedFunction(
-      "clinical-store",
+      "notes-store",
       {
         action: "delete_note",
         noteId

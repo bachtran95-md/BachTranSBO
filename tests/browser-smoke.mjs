@@ -2009,6 +2009,20 @@ for (const [input, expected] of [
   }
 }
 
+// Vocabulary layer regression: lexical hotfixes must canonicalize into existing
+// engine concepts without changing parser/render/workflow code.
+const statusVocabularyVersion = await betaFeatures.evaluate(() => window.BachSBOStatusVocabulary?.version || "");
+if (!statusVocabularyVersion) {
+  throw new Error("Status vocabulary layer was not loaded before the generator");
+}
+await betaFeatures.locator('[data-status-section="B"]').fill("légszomj nincs");
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Dyspnoe nincs.") &&
+    !preview.includes("Dyspnoés.") &&
+    document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 0;
+});
+
 // Regression: explicit negative dyspnoea must override the positive dyspnoea token
 // and remain an explicit normal finding for Summary context.
 await betaFeatures.locator('[data-status-section="B"]').fill(

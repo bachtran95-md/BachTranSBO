@@ -9,6 +9,7 @@
   const SECTIONS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
   const PARAMS = ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"];
   const STATUS_LEARNING_ENABLED = false;
+  const STATUS_VOCAB = window.BachSBOStatusVocabulary || null;
 
   const SUBSECTION_OPTIONS = {
     A: [
@@ -111,9 +112,10 @@
   }
 
   function fold(value) {
-    return normalize(value)
+    const folded = normalize(value)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
+    return STATUS_VOCAB?.canonicalizeFolded?.(folded) || folded;
   }
 
   function ensureSentence(value) {
@@ -303,25 +305,29 @@
 
   function sideOf(text) {
     const n = fold(text);
-    if (/\b(mko\.?|m\.k\.o\.?|mindket|ketoldali|bilat|bilateralis|bilateral)\b/.test(n)) return "bilateral";
-    if (/\b(jobb|jobb oldali|j\.o\.?)\b/.test(n)) return "right";
-    if (/\b(bal|bal oldali|b\.o\.?)\b/.test(n)) return "left";
-    return "";
+    const patterns = STATUS_VOCAB?.sidePatterns || [
+      { value: "bilateral", pattern: "\\b(mko\\.?|m\\.k\\.o\\.?|mindket|ketoldali|bilat|bilateralis|bilateral)\\b" },
+      { value: "right", pattern: "\\b(jobb|jobb oldali|j\\.o\\.?)\\b" },
+      { value: "left", pattern: "\\b(bal|bal oldali|b\\.o\\.?)\\b" }
+    ];
+    return patterns.find((item) => new RegExp(item.pattern).test(n))?.value || "";
   }
 
   function locationOf(text) {
     const n = fold(text);
-    if (/basal|bazal|basis|tudobazis/.test(n)) return "basal";
-    if (/apical|csucsi/.test(n)) return "apical";
-    if (/diffuz|diffuse/.test(n)) return "diffuse";
-    if (/epigastr|epigasztr|gyomorszaj/.test(n)) return "epigastric";
-    if (/periumbil|koldok korul|koldoktaj/.test(n)) return "periumbilical";
-    if (/\b(?:jaq|j\s*\.?\s*a\s*\.?\s*q|jobb also|jobb alhas|jobb csipoarok|jobb iliac|right lower)\b/.test(n)) return "RLQ";
-    if (/\b(?:baq|b\s*\.?\s*a\s*\.?\s*q|bal also|bal alhas|bal csipoarok|bal iliac|left lower)\b/.test(n)) return "LLQ";
-    if (/\b(?:jfq|j\s*\.?\s*f\s*\.?\s*q|jobb felso|jobb bordaiv(?:\s+alatt(?:i)?)?|jobb hypochondr|jobb subcost|right upper)\b/.test(n)) return "RUQ";
-    if (/\b(?:bfq|b\s*\.?\s*f\s*\.?\s*q|bal felso|bal bordaiv(?:\s+alatt(?:i)?)?|bal hypochondr|bal subcost|left upper)\b/.test(n)) return "LUQ";
-    if (/\balhas\b/.test(n)) return "lower_abdomen";
-    return "";
+    const patterns = STATUS_VOCAB?.locationPatterns || [
+      { value: "basal", pattern: "basal|bazal|basis|tudobazis" },
+      { value: "apical", pattern: "apical|csucsi" },
+      { value: "diffuse", pattern: "diffuz|diffuse" },
+      { value: "epigastric", pattern: "epigastr|epigasztr|gyomorszaj" },
+      { value: "periumbilical", pattern: "periumbil|koldok korul|koldoktaj" },
+      { value: "RLQ", pattern: "\\b(?:jaq|j\\s*\\.?\\s*a\\s*\\.?\\s*q|jobb also|jobb alhas|jobb csipoarok|jobb iliac|right lower)\\b" },
+      { value: "LLQ", pattern: "\\b(?:baq|b\\s*\\.?\\s*a\\s*\\.?\\s*q|bal also|bal alhas|bal csipoarok|bal iliac|left lower)\\b" },
+      { value: "RUQ", pattern: "\\b(?:jfq|j\\s*\\.?\\s*f\\s*\\.?\\s*q|jobb felso|jobb bordaiv(?:\\s+alatt(?:i)?)?|jobb hypochondr|jobb subcost|right upper)\\b" },
+      { value: "LUQ", pattern: "\\b(?:bfq|b\\s*\\.?\\s*f\\s*\\.?\\s*q|bal felso|bal bordaiv(?:\\s+alatt(?:i)?)?|bal hypochondr|bal subcost|left upper)\\b" },
+      { value: "lower_abdomen", pattern: "\\balhas\\b" }
+    ];
+    return patterns.find((item) => new RegExp(item.pattern).test(n))?.value || "";
   }
 
   function splitInput(value) {
@@ -334,7 +340,8 @@
 
   function conceptIsNegated(text, conceptSource) {
     const n = fold(text);
-    const negation = "(?:nincs|nincsenek|nem\\s+(?:eszlelheto|lathato|hallhato|tapinthato|jelez|all\\s+fenn|igazolhato|van)|negativ)";
+    const negation = STATUS_VOCAB?.negationSource ||
+      "(?:nincs|nincsenek|nem\\s+(?:eszlelheto|lathato|hallhato|tapinthato|jelez|all\\s+fenn|igazolhato|van)|negativ)";
     return new RegExp(
       "(?:" + conceptSource + ").{0,36}(?:" + negation + ")|" +
       "(?:" + negation + ").{0,36}(?:" + conceptSource + ")|" +

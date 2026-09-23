@@ -119,7 +119,7 @@ assert.match(
 );
 assert.match(
   app,
-  /BachSBOStatusGenerator\?\.finalizeCase\(state\.shift\?\.id, patient\)/,
+  /BachSBOStatusGenerator\.finalizeCase\(state\.shift\?\.id, patient\)/,
   "Clinical case finalization must trigger per-case Status revision persistence."
 );
 const finalizeShift = sliceFunction(

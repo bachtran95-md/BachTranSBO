@@ -657,6 +657,23 @@ if (stablePersistedTriage !== "yellow") {
   throw new Error("Stable case triage did not persist: " + stablePersistedTriage);
 }
 
+// Selection must remain visually distinct from triage color.
+const selectedCaseVisual = await page.locator("#patientTbody tr.selected[data-id]").evaluate((row) => {
+  const firstCell = row.querySelector("td:first-child");
+  return {
+    background: getComputedStyle(row).backgroundColor,
+    boxShadow: getComputedStyle(row).boxShadow,
+    marker: firstCell ? getComputedStyle(firstCell, "::before").content : ""
+  };
+});
+if (
+  selectedCaseVisual.background !== "rgb(219, 234, 254)" ||
+  !selectedCaseVisual.boxShadow.includes("37, 99, 235") ||
+  !selectedCaseVisual.marker.includes("▶")
+) {
+  throw new Error("Selected case is not visually distinct from triage: " + JSON.stringify(selectedCaseVisual));
+}
+
 await page.locator("#normalRawBadge:not(.hidden)").waitFor();
 if (await page.locator("#normalRawDataInbox").count()) {
   throw new Error("Permanent Raw Data Inbox still occupies case content space");
@@ -1282,9 +1299,30 @@ await beta.waitForFunction(() => {
     !document.querySelector("#admittedFields")?.classList.contains("hidden");
 });
 
-await beta.locator("#cockpitWardSelect").selectOption("Kardiológia");
+const wardOptions = await beta.locator("#cockpitWardSelect").evaluate((select) =>
+  [...select.options].map((option) => option.value)
+);
+const expectedWardOptions = [
+  "",
+  "Belgyógyászat",
+  "Gasztroenterológia",
+  "Idegsebészet",
+  "Infektológia",
+  "Intenzív Osztály",
+  "Kardiológia",
+  "Nefrológia",
+  "Neurológia",
+  "SBO",
+  "Sebészet",
+  "__other__"
+];
+if (JSON.stringify(wardOptions) !== JSON.stringify(expectedWardOptions)) {
+  throw new Error("Ward options are missing or not alphabetically ordered: " + JSON.stringify(wardOptions));
+}
+
+await beta.locator("#cockpitWardSelect").selectOption("Intenzív Osztály");
 await beta.waitForFunction(() =>
-  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.ward === "Kardiológia"
+  window.BachSBOClinicalUi?.getPatientSnapshot?.()?.ward === "Intenzív Osztály"
 );
 
 await beta.locator("#fDisposition").selectOption("other");

@@ -216,6 +216,66 @@
     }
   }
 
+  function scheduleClinicalAutosave({ immediate = false } = {}) {
+    clearTimeout(clinicalAutosaveTimer);
+    if (immediate) {
+      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
+      return;
+    }
+    clinicalAutosaveTimer = window.setTimeout(() => {
+      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
+    }, 700);
+  }
+
+  function vitalsFromState() {
+    return {
+      version: 1,
+      ...Object.fromEntries(PARAMS.map((key) => [key, String(activeState?.parameters?.[key] || "").trim()]))
+    };
+  }
+
+  function syncClinicalVitals({ immediate = false } = {}) {
+    if (!activeState || !activeCaseId) return;
+    const patient = patientSnapshot(activeCaseId);
+    const next = vitalsFromState();
+    const current = patient?.vitals && Number(patient.vitals.version) === 1
+      ? patient.vitals
+      : null;
+    const changed = !current || PARAMS.some(
+      (key) => String(current?.[key] || "").trim() !== next[key]
+    );
+    if (!changed) return;
+
+    window.BachSBOClinicalUi?.setVitalsData?.(activeCaseId, next);
+    scheduleClinicalAutosave({ immediate });
+  }
+
+  function hydrateCanonicalVitals(patient) {
+    if (!activeState) return;
+    const canonical = patient?.vitals && Number(patient.vitals.version) === 1
+      ? patient.vitals
+      : null;
+
+    if (canonical) {
+      let changed = false;
+      for (const key of PARAMS) {
+        const value = String(canonical[key] || "");
+        if (activeState.parameters[key] !== value) {
+          activeState.parameters[key] = value;
+          changed = true;
+        }
+      }
+      if (changed) saveState();
+      return;
+    }
+
+    // Pre-vitals-release cases may still have parameters only in the local cache.
+    // Migrate them once into canonical patient state; afterwards DB wins, even when empty.
+    if (PARAMS.some((key) => String(activeState.parameters?.[key] || "").trim())) {
+      syncClinicalVitals();
+    }
+  }
+
   function confirmationKey(section, raw) {
     return section + "|" + normalize(raw);
   }
@@ -1688,15 +1748,7 @@
       }
     }));
 
-    clearTimeout(clinicalAutosaveTimer);
-    if (immediate) {
-      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
-      return;
-    }
-
-    clinicalAutosaveTimer = window.setTimeout(() => {
-      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
-    }, 700);
+    scheduleClinicalAutosave({ immediate });
   }
 
   function render() {
@@ -1722,6 +1774,7 @@
         : "";
     }
     if (copy) copy.disabled = false;
+    syncClinicalVitals();
     syncClinicalPhysical(model);
   }
 
@@ -1758,6 +1811,7 @@
         activeState.parameters[param.dataset.statusParam] = param.value;
         activeState.touched = true;
         saveState();
+        syncClinicalVitals();
         scheduleRender();
       }
       if (section) {
@@ -1885,6 +1939,7 @@
       activeCaseId = caseId;
       activeShiftId = shiftId;
       activeState = loadState(shiftId, caseId);
+      hydrateCanonicalVitals(patient);
       populate();
     } else {
       render();
@@ -1968,6 +2023,13 @@
           value: item.value,
           attributes: item.attributes || {}
         }));
+        window.BachSBOClinicalUi?.setVitalsData?.(record.caseId, {
+          version: 1,
+          ...Object.fromEntries(PARAMS.map((key) => [
+            key,
+            String(record.payload.parameters?.[key] || "").trim()
+          ]))
+        });
         const updatedPatient = window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(
           record.caseId,
           record.payload.final_status,

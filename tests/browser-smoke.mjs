@@ -1891,10 +1891,74 @@ const negativeDyspnoeaState = await betaFeatures.evaluate(() => {
 });
 if (!negativeDyspnoeaState.explicitNormals.some((item) =>
   item.section === "B" &&
-  item.concept === "respiratory_pattern" &&
-  item.value === "dyspnoea_absent"
+  item.concept === "explicit_normal_note" &&
+  /dyspnoe nincs/i.test(item.attributes?.text || "")
 )) {
   throw new Error("Explicit negative dyspnoea was not preserved for Summary context: " + JSON.stringify(negativeDyspnoeaState));
+}
+
+// Cross-section negation regression: each known abnormal concept must prefer
+// explicit negative/normal semantics before the positive matcher.
+await betaFeatures.locator('[data-status-section="A"]').fill("stridor nincs");
+await betaFeatures.locator('[data-status-section="B"]').fill("dyspnoe nincs, cyanosis nincs, crepitatio nincs");
+await betaFeatures.locator('[data-status-section="C"]').fill("arrhythmia nincs, aktív vérzés nincs");
+await betaFeatures.locator('[data-status-section="D"]').fill("aphasia nincs, hemiparesis nincs, anisocoria nincs, nystagmus nincs");
+await betaFeatures.locator('[data-status-section="E2"]').fill("icterus nincs, exsiccosis nincs");
+await betaFeatures.locator('[data-status-section="E3"]').fill("külsérelmi nyom nincs");
+await betaFeatures.locator('[data-status-section="E4"]').fill("oedema nincs, MVT-re utaló jel nincs, deformitás nincs");
+await betaFeatures.locator('[data-status-section="E5"]').fill("hasi fájdalom nincs, nem nyomásérzékeny, defanz nincs, resistentia nincs, bélhang nincs");
+await betaFeatures.locator('[data-status-section="E6"]').fill("vesetájak nem érzékenyek");
+
+await betaFeatures.waitForFunction(() => {
+  const text = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return text.includes("Stridor nincs.") &&
+    text.includes("Dyspnoe nincs.") &&
+    text.includes("Cyanosis nincs.") &&
+    text.includes("Crepitatio nincs.") &&
+    text.includes("Aktív vérzés nincs.") &&
+    text.includes("Aphasia nincs.") &&
+    text.includes("Paresis nem észlelhető.") &&
+    text.includes("Anisocoria nincs.") &&
+    text.includes("Nystagmus nincs.") &&
+    text.includes("Icterus nincs.") &&
+    text.includes("Exsiccosis nincs.") &&
+    text.includes("Külsérelmi nyom nincs.") &&
+    text.includes("Oedema nincs.") &&
+    text.includes("MVT/DVT jelek nincsenek.") &&
+    text.includes("Végtagi deformitás nincs.") &&
+    text.includes("Hasi fájdalom nincs.") &&
+    text.includes("Nyomásérzékenység nincs.") &&
+    text.includes("defanz nincs.") &&
+    text.includes("Kóros resistentia nincs.") &&
+    text.includes("Bélhang nem hallható.") &&
+    text.includes("Vesetájak ütögetésre nem érzékenyek.") &&
+    document.querySelectorAll(".beta-status-unknown").length === 0;
+});
+
+const negationSweep = await betaFeatures.evaluate(() => ({
+  preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+  unknowns: document.querySelectorAll(".beta-status-unknown").length
+}));
+for (const forbidden of [
+  "Stridor hallható.",
+  "Dyspnoés.",
+  "crepitatio hallható.",
+  "Aktív vérzés észlelhető.",
+  "hemiparesis észlelhető.",
+  "Anisocoria észlelhető.",
+  "Icterusos",
+  "Exsiccosis jelei észlelhetők.",
+  "végtagi oedema észlelhető.",
+  "MVT/DVT jelek észlelhetők.",
+  "végtagi deformitás észlelhető.",
+  "hasi fájdalmat jelez.",
+  "nyomásérzékenység észlelhető.",
+  "defanz észlelhető.",
+  "Kóros resistentia tapintható."
+]) {
+  if (negationSweep.preview.includes(forbidden)) {
+    throw new Error("Negated finding leaked through as positive: " + forbidden + "\n" + negationSweep.preview);
+  }
 }
 
 // Regression: rate + standalone regularity in the same C field must both resolve.

@@ -3,7 +3,7 @@
 
   // Fast hotfix lane for Státusz vocabulary. Keep this file lexical only:
   // aliases, laterality/location terms, and general negation grammar.
-  // Do not put workflow, rendering, persistence, or patient-state logic here.
+  // Do not put workflow, rendering, persistence, or patient-state logic here.\n  // Every vocabulary hotfix must keep browser regression tests green.
   const VERSION = "1.0";
 
   const aliases = Object.freeze([

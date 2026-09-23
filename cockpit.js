@@ -145,6 +145,11 @@
     });
   }
 
+  document.addEventListener("bachsbo:status-generator-updated", () => {
+    syncTabWarnings();
+    syncRailState();
+  });
+
   function createTabBar() {
     const form = document.getElementById("patientForm");
     if (!form || document.getElementById("cockpitCaseTabs")) return;

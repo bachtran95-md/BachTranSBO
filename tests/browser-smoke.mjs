@@ -2125,10 +2125,15 @@ if (await directAiButtons.count() !== 1) {
 
 // AI may populate a proposal, but it must not save anything before physician confirmation.
 await directAiButtons.click();
-await betaFeatures.waitForFunction(() =>
-  !document.querySelector("#betaSuggestFinding")?.disabled &&
-  !document.querySelector("#betaUnknownChips [data-ai-unknown-phrase]")?.disabled
-);
+await betaFeatures.waitForFunction(() => {
+  const label = document.querySelector("#betaNewFindingLabel")?.value || "";
+  const output = document.querySelector("#betaNewFindingOutput")?.value || "";
+  const message = document.querySelector("#betaLearningMessage")?.textContent || "";
+  return (
+    (label === "Pleuralis dörzszörej" && /pleuralis dörzszörej/i.test(output)) ||
+    /AI javaslat hiba/i.test(message)
+  );
+});
 const aiFindingState = await betaFeatures.evaluate(() => ({
   label: document.querySelector("#betaNewFindingLabel")?.value || "",
   target: document.querySelector("#betaNewFindingTarget")?.value || "",

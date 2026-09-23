@@ -1223,11 +1223,26 @@
   }
 
   function structuredFindingSource() {
+    // Canonical source: structured case state. Input handlers write this state
+    // synchronously before Learning parses, so autosave/DOM rerenders cannot
+    // transiently erase an unresolved finding while AI review is in flight.
+    const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+    const status = patient?.physicalStatus;
+    if (status?.version === 1 && status.sections && typeof status.sections === "object") {
+      return ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"]
+        .map((key) => {
+          const value = String(status.sections[key] || "").trim();
+          return value ? `${key}: ${value}` : "";
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    // Fallback only during first hydration before the case bridge is ready.
     const root = document.getElementById("betaStructuredStatus");
     const fields = root
       ? [...root.querySelectorAll("[data-status-section]")]
       : [];
-
     if (fields.length) {
       return fields
         .map((field) => {
@@ -1239,7 +1254,7 @@
         .join("\n");
     }
 
-    return String(document.getElementById("fPhysical")?.value || "");
+    return "";
   }
 
   function syncComposer() {

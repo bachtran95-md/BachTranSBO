@@ -2059,6 +2059,14 @@ for (const [input, expected] of [
     throw new Error("Bowel-sound wording regression for " + input + ": " + preview);
   }
 }
+
+// An unfamiliar bowel-sound modifier must stay unresolved instead of silently
+// becoming a normal bowel-sound finding.
+await betaFeatures.locator('[data-status-section="E5"]').fill("tompa bélhangok");
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll('[data-status-unknown-host="E5"] .beta-status-unknown').length === 1 &&
+  Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
+);
 for (const forbidden of [
   "Stridor hallható.",
   "Dyspnoés.",

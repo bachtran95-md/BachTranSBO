@@ -287,6 +287,9 @@ jobs:
       - name: Run assistant apply core tests
         run: node tests/assistant-core.mjs
 
+      - name: Run Summary vitals firewall tests
+        run: node tests/summary-vitals-firewall.mjs
+
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright@1.55.0

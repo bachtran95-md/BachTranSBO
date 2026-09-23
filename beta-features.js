@@ -1378,7 +1378,8 @@
 
       const aiButton = target.closest("#betaFindingComposer [data-ai-unknown-phrase]");
       const chip = target.closest("#betaFindingComposer [data-unknown-phrase]");
-      if (!aiButton && !chip) return;
+      const findingChip = target.closest("#betaFindingComposer [data-finding-key]");
+      if (!aiButton && !chip && !findingChip) return;
 
       // pointerdown runs before focus/blur/autosave can cause a DOM refresh.
       // The subsequent click is retained as keyboard/fallback behavior only.
@@ -1394,6 +1395,15 @@
 
       const composer = ensureComposer();
       if (!composer) return;
+
+      if (findingChip) {
+        const key = String(findingChip.dataset.findingKey || "");
+        if (!key) return;
+        if (suppressedFindingKeys.has(key)) suppressedFindingKeys.delete(key);
+        else suppressedFindingKeys.add(key);
+        syncComposer();
+        return;
+      }
 
       if (aiButton) {
         const phrase = String(aiButton.dataset.aiUnknownPhrase || "");

@@ -1909,7 +1909,7 @@ await betaFeatures.locator('[data-status-section="B"]').fill(
   "pulmo tiszta, tachypnoe, jobb basalis crepitatio, mko. sípolás"
 );
 await betaFeatures.locator('[data-status-section="E5"]').fill(
-  "epigastrialis nyomásérzékenység, BFQ defanz"
+  "epigastrialis nyomásérzékenység, BAQ defanz"
 );
 
 await betaFeatures.waitForFunction(() => {
@@ -1919,7 +1919,7 @@ await betaFeatures.waitForFunction(() => {
     text.includes("Mko. sípolás") &&
     text.includes("Tachycardia") &&
     text.includes("epigastrialis nyomásérzékenység") &&
-    text.includes("bal alhasi / BFQ defanz");
+    text.includes("bal alhasi / BAQ defanz");
 });
 
 const multiFindingState = await betaFeatures.evaluate(() => {
@@ -1950,6 +1950,25 @@ if (!multiFindingState.explicitNormals.some((item) => item.section === "B" && it
 }
 if (!multiFindingState.statusComplete) {
   throw new Error("Resolved Státusz did not complete the Státusz workflow tab");
+}
+
+// Regression: Hungarian abdominal quadrant abbreviations must keep A=alsó and F=felső.
+const quadrantCases = [
+  ["JAQ nyomásérzékenység", "jobb alhasi / JAQ nyomásérzékenység"],
+  ["BAQ nyomásérzékenység", "bal alhasi / BAQ nyomásérzékenység"],
+  ["JFQ nyomásérzékenység", "jobb felső hasi / JFQ nyomásérzékenység"],
+  ["BFQ nyomásérzékenység", "bal felső hasi / BFQ nyomásérzékenység"]
+];
+for (const [input, expected] of quadrantCases) {
+  await betaFeatures.locator('[data-status-section="E5"]').fill(input);
+  await betaFeatures.waitForFunction((needle) => {
+    const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+    return preview.includes(needle);
+  }, expected);
+  const preview = await betaFeatures.locator("#betaStatusFinalPreview").textContent();
+  if (!preview.includes(expected)) {
+    throw new Error("Abdominal quadrant mapping is wrong for " + input + ": " + preview);
+  }
 }
 
 // Regression: explicit negative dyspnoea must override the positive dyspnoea token

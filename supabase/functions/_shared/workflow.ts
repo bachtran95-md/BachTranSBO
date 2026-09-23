@@ -34,6 +34,16 @@ export function patientWorkflowBlockers(patient: any) {
     physicalStructuredHasInput &&
     structuredPhysical.generatedAt
   );
+  const simplePhysicalComplete = Boolean(
+    String(patient?.physical || "").trim() ||
+    (Array.isArray(patient?.statusExplicitNormals) && patient.statusExplicitNormals.length) ||
+    (
+      patient?.vitals &&
+      typeof patient.vitals === "object" &&
+      ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"]
+        .some((key) => String(patient.vitals?.[key] || "").trim())
+    )
+  );
 
   const requiredNarrative = [
     ["Complaint", patient?.complaint, patient?.complaintSkipped, false],
@@ -51,6 +61,7 @@ export function patientWorkflowBlockers(patient: any) {
       if (!structuredComplete) blockers.push(String(label));
       continue;
     }
+    if (label === "Physical examination" && simplePhysicalComplete) continue;
 
     if (!String(value || "").trim()) blockers.push(String(label));
   }

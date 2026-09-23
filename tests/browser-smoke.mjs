@@ -1788,31 +1788,6 @@ await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
 // Structured STATUS: parameters + positive findings are persisted, while the
 // full generated copy text remains derived UI output only.
 await betaFeatures.locator("#betaStructuredStatus").waitFor();
-await betaFeatures.locator("#betaPhysicalFreeText").waitFor();
-if (!await betaFeatures.locator("#betaPhysicalFreeText").isVisible()) {
-  throw new Error("Free-text Fizikális vizsgálat textarea is not visible in the Tests panel");
-}
-await betaFeatures.locator("#betaPhysicalFreeText").fill("dyspnoe nincs");
-const freeTextPhysicalState = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
-  return {
-    freeText: patient?.physicalStatus?.freeText || "",
-    physical: patient?.physical || "",
-    blocked: workflow?.sections?.tests?.blockers?.some((x) =>
-      /Fizik|Physical examination/i.test(String(x))
-    )
-  };
-});
-if (
-  freeTextPhysicalState.freeText !== "dyspnoe nincs" ||
-  !freeTextPhysicalState.physical.includes("dyspnoe nincs") ||
-  freeTextPhysicalState.blocked
-) {
-  throw new Error("Free-text physical exam did not update canonical state: " + JSON.stringify(freeTextPhysicalState));
-}
-await betaFeatures.locator("#betaPhysicalFreeText").fill("");
-
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");

@@ -1634,11 +1634,26 @@
       ));
   }
 
-  function buildRenderModel() {
+  function clinicalNoteText(override) {
+    if (override !== undefined) return String(override || "").trim();
+    const input = document.getElementById("fOthers");
+    if (input) return String(input.value || "").trim();
+    return String(patientSnapshot(activeCaseId)?.others || "").trim();
+  }
+
+  function buildRenderModel(options = {}) {
     const parsed = parseAll();
     const lines = [];
     const params = parameterLine();
     if (params) lines.push({ prefix: "", segments: [segment(params, "base", "")] });
+
+    const clinicalNote = clinicalNoteText(options.clinicalNote);
+    if (clinicalNote) {
+      lines.push({
+        prefix: "Klinikai megjegyzés: ",
+        segments: [segment(clinicalNote, "note", "clinical-note")]
+      });
+    }
 
     lines.push({
       prefix: "A: ",
@@ -1702,6 +1717,8 @@
           ? "status-derived"
           : item.kind === "unresolved"
           ? "status-unresolved"
+          : item.kind === "note"
+          ? "status-note"
           : "";
         const attrs = [];
         if (item.source) attrs.push('data-status-source="' + esc(item.source) + '"');
@@ -1840,8 +1857,15 @@
     root.addEventListener("input", (event) => {
       const param = event.target.closest?.("[data-status-param]");
       const section = event.target.closest?.("[data-status-section]");
+      const clinicalNote = event.target.closest?.("[data-status-clinical-note]");
       if (!activeState) return;
 
+      if (clinicalNote) {
+        activeState.touched = true;
+        saveState();
+        scheduleRender();
+        scheduleClinicalAutosave();
+      }
       if (param) {
         activeState.parameters[param.dataset.statusParam] = param.value;
         activeState.touched = true;
@@ -1988,10 +2012,10 @@
       SECTIONS.some((key) => String(state.inputs?.[key] || "").trim());
   }
 
-  function buildRecordFromState(state) {
+  function buildRecordFromState(state, clinicalNote = "") {
     const previousState = activeState;
     activeState = state;
-    const model = buildRenderModel();
+    const model = buildRenderModel({ clinicalNote });
     activeState = previousState;
 
     const explicitNormals = model.findings.filter((item) => item.explicitNormal);
@@ -2026,8 +2050,9 @@
     for (const caseId of patientIds) {
       if (!caseId) continue;
       const state = loadState(shiftId, caseId);
-      if (!stateHasData(state)) continue;
-      const record = buildRecordFromState(state);
+      const patient = (patients || []).find((item) => String(item.id) === caseId);
+      if (!stateHasData(state) && !String(patient?.others || "").trim()) continue;
+      const record = buildRecordFromState(state, patient?.others || "");
       if (record.unresolved.length) {
         unresolved.push({
           caseId,
@@ -2111,8 +2136,8 @@
     const state = caseId === activeCaseId && activeState
       ? activeState
       : loadState(shiftId, caseId);
-    if (!stateHasData(state)) return null;
-    const record = buildRecordFromState(state);
+    if (!stateHasData(state) && !String(patient?.others || "").trim()) return null;
+    const record = buildRecordFromState(state, patient?.others || "");
     return {
       explicitNormalFindings: record.payload.explicit_normal_findings.map((item) => ({
         section: item.section,

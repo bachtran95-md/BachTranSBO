@@ -537,6 +537,21 @@ function isCompleted(patient) {
 }
 
 const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+const VITAL_KEYS = ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"];
+
+function defaultVitalsData() {
+  return {
+    version: 1,
+    ...Object.fromEntries(VITAL_KEYS.map((key) => [key, ""]))
+  };
+}
+
+function normalizeVitalsData(value) {
+  const base = defaultVitalsData();
+  if (!value || typeof value !== "object") return base;
+  for (const key of VITAL_KEYS) base[key] = String(value[key] ?? "").trim();
+  return base;
+}
 
 function defaultPhysicalStatusData() {
   return {
@@ -609,6 +624,18 @@ function structuredPhysicalStatusComplete(patient) {
     physicalStatusHasInput(patient.physicalStatus) &&
     patient.physicalStatus.generatedAt
   );
+}
+
+function setVitalsData(caseId, value) {
+  const patient = patientById(caseId);
+  if (!patient || isCompleted(patient)) return null;
+
+  const next = normalizeVitalsData(value);
+  if (JSON.stringify(patient.vitals || null) !== JSON.stringify(next)) {
+    patient.vitals = next;
+    touchPatient(patient);
+  }
+  return structuredClone(patient.vitals);
 }
 
 function setPhysicalStatusData(caseId, value) {
@@ -1928,6 +1955,7 @@ async function addPatient() {
     historySkipped: false,
     physical: "",
     physicalSkipped: false,
+    vitals: defaultVitalsData(),
     physicalStatus:
       document.body.classList.contains("beta-build") && !usesSimplePhysicalStatus()
         ? defaultPhysicalStatusData()
@@ -4149,6 +4177,9 @@ window.BachSBOClinicalUi = Object.freeze({
   getPatientProgress,
   getWorkflowStatus,
   evaluateWorkflowStatus: (patient) => structuredClone(workflowStatus(patient)),
+  defaultVitalsData,
+  normalizeVitalsData,
+  setVitalsData,
   defaultPhysicalStatusData,
   normalizePhysicalStatusData,
   physicalStatusPositiveText,

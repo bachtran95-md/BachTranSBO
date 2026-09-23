@@ -759,9 +759,9 @@
     // does NOT use the general negation-to-normal rule.
     if (/belhang/.test(n)) {
       let value = "normal";
-      if (/elenk|fokozott|hyperactiv/.test(n)) value = "increased";
-      else if (/renyhe|csokkent|hypoactiv/.test(n)) value = "decreased";
-      else if (/nincs|nem hall|silent/.test(n)) value = "absent";
+      if (/nincs|nem\s+hall|silent/.test(n)) value = "absent";
+      else if (/elenk(?:ebb)?|fokozott|hyperactiv|hangosabb/.test(n)) value = "increased";
+      else if (/renyhe|csokkent|halk(?:abb)?|gyer|ritka|hypoactiv/.test(n)) value = "decreased";
       addFinding(out, "E5", "bowel_sounds", value, {}, raw, value === "normal");
     }
     return out;

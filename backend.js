@@ -595,12 +595,12 @@
     );
   }
 
-  async function generateSummary(caseId) {
+  async function generateSummary(caseId, statusContext = null) {
     if (!caseId) throw new Error("Missing case ID.");
 
     return invokeAuthedFunction(
       "generate-summary",
-      { caseId },
+      { caseId, statusContext },
       "Summary generation"
     );
   }

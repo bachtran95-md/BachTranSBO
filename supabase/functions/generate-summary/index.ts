@@ -360,6 +360,9 @@ Deno.serve(async (req) => {
     const user = await getUser(req);
     const body = await req.json();
     const caseId = String(body?.caseId || "");
+    const explicitNormalFindings = Array.isArray(body?.statusContext?.explicitNormalFindings)
+      ? body.statusContext.explicitNormalFindings.slice(0, 50)
+      : [];
 
     if (!caseId) return json({ error: "caseId is required." }, 400);
 
@@ -432,6 +435,9 @@ Deno.serve(async (req) => {
     if (documentationRulesError) throw documentationRulesError;
 
     const clinicalCase = casePayload(caseRow, tests || []);
+    if (explicitNormalFindings.length) {
+      clinicalCase.status_explicit_normal_findings = explicitNormalFindings;
+    }
     const examples = await similarCases(db, user.id, caseId, clinicalCase);
 
     const exampleBlock = examples.length
@@ -459,6 +465,7 @@ Deno.serve(async (req) => {
       "If arrival_to_sbo is present, include that arrival mode naturally in the Hungarian clinical narrative/anamnesis.",
       "For structured physical status, physical_examination contains ONLY physician-entered positive findings. Vital parameters and the generated full normal-status text are intentionally excluded.",
       "Use every supplied positive physical finding when clinically relevant to the narrative, but integrate them concisely rather than copying them as a mechanical status list.",
+      "If status_explicit_normal_findings is present, those are normal findings the physician explicitly entered in the Státusz generator because they are clinically worth emphasizing. Preserve them when relevant; do not generalize them into other normal findings.",
       "Do not infer omitted normal findings or numeric vital signs that are not present in the CURRENT case payload.",
       "Follow the SBO Documentation Skill instructions exactly.",
       "Return ONLY the documentation text, without commentary, markdown fences, or explanations.",

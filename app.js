@@ -7,6 +7,7 @@ let currentView = "patients";
 let corpusReviewTab = "pending";
 let corpusReviewPage = 0;
 const CORPUS_REVIEW_PAGE_SIZE = 20;
+const STATUS_LEARNING_ENABLED = false;
 let learningSection = "summary";
 let statusLearningTab = "pending";
 let statusLearningPage = 0;
@@ -3041,6 +3042,7 @@ function learningMessage(message, isError = false) {
 }
 
 function syncLearningSectionUi() {
+  if (!STATUS_LEARNING_ENABLED && learningSection === "status") learningSection = "summary";
   const isStatus = learningSection === "status";
   document.getElementById("learningSummaryPane")?.classList.toggle("hidden", isStatus);
   document.getElementById("learningStatusPane")?.classList.toggle("hidden", !isStatus);
@@ -3065,6 +3067,7 @@ function updateStatusLearningCounts(overview = {}) {
 }
 
 async function refreshStatusLearningBadge() {
+  if (!STATUS_LEARNING_ENABLED) return;
   if (!document.body.classList.contains("beta-build")) return;
   if (!window.BachSBOBackend?.findingLearningList) return;
   try {
@@ -4219,6 +4222,8 @@ document.getElementById("refreshLearningBtn").onclick = () =>
   renderLearningDashboard().catch(handleBackendError);
 document.querySelectorAll("[data-learning-section]").forEach((button) => {
   button.onclick = () => {
+    if (button.disabled) return;
+    if (button.dataset.learningSection === "status" && !STATUS_LEARNING_ENABLED) return;
     learningSection = button.dataset.learningSection === "status" ? "status" : "summary";
     if (learningSection === "status") statusLearningPage = 0;
     syncLearningSectionUi();

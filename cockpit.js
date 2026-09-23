@@ -6,6 +6,10 @@
   window.__bachSboCockpitInstalled = true;
 
   const TAB_MAP = ["clinical", "tests", "course", "disposition", "summary"];
+
+  function hasBetaStatusTab() {
+    return Boolean(document.getElementById("betaStatusGenerator"));
+  }
   let activeTab = "clinical";
   let lastSelectedCaseId = "";
   let assistantBusy = false;
@@ -144,13 +148,23 @@
     const tabs = document.createElement("div");
     tabs.id = "cockpitCaseTabs";
     tabs.className = "cockpit-case-tabs hidden";
-    tabs.innerHTML = [
-      ["clinical", label("Clinical", "Klinikum")],
-      ["tests", label("Physical status & investigations", "Fizikális státusz és vizsgálatok")],
-      ["course", label("Therapy & course", "Terápia és kórlefolyás")],
-      ["disposition", label("Disposition", "Döntés")],
-      ["summary", label("Summary", "Összefoglaló")]
-    ].map(([key, text]) =>
+    const tabDefinitions = hasBetaStatusTab()
+      ? [
+          ["clinical", label("Clinical", "Klinikum")],
+          ["status", label("Status", "Státusz")],
+          ["tests", label("Investigations", "Vizsgálatok")],
+          ["course", label("Therapy & course", "Terápia és kórlefolyás")],
+          ["disposition", label("Disposition", "Döntés")],
+          ["summary", label("Summary", "Összefoglaló")]
+        ]
+      : [
+          ["clinical", label("Clinical", "Klinikum")],
+          ["tests", label("Physical status & investigations", "Fizikális státusz és vizsgálatok")],
+          ["course", label("Therapy & course", "Terápia és kórlefolyás")],
+          ["disposition", label("Disposition", "Döntés")],
+          ["summary", label("Summary", "Összefoglaló")]
+        ];
+    tabs.innerHTML = tabDefinitions.map(([key, text]) =>
       `<button type="button" class="cockpit-tab ${key === activeTab ? "active" : ""}" data-cockpit-tab="${key}">${text}</button>`
     ).join("");
 
@@ -163,23 +177,35 @@
     });
 
     const sections = [...form.querySelectorAll(":scope > .section")];
+    const panelMap = hasBetaStatusTab()
+      ? ["clinical", "status", "tests", "course", "disposition", "summary"]
+      : TAB_MAP;
     sections.forEach((section, index) => {
-      section.dataset.cockpitPanel = TAB_MAP[index] || "clinical";
+      section.dataset.cockpitPanel = panelMap[index] || "clinical";
       if (index === 0) section.classList.add("cockpit-clinical-primary");
-      if (index === 2) section.classList.add("cockpit-clinical-course");
+      if (section.dataset.cockpitPanel === "course") section.classList.add("cockpit-clinical-course");
     });
 
     applyTabVisibility();
   }
 
   function updateTabLabels() {
-    const labels = {
-      clinical: label("Clinical", "Klinikum"),
-      tests: label("Physical status & investigations", "Fizikális státusz és vizsgálatok"),
-      course: label("Therapy & course", "Terápia és kórlefolyás"),
-      disposition: label("Disposition", "Döntés"),
-      summary: label("Summary", "Összefoglaló")
-    };
+    const labels = hasBetaStatusTab()
+      ? {
+          clinical: label("Clinical", "Klinikum"),
+          status: label("Status", "Státusz"),
+          tests: label("Investigations", "Vizsgálatok"),
+          course: label("Therapy & course", "Terápia és kórlefolyás"),
+          disposition: label("Disposition", "Döntés"),
+          summary: label("Summary", "Összefoglaló")
+        }
+      : {
+          clinical: label("Clinical", "Klinikum"),
+          tests: label("Physical status & investigations", "Fizikális státusz és vizsgálatok"),
+          course: label("Therapy & course", "Terápia és kórlefolyás"),
+          disposition: label("Disposition", "Döntés"),
+          summary: label("Summary", "Összefoglaló")
+        };
     document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
       button.textContent = labels[button.dataset.cockpitTab] || button.textContent;
     });
@@ -208,6 +234,9 @@
       button.classList.toggle("active", button.dataset.cockpitTab === activeTab);
     });
     applyTabVisibility();
+    if (activeTab === "status") {
+      window.BachSBOStatusGenerator?.refresh?.();
+    }
     if (activeTab === "summary") {
       document.getElementById("fSummary")?.focus({ preventScroll: true });
     }

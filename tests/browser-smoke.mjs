@@ -75,6 +75,9 @@ const backendMock = String.raw`
   const RAW_KEY = "__bach_sbo_e2e_raw_data";
   const readRaw = () => JSON.parse(localStorage.getItem(RAW_KEY) || "{}");
   const writeRaw = (value) => localStorage.setItem(RAW_KEY, JSON.stringify(value));
+  const NOTES_KEY = "__bach_sbo_e2e_notes";
+  const readNotes = () => JSON.parse(localStorage.getItem(NOTES_KEY) || "[]");
+  const writeNotes = (value) => localStorage.setItem(NOTES_KEY, JSON.stringify(value));
   const row = (p) => ({
     id: p.id,
     sex: p.sex || null,
@@ -432,6 +435,37 @@ const backendMock = String.raw`
         patch: clone(findingCandidates),
         overview: findingOverview()
       };
+    },
+    async listNotes() {
+      return { notes: clone(readNotes()) };
+    },
+    async createNote(note) {
+      const now = new Date().toISOString();
+      const item = {
+        id: crypto.randomUUID(),
+        title: String(note?.title || ""),
+        content: String(note?.content || ""),
+        createdAt: now,
+        updatedAt: now
+      };
+      const notes = readNotes();
+      notes.unshift(item);
+      writeNotes(notes);
+      return { note: clone(item) };
+    },
+    async updateNote(noteId, note) {
+      const notes = readNotes();
+      const item = notes.find((entry) => entry.id === noteId);
+      if (!item) throw new Error("Missing mock note");
+      item.title = String(note?.title || "");
+      item.content = String(note?.content || "");
+      item.updatedAt = new Date().toISOString();
+      writeNotes(notes);
+      return { note: clone(item) };
+    },
+    async deleteNote(noteId) {
+      writeNotes(readNotes().filter((entry) => entry.id !== noteId));
+      return { noteId, deleted: true };
     },
     async loadRawTransferWorkspace() {
       const state = read();
@@ -1776,6 +1810,53 @@ for (const metricClass of ["shift-metric-cases", "shift-metric-active", "shift-m
     throw new Error("Beta shell is not tracking Stable shift metric: " + metricClass);
   }
 }
+
+
+// Beta Notes are simple owner-level CRUD: create, autosave, reload, delete.
+await betaFeatures.locator("#notesNav").click();
+await betaFeatures.locator("#notesView:not(.hidden)").waitFor();
+await betaFeatures.locator("#betaAddNoteBtn").click();
+await betaFeatures.locator("[data-note-id]").first().waitFor();
+
+const smokeNote = betaFeatures.locator("[data-note-id]").first();
+await smokeNote.locator(".beta-note-title").fill("E2E note");
+await smokeNote.locator(".beta-note-content").fill("Temporary reusable note");
+await smokeNote.locator(".beta-note-content").blur();
+await betaFeatures.waitForFunction(() => {
+  const notes = JSON.parse(localStorage.getItem("__bach_sbo_e2e_notes") || "[]");
+  return notes.some((note) =>
+    note.title === "E2E note" && note.content === "Temporary reusable note"
+  );
+});
+
+await betaFeatures.reload({ waitUntil: "domcontentloaded" });
+if (await betaFeatures.locator("#authPassword").count()) {
+  await betaFeatures.locator("#authPassword").fill("smoke-test-password");
+  await betaFeatures.locator("#passwordSignIn").click();
+}
+if (await betaFeatures.locator("#chooseNormalMode").count()) {
+  await betaFeatures.locator("#chooseNormalMode").click();
+}
+await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
+await betaFeatures.locator("#notesNav").click();
+await betaFeatures.locator("#notesView:not(.hidden)").waitFor();
+await betaFeatures.waitForFunction(() =>
+  [...document.querySelectorAll(".beta-note-title")]
+    .some((input) => input.value === "E2E note")
+);
+const persistedNote = betaFeatures.locator("[data-note-id]").filter({
+  has: betaFeatures.locator('.beta-note-title[value="E2E note"]')
+}).first();
+await persistedNote.locator(".beta-note-delete").click();
+await betaFeatures.waitForFunction(() =>
+  JSON.parse(localStorage.getItem("__bach_sbo_e2e_notes") || "[]").length === 0
+);
+if (await betaFeatures.locator("[data-note-id]").count()) {
+  throw new Error("Deleted Beta note remained in the UI");
+}
+
+await betaFeatures.locator("#patientsNav").click();
+await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
 
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
 

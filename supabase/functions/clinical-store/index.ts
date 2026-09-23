@@ -190,6 +190,20 @@ function arrivalLabel(mode: string, other: string) {
 }
 
 const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+function stripLegacyVitalLines(value: unknown) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .filter((line) => {
+      const text = String(line || "").trim();
+      if (!text) return false;
+      // Legacy simple-Status clients stored the copyable vitals row in physical_exam.
+      // Vitals are canonical in cases.vitals and must not reach Summary/learning input.
+      return !/^(?:RR\s*:|P\s*:|T\s*:|Lsz\s*:|SpO[₂2]\s*:)/i.test(text);
+    })
+    .join("\n")
+    .trim();
+}
 const VITAL_KEYS = ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"];
 
 function canonicalVitals(patient: any) {
@@ -210,7 +224,7 @@ function structuredPhysicalStatus(patient: any) {
 
 function positivePhysicalText(patient: any) {
   const status = structuredPhysicalStatus(patient);
-  if (!status) return String(patient?.physical || "").trim();
+  if (!status) return stripLegacyVitalLines(patient?.physical);
 
   const sections = status.sections && typeof status.sections === "object"
     ? status.sections

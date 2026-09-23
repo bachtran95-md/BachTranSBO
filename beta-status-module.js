@@ -212,11 +212,13 @@
           </div>
         </div>
         <div class="beta-status-positive-grid">
-          ${SECTION_DEFS.map(([key, label]) => `
-            <label class="beta-status-positive-row">
+          ${SECTION_DEFS.map(([key, label], index) => `
+            <label class="beta-status-positive-row"
+              data-status-row="${escapeHtml(key)}"
+              style="order:${index + 1}">
               <span>${escapeHtml(label)}</span>
               <textarea data-status-section="${escapeHtml(key)}"
-                placeholder="Csak pozitív eltérés…"></textarea>
+                placeholder="+ csak pozitív eltérés"></textarea>
             </label>
           `).join("")}
         </div>

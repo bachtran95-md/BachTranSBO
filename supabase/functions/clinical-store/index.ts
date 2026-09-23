@@ -427,6 +427,41 @@ function summaryRowFromPatient(
   };
 }
 
+async function syncSummaryWorkingState(
+  db: any,
+  ownerId: string,
+  patient: any,
+  now = new Date().toISOString(),
+) {
+  const row = summaryRowFromPatient(patient, ownerId, now);
+  const { data: existing, error: existingError } = await db
+    .from("summaries")
+    .select("case_id")
+    .eq("case_id", patient.id)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  if (existing) {
+    const { error } = await db
+      .from("summaries")
+      .update({
+        working_text: row.working_text,
+        finalized_text: row.finalized_text,
+        finalized_at: row.finalized_at,
+        updated_at: row.updated_at,
+      })
+      .eq("case_id", patient.id)
+      .eq("owner_id", ownerId);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await db.from("summaries").insert(row);
+  if (error) throw error;
+}
+
 async function saveState(db: any, ownerId: string, inputState: any) {
   const { state, report } = await deidentifyState(inputState);
 
@@ -462,15 +497,8 @@ async function saveState(db: any, ownerId: string, inputState: any) {
       await syncTests(db, ownerId, patient);
     }
 
-    const summaryRows = patients
-      .filter(patientHasSummaryData)
-      .map((patient: any) => summaryRowFromPatient(patient, ownerId, now));
-
-    if (summaryRows.length) {
-      const { error: summaryError } = await db
-        .from("summaries")
-        .upsert(summaryRows, { onConflict: "case_id" });
-      if (summaryError) throw summaryError;
+    for (const patient of patients.filter(patientHasSummaryData)) {
+      await syncSummaryWorkingState(db, ownerId, patient, now);
     }
   }
 
@@ -511,12 +539,7 @@ async function savePatient(
   await syncTests(db, ownerId, patient);
 
   if (patientHasSummaryData(patient)) {
-    const { error: summaryError } = await db.from("summaries").upsert(
-      summaryRowFromPatient(patient, ownerId, now),
-      { onConflict: "case_id" },
-    );
-
-    if (summaryError) throw summaryError;
+    await syncSummaryWorkingState(db, ownerId, patient, now);
   }
 
   return {
@@ -553,10 +576,28 @@ async function finalizePatient(
   const snapshot = corpusSnapshot(patient);
   const caseRow = caseRowFromPatient(patient, ownerId, now);
 
+  // Generated Summary provenance is server-owned. Browser autosave/finalize may
+  // update the working/finalized text, but must never replace the AI draft,
+  // generation timestamp, model, or Skill version already stored by generate-summary.
+  const { data: canonicalSummary, error: canonicalSummaryError } = await db
+    .from("summaries")
+    .select("generated_text, generated_at, model, skill_version")
+    .eq("case_id", patient.id)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  if (canonicalSummaryError) throw canonicalSummaryError;
+
   const summaryRow = summaryRowFromPatient(patient, ownerId, now);
+  if (canonicalSummary) {
+    summaryRow.generated_text = String(canonicalSummary.generated_text || "");
+    summaryRow.generated_at = canonicalSummary.generated_at || null;
+  }
 
   const revisionPayload = {
-    generated_text: patient.summaryGeneratedText || patient.summary || "",
+    generated_text: canonicalSummary
+      ? String(canonicalSummary.generated_text || "")
+      : patient.summaryGeneratedText || patient.summary || "",
     finalized_text: patient.summaryFinalizedText,
     finalized_at: patient.summaryFinalizedAt,
     deidentification_version: "v1",

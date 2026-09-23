@@ -45,6 +45,7 @@
       version: 1,
       parameters: Object.fromEntries(PARAM_DEFS.map(([key]) => [key, ""])),
       sections: Object.fromEntries(SECTION_DEFS.map(([key]) => [key, ""])),
+      legacyPhysical: "",
       generatedAt: null
     };
   }
@@ -308,9 +309,12 @@
     if (!root.dataset.statusBound) {
       root.dataset.statusBound = "true";
 
-      root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
-        input.addEventListener("input", () => markEdited(root));
-      });
+      const handleStructuredInput = (event) => {
+        if (!event.target?.matches?.("[data-status-param], [data-status-section]")) return;
+        markEdited(root);
+      };
+      root.addEventListener("input", handleStructuredInput);
+      root.addEventListener("change", handleStructuredInput);
 
       root.querySelector("#betaStructuredStatusCopy")?.addEventListener("click", async (event) => {
         const text = generatedStatusText(localStatus).trim();
@@ -466,11 +470,17 @@
 
     if (activeCaseId !== patient.id) {
       activeCaseId = patient.id;
-      localStatus = normalizeStatus(
-        patient?.physicalStatus?.version === 1
-          ? patient.physicalStatus
-          : blankStatus()
-      );
+
+      if (patient?.physicalStatus?.version !== 1) {
+        const migrated = blankStatus();
+        migrated.legacyPhysical = String(patient?.physical || "").trim();
+        localStatus = normalizeStatus(migrated);
+        writeBridge(localStatus);
+        scheduleStatusAutosave(root);
+      } else {
+        localStatus = normalizeStatus(patient.physicalStatus);
+      }
+
       populateBuilder(root, localStatus);
     } else if (patient?.physicalStatus?.version === 1) {
       localStatus = normalizeStatus(patient.physicalStatus);

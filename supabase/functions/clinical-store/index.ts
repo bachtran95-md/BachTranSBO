@@ -206,14 +206,11 @@ function positivePhysicalText(patient: any) {
     ? status.sections
     : {};
 
-  const structured = PHYSICAL_STATUS_SECTION_KEYS
+  return PHYSICAL_STATUS_SECTION_KEYS
     .map((key) => {
       const text = String(sections[key] || "").trim();
       return text ? `${key}: ${text}` : "";
     })
-    .filter(Boolean);
-
-  return [String(status.freeText || "").trim(), ...structured]
     .filter(Boolean)
     .join("\n");
 }

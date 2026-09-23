@@ -1981,6 +1981,18 @@ if (!multiFindingState.statusComplete) {
   throw new Error("Resolved Státusz did not complete the Státusz workflow tab");
 }
 
+// Vitals may satisfy the simple Status workflow, but must never be copied into
+// patient.physical just to make the workflow complete.
+await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
+await betaFeatures.locator('[data-status-section="B"]').fill("");
+await betaFeatures.locator('[data-status-section="E5"]').fill("");
+await betaFeatures.waitForFunction(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  return String(patient?.physical || "") === "" &&
+    Boolean(workflow?.sections?.status?.complete);
+});
+
 // Regression: Hungarian abdominal quadrant abbreviations must keep A=alsó and F=felső.
 const quadrantCases = [
   ["JAQ nyomásérzékenység", "jobb alhasi / JAQ nyomásérzékenység"],

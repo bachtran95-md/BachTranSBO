@@ -254,12 +254,12 @@
     if (/basal|bazal|basis|tudobazis/.test(n)) return "basal";
     if (/apical|csucsi/.test(n)) return "apical";
     if (/diffuz|diffuse/.test(n)) return "diffuse";
-    if (/epigastr/.test(n)) return "epigastric";
-    if (/periumbil/.test(n)) return "periumbilical";
-    if (/\b(?:jaq|j\s*\.?\s*a\s*\.?\s*q|jobb also|jobb alhas|right lower)\b/.test(n)) return "RLQ";
-    if (/\b(?:baq|b\s*\.?\s*a\s*\.?\s*q|bal also|bal alhas|left lower)\b/.test(n)) return "LLQ";
-    if (/\b(?:jfq|j\s*\.?\s*f\s*\.?\s*q|jobb felso|right upper)\b/.test(n)) return "RUQ";
-    if (/\b(?:bfq|b\s*\.?\s*f\s*\.?\s*q|bal felso|left upper)\b/.test(n)) return "LUQ";
+    if (/epigastr|epigasztr|gyomorszaj/.test(n)) return "epigastric";
+    if (/periumbil|koldok korul|koldoktaj/.test(n)) return "periumbilical";
+    if (/\b(?:jaq|j\s*\.?\s*a\s*\.?\s*q|jobb also|jobb alhas|jobb csipoarok|jobb iliac|right lower)\b/.test(n)) return "RLQ";
+    if (/\b(?:baq|b\s*\.?\s*a\s*\.?\s*q|bal also|bal alhas|bal csipoarok|bal iliac|left lower)\b/.test(n)) return "LLQ";
+    if (/\b(?:jfq|j\s*\.?\s*f\s*\.?\s*q|jobb felso|jobb bordaiv(?:\s+alatt(?:i)?)?|jobb hypochondr|jobb subcost|right upper)\b/.test(n)) return "RUQ";
+    if (/\b(?:bfq|b\s*\.?\s*f\s*\.?\s*q|bal felso|bal bordaiv(?:\s+alatt(?:i)?)?|bal hypochondr|bal subcost|left upper)\b/.test(n)) return "LUQ";
     if (/\balhas\b/.test(n)) return "lower_abdomen";
     return "";
   }
@@ -736,7 +736,7 @@
       addFinding(out, "E5", "abdominal_pain", "present", { location, character }, raw);
     }
 
-    const tendernessPattern = "nyomaserzekeny|ny\\.?\\s*erz|nyom\\.?\\s*erz";
+    const tendernessPattern = "nyomaserzekeny|ny\\.?\\s*erz|nyom\\.?\\s*erz|\\berzekeny(?:seg)?\\b";
     if (conceptIsNegated(n, tendernessPattern)) {
       addExplicitNormalNote(out, "E5", "Nyomásérzékenység nincs.", raw, "E5.3");
     } else if (new RegExp(tendernessPattern).test(n)) {

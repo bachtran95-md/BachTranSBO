@@ -1957,6 +1957,47 @@ if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').getAttrib
   throw new Error("Blood pressure input must allow slash on mobile keyboard");
 }
 
+// KLINIKAI MEGJEGYZÉS is free text before A: it belongs to the copyable final
+// Status and Summary context via patient.others, but it must not be parsed or
+// duplicated into Summary-facing patient.physical.
+const clinicalNoteLayout = await betaFeatures.evaluate(() => {
+  const root = document.querySelector("#betaStatusGenerator");
+  const note = document.querySelector("#fOthers");
+  const a = document.querySelector('[data-status-section="A"]');
+  return {
+    insideStatus: Boolean(root && note && root.contains(note)),
+    beforeA: Boolean(note && a && (note.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING))
+  };
+});
+if (!clinicalNoteLayout.insideStatus || !clinicalNoteLayout.beforeA) {
+  throw new Error("KLINIKAI MEGJEGYZÉS is not mounted before A inside Státusz");
+}
+await betaFeatures.locator("#fOthers").fill("Szepszis lehetősége klinikailag felmerül.");
+await betaFeatures.waitForFunction(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Klinikai megjegyzés: Szepszis lehetősége klinikailag felmerül.") &&
+    String(patient?.others || "").includes("Szepszis lehetősége klinikailag felmerül.");
+});
+const clinicalNoteState = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return {
+    physical: String(patient?.physical || ""),
+    others: String(patient?.others || ""),
+    unknowns: document.querySelectorAll(".beta-status-unknown").length
+  };
+});
+if (clinicalNoteState.physical.includes("Szepszis lehetősége klinikailag felmerül.")) {
+  throw new Error("Clinical note was duplicated into Summary-facing physical text");
+}
+if (!clinicalNoteState.others.includes("Szepszis lehetősége klinikailag felmerül.")) {
+  throw new Error("Clinical note was not persisted in patient.others");
+}
+await betaFeatures.locator("#fOthers").fill("");
+await betaFeatures.waitForFunction(() =>
+  !(document.querySelector("#betaStatusFinalPreview")?.textContent || "").includes("Klinikai megjegyzés:")
+);
+
 // Multiple findings in one textarea must all be parsed independently.
 // Also cover explicit normal input and pulse-derived tachycardia.
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");

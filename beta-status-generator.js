@@ -8,6 +8,7 @@
   const STORAGE_PREFIX = "bachtransbo.status-generator.v2:";
   const SECTIONS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
   const PARAMS = ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"];
+  const STATUS_LEARNING_ENABLED = false;
 
   const SUBSECTION_OPTIONS = {
     A: [
@@ -137,6 +138,7 @@
   }
 
   async function queueLearningFeedback(section, raw, text, target) {
+    if (!STATUS_LEARNING_ENABLED) return { disabled: true };
     const api = window.BachSBOBackend;
     if (!api?.findingLearningConfirmMapping) return null;
     return api.findingLearningConfirmMapping({
@@ -1757,11 +1759,16 @@
           text,
           target,
           confirmedAt: new Date().toISOString(),
-          learningStatus: "saving",
+          learningStatus: STATUS_LEARNING_ENABLED ? "saving" : "disabled",
           learningError: ""
         };
         activeState.touched = true;
         saveState();
+
+        if (!STATUS_LEARNING_ENABLED) {
+          render();
+          return;
+        }
 
         confirm.disabled = true;
         const previousLabel = confirm.textContent;

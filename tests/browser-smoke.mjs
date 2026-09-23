@@ -1930,8 +1930,9 @@ if (ekgStateAfter !== ekgStateBefore) {
   throw new Error("Local-only EKG helper mutated persisted EKG test state");
 }
 
-// Reload regression: structured STATUS survives; EKG helper resets because it
-// is intentionally copy-only and never part of patient persistence.
+// Reload regression: structured STATUS survives after the debounced autosave;
+// EKG helper resets because it is intentionally copy-only.
+await betaFeatures.waitForTimeout(900);
 await betaFeatures.reload({ waitUntil: "domcontentloaded" });
 if (await betaFeatures.locator("#authPassword").count()) {
   await betaFeatures.locator("#authPassword").fill("smoke-test-password");

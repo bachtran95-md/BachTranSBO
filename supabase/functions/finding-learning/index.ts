@@ -493,10 +493,8 @@ async function reviewLearningRecord(
   if (error) throw error;
   if (!data) throw new Error("Finding learning record was not found.");
 
-  if (decision !== "pending") {
-    const rebuilt = await db.rpc("build_finding_registry_candidates");
-    if (rebuilt.error) throw rebuilt.error;
-  }
+  const rebuilt = await db.rpc("build_finding_registry_candidates");
+  if (rebuilt.error) throw rebuilt.error;
 
   return {
     id: data.id,

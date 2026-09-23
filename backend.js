@@ -303,6 +303,24 @@
     assertOk(error, "Close shift");
   }
 
+  async function saveStatusGeneratorRecords(records) {
+    const db = requireClient();
+    await getUser();
+
+    const list = Array.isArray(records) ? records : [];
+    for (const record of list) {
+      if (!record?.caseId || !record?.shiftId || !record?.payload) continue;
+      const { error } = await db.rpc("save_status_generator_revision", {
+        p_case_id: record.caseId,
+        p_shift_id: record.shiftId,
+        p_payload: record.payload
+      });
+      assertOk(error, "Save finalized Státusz");
+    }
+
+    return { saved: list.length };
+  }
+
   async function loadState() {
     const db = requireClient();
     await getUser();
@@ -902,6 +920,7 @@
     startShift,
     getShiftCaseCounter,
     closeShift,
+    saveStatusGeneratorRecords,
     loadState,
     saveState,
     allocateCaseLocalId,

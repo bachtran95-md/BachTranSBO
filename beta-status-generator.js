@@ -265,7 +265,11 @@
     const side = sideOf(raw);
     const location = locationOf(raw);
 
-    if (/tachydyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachydyspnoea", {}, raw);
+    const dyspnoeaExplicitlyAbsent =
+      /dyspno\w*\s*(nincs|nem all fenn|nem eszlelheto|nem jelez)|nincs\s+dyspno|nem\s+dyspno|nehezlegzes\s*(nincs|nem eszlelheto)|fulladas\s*(nincs|nem jelez)/.test(n);
+
+    if (dyspnoeaExplicitlyAbsent) addFinding(out, "B", "respiratory_pattern", "dyspnoea_absent", {}, raw, true);
+    else if (/tachydyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachydyspnoea", {}, raw);
     else if (/tachypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachypnoea", {}, raw);
     else if (/bradypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "bradypnoea", {}, raw);
     else if (/kussmaul/.test(n)) addFinding(out, "B", "respiratory_pattern", "kussmaul", {}, raw);
@@ -761,9 +765,17 @@
         gasping: "Pihegő légzés észlelhető.",
         apnoea: "Apnoe észlelhető.",
         dyspnoea: "Dyspnoés.",
+        dyspnoea_absent: "Dyspnoe nincs.",
         eupnoea: "Eupnoés."
       }[pattern?.value] || "Eupnoés.";
-      parts.push(segment(patternText + " ", pattern && pattern.value !== "eupnoea" ? "modified" : pattern?.explicitNormal ? "explicit" : "base", "B"));
+      const patternKind = pattern?.value === "dyspnoea_absent"
+        ? "explicit"
+        : pattern && pattern.value !== "eupnoea"
+        ? "modified"
+        : pattern?.explicitNormal
+        ? "explicit"
+        : "base";
+      parts.push(segment(patternText + " ", patternKind, "B"));
     }
 
     if (!pushTargetOverride(parts, findings, "B", "B2")) {

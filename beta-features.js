@@ -15,6 +15,7 @@
   let learningMessage = "";
   let activeAiSuggestion = null;
   let activeExistingFindingKey = "";
+  let lastFindingPointerActionAt = 0;
 
   const CORE_FINDINGS = [
     { key: "epig-tender", label: "Epigastrialis nyomásérzékenység", target: "abdomen", section: "E5", group: "abdomen" },
@@ -1338,32 +1339,44 @@
   }
 
   function bindGlobalFindingActions() {
-    if (document.documentElement.dataset.betaFindingGlobalClickBound === "true") return;
-    document.documentElement.dataset.betaFindingGlobalClickBound = "true";
+    if (document.documentElement.dataset.betaFindingGlobalActionBound === "true") return;
+    document.documentElement.dataset.betaFindingGlobalActionBound = "true";
 
-    document.addEventListener("click", (event) => {
+    const handleFindingAction = (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
 
       const aiButton = target.closest("#betaFindingComposer [data-ai-unknown-phrase]");
-      if (aiButton) {
+      const chip = target.closest("#betaFindingComposer [data-unknown-phrase]");
+      if (!aiButton && !chip) return;
+
+      // pointerdown runs before focus/blur/autosave can cause a DOM refresh.
+      // The subsequent click is retained as keyboard/fallback behavior only.
+      if (event.type === "click" && Date.now() - lastFindingPointerActionAt < 700) {
         event.preventDefault();
         event.stopPropagation();
-        const composer = ensureComposer();
+        return;
+      }
+      if (event.type === "pointerdown") lastFindingPointerActionAt = Date.now();
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const composer = ensureComposer();
+      if (!composer) return;
+
+      if (aiButton) {
         const phrase = String(aiButton.dataset.aiUnknownPhrase || "");
         prepareUnknownEditor(composer, phrase);
         void suggestUnknownFinding(aiButton);
         return;
       }
 
-      const chip = target.closest("#betaFindingComposer [data-unknown-phrase]");
-      if (chip) {
-        event.preventDefault();
-        event.stopPropagation();
-        const composer = ensureComposer();
-        prepareUnknownEditor(composer, String(chip.dataset.unknownPhrase || ""));
-      }
-    }, true);
+      prepareUnknownEditor(composer, String(chip.dataset.unknownPhrase || ""));
+    };
+
+    document.addEventListener("pointerdown", handleFindingAction, true);
+    document.addEventListener("click", handleFindingAction, true);
   }
 
   async function copyGeneratedStatus() {

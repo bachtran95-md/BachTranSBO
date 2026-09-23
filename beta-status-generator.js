@@ -2034,6 +2034,7 @@
         confirmed_custom_findings: confirmedCustom,
         renderer_output: modelText(model),
         final_status: modelText(model),
+        summary_physical: summaryPhysicalText(model),
         copied_at: state.copiedAt,
         finalized_at: new Date().toISOString()
       },
@@ -2053,26 +2054,11 @@
       const patient = (patients || []).find((item) => String(item.id) === caseId);
       if (!stateHasData(state) && !String(patient?.others || "").trim()) continue;
       const record = buildRecordFromState(state, patient?.others || "");
-      if (record.unresolved.length) {
-        unresolved.push({
-          caseId,
-          localId: (patients || []).find((patient) => String(patient.id) === caseId)?.localId || "",
-          count: record.unresolved.length
-        });
-        continue;
-      }
       records.push({
         caseId: record.caseId,
         shiftId: record.shiftId,
         payload: record.payload
       });
-    }
-
-    if (unresolved.length) {
-      const details = unresolved
-        .map((item) => "Eset " + (item.localId || item.caseId) + ": " + item.count + " finding")
-        .join(", ");
-      throw new Error("A műszak nem zárható le: a Státusz modulban nem megerősített finding maradt. " + details);
     }
 
     if (records.length) {
@@ -2092,7 +2078,7 @@
         });
         const updatedPatient = window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(
           record.caseId,
-          record.payload.final_status,
+          record.payload.summary_physical || "",
           explicitNormals
         );
         if (updatedPatient && window.BachSBOBackend?.savePatient) {

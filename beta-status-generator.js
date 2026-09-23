@@ -991,7 +991,19 @@
     if (!activeState.touched && !activeState.copiedAt) return;
 
     const text = model.unknowns.length ? "" : modelText(model);
-    window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(activeCaseId, text);
+    const explicitNormals = model.findings
+      .filter((item) => item.explicitNormal)
+      .map((item) => ({
+        section: item.section,
+        concept: item.concept,
+        value: item.value,
+        attributes: item.attributes || {}
+      }));
+    window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(
+      activeCaseId,
+      text,
+      explicitNormals
+    );
     document.dispatchEvent(new CustomEvent("bachsbo:status-generator-updated", {
       detail: {
         caseId: activeCaseId,

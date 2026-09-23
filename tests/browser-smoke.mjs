@@ -2115,10 +2115,22 @@ await fillStructuredStatusSection("E5", "Hasa érzékeny.");
 await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
-  (document.querySelector("#betaUnknownChips .beta-unknown-chip")?.textContent || "").includes("pleuralis dörzszörej") &&
-  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Folyamatban") &&
-  document.querySelector("#betaStructuredStatusCopy")?.disabled
+  (document.querySelector("#betaUnknownChips .beta-unknown-chip")?.textContent || "").includes("pleuralis dörzszörej")
 );
+const realtimeUnknownState = await betaFeatures.evaluate(() => ({
+  statusText: document.querySelector("#betaStructuredStatusState")?.textContent || "",
+  copyDisabled: Boolean(document.querySelector("#betaStructuredStatusCopy")?.disabled),
+  generatedAt: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.physicalStatus?.generatedAt || null,
+  b: document.querySelector('[data-status-section="B"]')?.value || "",
+  e5: document.querySelector('[data-status-section="E5"]')?.value || ""
+}));
+if (
+  !realtimeUnknownState.statusText.includes("Folyamatban") ||
+  !realtimeUnknownState.copyDisabled ||
+  realtimeUnknownState.generatedAt
+) {
+  throw new Error("Realtime STATUS did not stay incomplete for unknown finding: " + JSON.stringify(realtimeUnknownState));
+}
 const directAiButtons = betaFeatures.locator("#betaUnknownChips [data-ai-unknown-phrase]");
 if (await directAiButtons.count() !== 1) {
   throw new Error("Unknown finding does not expose a direct AI suggestion action");

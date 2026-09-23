@@ -105,11 +105,14 @@ function positivePhysicalText(caseRow: any) {
     ? status.sections
     : {};
 
-  return PHYSICAL_STATUS_SECTION_KEYS
+  const structured = PHYSICAL_STATUS_SECTION_KEYS
     .map((key) => {
       const text = String(sections[key] || "").trim();
       return text ? `${key}: ${text}` : "";
     })
+    .filter(Boolean);
+
+  return [String(status.freeText || "").trim(), ...structured]
     .filter(Boolean)
     .join("\n");
 }
@@ -117,8 +120,13 @@ function positivePhysicalText(caseRow: any) {
 function workflowBlockers(caseRow: any, tests: any[]) {
   const blockers: string[] = [];
 
+  const structuredPhysical = structuredPhysicalStatus(caseRow);
   const physicalStructuredComplete = Boolean(
-    structuredPhysicalStatus(caseRow)?.generatedAt
+    structuredPhysical &&
+    (
+      structuredPhysical.generatedAt ||
+      String(structuredPhysical.freeText || "").trim()
+    )
   );
 
   const requiredNarrative = [

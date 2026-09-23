@@ -190,6 +190,16 @@ function arrivalLabel(mode: string, other: string) {
 }
 
 const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+const VITAL_KEYS = ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"];
+
+function canonicalVitals(patient: any) {
+  const value = patient?.vitals;
+  if (!value || typeof value !== "object" || Number(value.version) !== 1) return {};
+  return {
+    version: 1,
+    ...Object.fromEntries(VITAL_KEYS.map((key) => [key, String(value[key] ?? "").trim()])),
+  };
+}
 
 function structuredPhysicalStatus(patient: any) {
   const value = patient?.physicalStatus;
@@ -347,6 +357,7 @@ function caseRowFromPatient(
     history_skipped: Boolean(patient.historySkipped),
     physical_exam: positivePhysicalText(patient),
     physical_exam_skipped: Boolean(patient.physicalSkipped),
+    vitals: canonicalVitals(patient),
     status_explicit_normals: Array.isArray(patient.statusExplicitNormals)
       ? patient.statusExplicitNormals
       : [],

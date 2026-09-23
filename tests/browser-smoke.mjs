@@ -1788,6 +1788,22 @@ await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
 // Structured STATUS: parameters + positive findings are persisted, while the
 // full generated copy text remains derived UI output only.
 await betaFeatures.locator("#betaStructuredStatus").waitFor();
+const statusPlacementOk = await betaFeatures.evaluate(() => {
+  const root = document.getElementById("betaStructuredStatus");
+  const field = root?.closest?.('[data-narrative-field="physical"]');
+  const composer = document.getElementById("betaFindingComposer");
+  return Boolean(
+    root &&
+    field &&
+    root.dataset.statusInitialized === "true" &&
+    root.querySelectorAll("[data-status-param]").length === 6 &&
+    root.querySelectorAll("[data-status-section]").length === 10 &&
+    (!composer || root.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING)
+  );
+});
+if (!statusPlacementOk) {
+  throw new Error("Structured STATUS is not hydrated inside Fizikális vizsgálat before Finding Learning");
+}
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");

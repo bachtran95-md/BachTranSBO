@@ -157,6 +157,7 @@ async function analyze(db: any, ownerId: string) {
     .from("summary_revisions")
     .select("generated_text, finalized_text, finalized_at")
     .eq("owner_id", ownerId)
+    .eq("learning_status", "approved")
     .order("finalized_at", { ascending: false })
     .limit(40);
 

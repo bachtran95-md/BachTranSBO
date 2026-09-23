@@ -13,7 +13,6 @@ assert.ok(core, "BachAssistantCore should be exported");
 const snapshot = core.snapshot({
   sex: "male",
   yob: "1958",
-  triageStatus: "yellow",
   dischargeCondition: "Panaszmentes",
   physicalStatus: {
     version: 1,
@@ -36,7 +35,6 @@ const snapshot = core.snapshot({
     legacyPhysical: "should not be duplicated"
   }
 });
-assert.equal(snapshot.triageStatus, "yellow");
 assert.equal(snapshot.dischargeCondition, "Panaszmentes");
 assert.equal(snapshot.physicalStatus.parameters.bloodPressure, "148/86");
 assert.equal(snapshot.physicalStatus.parameters.spo2, "96");

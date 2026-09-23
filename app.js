@@ -553,6 +553,14 @@ function normalizeVitalsData(value) {
   return base;
 }
 
+function simplePhysicalStatusHasInput(patient) {
+  if (!patient) return false;
+  if (String(patient.physical || "").trim()) return true;
+  if (Array.isArray(patient.statusExplicitNormals) && patient.statusExplicitNormals.length) return true;
+  const vitals = normalizeVitalsData(patient.vitals);
+  return VITAL_KEYS.some((key) => String(vitals[key] || "").trim());
+}
+
 function defaultPhysicalStatusData() {
   return {
     version: 1,
@@ -781,6 +789,9 @@ function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
   if (patient[config.skipProp]) return "none";
+  if (key === "physical" && document.body.classList.contains("beta-build") && usesSimplePhysicalStatus()) {
+    return simplePhysicalStatusHasInput(patient) ? "result" : "waiting";
+  }
   if (key === "physical" && document.body.classList.contains("beta-build") && !usesSimplePhysicalStatus()) {
     return patient?.physicalStatus?.version === 1 && structuredPhysicalStatusComplete(patient)
       ? "result"

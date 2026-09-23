@@ -1810,18 +1810,33 @@ function updateStatusCell(patient) {
   cell.innerHTML = patientListStatusHtml(patient);
 }
 
-function setStatusPhysicalDraft(caseId, text) {
+function setStatusPhysicalDraft(caseId, text, explicitNormals = []) {
   const patient = patientById(caseId);
   if (!patient || isCompleted(patient)) return null;
 
   const next = String(text || "");
+  const safeExplicitNormals = Array.isArray(explicitNormals)
+    ? explicitNormals.map((item) => ({
+        section: String(item?.section || ""),
+        concept: String(item?.concept || ""),
+        value: String(item?.value || ""),
+        attributes: item?.attributes && typeof item.attributes === "object"
+          ? structuredClone(item.attributes)
+          : {}
+      })).filter((item) => item.section && item.concept)
+    : [];
+
+  const explicitNormalsChanged =
+    JSON.stringify(patient.statusExplicitNormals || []) !== JSON.stringify(safeExplicitNormals);
   const changed =
     patient.physical !== next ||
     patient.physicalSkipped ||
-    patient?.physicalStatus?.version === 1;
+    patient?.physicalStatus?.version === 1 ||
+    explicitNormalsChanged;
 
   patient.physical = next;
   patient.physicalSkipped = false;
+  patient.statusExplicitNormals = safeExplicitNormals;
   if (patient?.physicalStatus?.version === 1) patient.physicalStatus = null;
 
   if (changed) touchPatient(patient);
@@ -2769,11 +2784,7 @@ async function generateSummary() {
     // Persist first so the AI only sees the de-identified database copy.
     await persistNow();
 
-    const statusGeneratorContext = window.BachSBOStatusGenerator?.getSummaryContext?.(patient.id);
-    const statusContext = statusGeneratorContext
-      ? { explicitNormalFindings: statusGeneratorContext.explicitNormalFindings || [] }
-      : null;
-    const result = await window.BachSBOBackend.generateSummary(patient.id, statusContext);
+    const result = await window.BachSBOBackend.generateSummary(patient.id);
 
     patient.summary = result.summary || "";
     patient.summaryGeneratedText = patient.summary;

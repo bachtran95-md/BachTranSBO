@@ -843,56 +843,92 @@
     };
   }
 
+  function rowToNote(row) {
+    return {
+      id: row.id,
+      title: row.title || "",
+      content: row.content || "",
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  function validateNoteInput(note = {}) {
+    const title = String(note.title || "");
+    const content = String(note.content || "");
+    if (title.length > 200) throw new Error("Note title is too long.");
+    if (content.length > 50000) throw new Error("Note content is too long.");
+    return { title, content };
+  }
+
   async function listNotes() {
-    return invokeAuthedFunction(
-      "notes-store",
-      { action: "list_notes" },
-      "Notes load"
-    );
+    const user = await getUser();
+    const { data, error } = await requireClient()
+      .from("notes")
+      .select("id, title, content, created_at, updated_at")
+      .eq("owner_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    assertOk(error, "Load notes");
+    return { notes: (data || []).map(rowToNote) };
   }
 
   async function createNote(note = {}) {
-    return invokeAuthedFunction(
-      "notes-store",
-      {
-        action: "create_note",
-        note: {
-          title: String(note.title || ""),
-          content: String(note.content || "")
-        }
-      },
-      "Note create"
-    );
+    const user = await getUser();
+    const input = validateNoteInput(note);
+    const now = new Date().toISOString();
+
+    const { data, error } = await requireClient()
+      .from("notes")
+      .insert({
+        owner_id: user.id,
+        title: input.title,
+        content: input.content,
+        created_at: now,
+        updated_at: now
+      })
+      .select("id, title, content, created_at, updated_at")
+      .single();
+
+    assertOk(error, "Create note");
+    return { note: rowToNote(data) };
   }
 
   async function updateNote(noteId, note = {}) {
     if (!noteId) throw new Error("Missing note ID.");
+    const user = await getUser();
+    const input = validateNoteInput(note);
 
-    return invokeAuthedFunction(
-      "notes-store",
-      {
-        action: "update_note",
-        noteId,
-        note: {
-          title: String(note.title || ""),
-          content: String(note.content || "")
-        }
-      },
-      "Note save"
-    );
+    const { data, error } = await requireClient()
+      .from("notes")
+      .update({
+        title: input.title,
+        content: input.content,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", noteId)
+      .eq("owner_id", user.id)
+      .select("id, title, content, created_at, updated_at")
+      .maybeSingle();
+
+    assertOk(error, "Save note");
+    if (!data) throw new Error("Note not found.");
+    return { note: rowToNote(data) };
   }
 
   async function deleteNote(noteId) {
     if (!noteId) throw new Error("Missing note ID.");
+    const user = await getUser();
 
-    return invokeAuthedFunction(
-      "notes-store",
-      {
-        action: "delete_note",
-        noteId
-      },
-      "Note delete"
-    );
+    const { count, error } = await requireClient()
+      .from("notes")
+      .delete({ count: "exact" })
+      .eq("id", noteId)
+      .eq("owner_id", user.id);
+
+    assertOk(error, "Delete note");
+    if (count !== 1) throw new Error("Note not found.");
+    return { noteId, deleted: true };
   }
 
   async function getLearningOverview() {

@@ -170,6 +170,7 @@
     });
     localStatus = normalizeStatus(data);
     updateGeneratedUi(root);
+    statusEngine()?.syncComposer?.();
   }
 
   function buildStructuredStatusUi() {

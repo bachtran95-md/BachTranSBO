@@ -2095,6 +2095,52 @@
     return { saved: records.length };
   }
 
+  function clearCaseCache(shiftId, caseId) {
+    if (!shiftId || !caseId) return;
+    try {
+      window.localStorage.removeItem(storageKey(shiftId, caseId));
+    } catch {
+      // Cache cleanup failure is non-fatal after the revision is safely persisted.
+    }
+    if (activeShiftId === shiftId && activeCaseId === caseId) {
+      activeCaseId = "";
+      activeShiftId = "";
+      activeState = null;
+    }
+  }
+
+  async function finalizeCase(shiftId, patient) {
+    const caseId = String(patient?.id || "");
+    if (!shiftId || !caseId) return { saved: 0, cleared: false };
+
+    const state = activeShiftId === shiftId && activeCaseId === caseId && activeState
+      ? activeState
+      : loadState(shiftId, caseId);
+
+    if (!stateHasData(state) && !String(patient?.others || "").trim()) {
+      clearCaseCache(shiftId, caseId);
+      return { saved: 0, cleared: true };
+    }
+
+    const record = buildRecordFromState(state, patient?.others || "");
+    if (!window.BachSBOBackend?.saveStatusGeneratorRecords) {
+      throw new Error("A Státusz végleges mentési funkció nem érhető el.");
+    }
+
+    const result = await window.BachSBOBackend.saveStatusGeneratorRecords([{
+      caseId: record.caseId,
+      shiftId: record.shiftId,
+      payload: record.payload
+    }]);
+
+    if (Number(result?.saved || 0) !== 1) {
+      throw new Error("A Státusz revízió mentése nem igazolható.");
+    }
+
+    clearCaseCache(shiftId, caseId);
+    return { saved: 1, cleared: true };
+  }
+
   function clearShiftCache(shiftId) {
     if (!shiftId) return;
     try {
@@ -2138,7 +2184,9 @@
 
   window.BachSBOStatusGenerator = Object.freeze({
     refresh,
+    finalizeCase,
     finalizeShift,
+    clearCaseCache,
     clearShiftCache,
     getSummaryContext
   });

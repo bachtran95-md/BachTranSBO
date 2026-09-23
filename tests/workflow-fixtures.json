@@ -189,5 +189,37 @@
       }
     },
     "expectedReady": false
+  },
+  {
+    "name": "empty structured physical status stays incomplete despite stale generatedAt",
+    "patch": {
+      "physical": "",
+      "physicalSkipped": false,
+      "physicalStatus": {
+        "version": 1,
+        "parameters": {
+          "bloodPressure": "",
+          "pulse": "",
+          "temperature": "",
+          "respiratoryRate": "",
+          "spo2": "",
+          "oxygen": ""
+        },
+        "sections": {
+          "A": "",
+          "B": "",
+          "C": "",
+          "D": "",
+          "E1": "",
+          "E2": "",
+          "E3": "",
+          "E4": "",
+          "E5": "",
+          "E6": ""
+        },
+        "generatedAt": "2026-09-23T01:00:00.000Z"
+      }
+    },
+    "expectedReady": false
   }
 ]

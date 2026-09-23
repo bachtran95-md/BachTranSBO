@@ -2138,15 +2138,28 @@ if (await directAiButtons.count() !== 1) {
 
 // AI may populate a proposal, but it must not save anything before physician confirmation.
 await directAiButtons.click();
-await betaFeatures.waitForFunction(() => {
-  const label = document.querySelector("#betaNewFindingLabel")?.value || "";
-  const output = document.querySelector("#betaNewFindingOutput")?.value || "";
-  const message = document.querySelector("#betaLearningMessage")?.textContent || "";
-  return (
-    (label === "Pleuralis dörzszörej" && /pleuralis dörzszörej/i.test(output)) ||
-    /AI javaslat hiba/i.test(message)
-  );
-});
+await betaFeatures.waitForTimeout(200);
+const aiSuggestionDebug = await betaFeatures.evaluate(() => ({
+  label: document.querySelector("#betaNewFindingLabel")?.value || "",
+  output: document.querySelector("#betaNewFindingOutput")?.value || "",
+  message: document.querySelector("#betaLearningMessage")?.textContent || "",
+  phrase: document.querySelector("#betaLearningPhrase")?.textContent || "",
+  target: document.querySelector("#betaNewFindingTarget")?.value || "",
+  unknownCount: document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length,
+  aiButtonDisabled: Boolean(document.querySelector("#betaUnknownChips [data-ai-unknown-phrase]")?.disabled),
+  suggestButtonDisabled: Boolean(document.querySelector("#betaSuggestFinding")?.disabled),
+  backendSuggestType: typeof window.BachSBOBackend?.findingLearningSuggest,
+  caseId: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.id || ""
+}));
+if (
+  !(
+    (aiSuggestionDebug.label === "Pleuralis dörzszörej" &&
+      /pleuralis dörzszörej/i.test(aiSuggestionDebug.output)) ||
+    /AI javaslat hiba/i.test(aiSuggestionDebug.message)
+  )
+) {
+  throw new Error("AI suggestion did not resolve promptly: " + JSON.stringify(aiSuggestionDebug));
+}
 const aiFindingState = await betaFeatures.evaluate(() => ({
   label: document.querySelector("#betaNewFindingLabel")?.value || "",
   target: document.querySelector("#betaNewFindingTarget")?.value || "",

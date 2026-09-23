@@ -1810,6 +1810,32 @@ function updateStatusCell(patient) {
   cell.innerHTML = patientListStatusHtml(patient);
 }
 
+function setStatusPhysicalDraft(caseId, text) {
+  const patient = patientById(caseId);
+  if (!patient || isCompleted(patient)) return null;
+
+  const next = String(text || "");
+  const changed =
+    patient.physical !== next ||
+    patient.physicalSkipped ||
+    patient?.physicalStatus?.version === 1;
+
+  patient.physical = next;
+  patient.physicalSkipped = false;
+  if (patient?.physicalStatus?.version === 1) patient.physicalStatus = null;
+
+  if (changed) touchPatient(patient);
+
+  if (caseId === selectedPatientId) {
+    const hiddenPhysical = document.getElementById("fPhysical");
+    if (hiddenPhysical && hiddenPhysical.value !== next) hiddenPhysical.value = next;
+    updateStatusCell(patient);
+    refreshSummaryControls(patient);
+  }
+
+  return structuredClone(patient);
+}
+
 function setCaseTriageStatus(caseId, value) {
   const patient = patientById(caseId);
   if (!patient || isCompleted(patient)) return null;
@@ -3763,6 +3789,7 @@ window.BachSBOClinicalUi = Object.freeze({
   normalizeArrivalMode,
   normalizeTriageStatus,
   setCaseTriageStatus,
+  setStatusPhysicalDraft,
   normalizeDisposition,
   renderDispositionUi,
   testEntryStatus: entryStatus,

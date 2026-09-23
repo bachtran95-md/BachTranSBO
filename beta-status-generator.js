@@ -123,6 +123,35 @@
     return text;
   }
 
+  function manualFindingKey(section, target, raw) {
+    const base = fold(section + "-" + target)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 28) || "status";
+    let hash = 2166136261;
+    for (const ch of normalize(raw)) {
+      hash ^= ch.codePointAt(0) || 0;
+      hash = Math.imul(hash, 16777619);
+    }
+    return ("manual-" + base + "-" + (hash >>> 0).toString(16)).slice(0, 64);
+  }
+
+  async function queueLearningFeedback(section, raw, text, target) {
+    const api = window.BachSBOBackend;
+    if (!api?.findingLearningConfirmMapping) return null;
+    return api.findingLearningConfirmMapping({
+      sourcePhrase: raw,
+      mappingKind: target === "__append" ? "new" : "existing",
+      findingKey: manualFindingKey(section, target, raw),
+      canonicalLabel: text.replace(/[.!?]+$/g, ""),
+      target,
+      section,
+      outputText: text,
+      conflictText: "",
+      attributes: {}
+    });
+  }
+
   function selectedCaseId() {
     return document.querySelector("#patientTbody tr.selected[data-id]")?.dataset.id || "";
   }
@@ -1641,9 +1670,13 @@
     renderUnknowns(model);
 
     if (alert) {
-      alert.classList.toggle("hidden", model.unknowns.length === 0);
+      const learningErrors = Object.values(activeState.confirmations || {})
+        .filter((item) => item?.learningError).length;
+      alert.classList.toggle("hidden", model.unknowns.length === 0 && learningErrors === 0);
       alert.textContent = model.unknowns.length
         ? model.unknowns.length + " nem felismert finding vár kézi megerősítésre. A Státusz addig nem másolható."
+        : learningErrors
+        ? learningErrors + " megerősítés helyben mentve, de az AI tanulási Pending sorba mentés sikertelen."
         : "";
     }
     if (copy) copy.disabled = model.unknowns.length > 0;
@@ -1711,15 +1744,42 @@
           return;
         }
 
-        activeState.confirmations[confirmationKey(section, item.raw)] = {
+        const key = confirmationKey(section, item.raw);
+        activeState.confirmations[key] = {
           raw: item.raw,
           text,
           target,
-          confirmedAt: new Date().toISOString()
+          confirmedAt: new Date().toISOString(),
+          learningStatus: "saving",
+          learningError: ""
         };
         activeState.touched = true;
         saveState();
-        render();
+
+        confirm.disabled = true;
+        const previousLabel = confirm.textContent;
+        confirm.textContent = "MENTÉS…";
+        try {
+          const result = await queueLearningFeedback(section, item.raw, text, target);
+          if (activeState?.confirmations?.[key]) {
+            activeState.confirmations[key].learningId = result?.record?.id || "";
+            activeState.confirmations[key].learningStatus = result?.record?.status || "pending";
+            activeState.confirmations[key].learningError = "";
+          }
+        } catch (error) {
+          if (activeState?.confirmations?.[key]) {
+            activeState.confirmations[key].learningStatus = "local_only";
+            activeState.confirmations[key].learningError =
+              String(error?.message || "AI learning save failed.");
+          }
+        } finally {
+          saveState();
+          if (confirm.isConnected) {
+            confirm.disabled = false;
+            confirm.textContent = previousLabel;
+          }
+          render();
+        }
         return;
       }
 

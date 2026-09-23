@@ -400,6 +400,9 @@
         historySkipped: Boolean(row.history_skipped),
         physical: row.physical_exam || "",
         physicalSkipped: Boolean(row.physical_exam_skipped),
+        statusExplicitNormals: Array.isArray(row.status_explicit_normals)
+          ? row.status_explicit_normals
+          : [],
         physicalStatus:
           row.physical_status_data &&
           typeof row.physical_status_data === "object" &&
@@ -595,12 +598,12 @@
     );
   }
 
-  async function generateSummary(caseId, statusContext = null) {
+  async function generateSummary(caseId) {
     if (!caseId) throw new Error("Missing case ID.");
 
     return invokeAuthedFunction(
       "generate-summary",
-      { caseId, statusContext },
+      { caseId },
       "Summary generation"
     );
   }

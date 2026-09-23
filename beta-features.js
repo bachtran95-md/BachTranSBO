@@ -1102,7 +1102,14 @@
     const field = physical?.closest('[data-narrative-field="physical"]');
     if (!physical || !field) return null;
 
-    let composer = document.getElementById("betaFindingComposer");
+    const composers = [...document.querySelectorAll("#betaFindingComposer")];
+    let composer = composers.shift() || null;
+    for (const duplicate of composers) duplicate.remove();
+
+    if (composer && composer.parentElement !== field) {
+      field.appendChild(composer);
+    }
+
     if (!composer) {
       composer = document.createElement("div");
       composer.id = "betaFindingComposer";
@@ -1302,17 +1309,6 @@
         aiButton.textContent = "AI JAVASLAT";
         aiButton.title = "AI javaslat készítése ehhez az ismeretlen findinghoz";
 
-        // These nodes are recreated on every sync. Bind directly so DOM moves
-        // or composer rehydration cannot detach the physician interactions.
-        button.addEventListener("click", () => {
-          prepareUnknownEditor(document.getElementById("betaFindingComposer"), phrase);
-        });
-        aiButton.addEventListener("click", async () => {
-          const liveComposer = document.getElementById("betaFindingComposer");
-          prepareUnknownEditor(liveComposer, phrase);
-          await suggestUnknownFinding(aiButton);
-        });
-
         item.append(button, aiButton);
         unknownChips.appendChild(item);
       }
@@ -1339,6 +1335,35 @@
     preview.value = active.length ? generatedStatus(active) : "";
     preview.classList.toggle("hidden", !active.length);
     copy.disabled = !safeToGenerate;
+  }
+
+  function bindGlobalFindingActions() {
+    if (document.documentElement.dataset.betaFindingGlobalClickBound === "true") return;
+    document.documentElement.dataset.betaFindingGlobalClickBound = "true";
+
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const aiButton = target.closest("#betaFindingComposer [data-ai-unknown-phrase]");
+      if (aiButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const composer = ensureComposer();
+        const phrase = String(aiButton.dataset.aiUnknownPhrase || "");
+        prepareUnknownEditor(composer, phrase);
+        void suggestUnknownFinding(aiButton);
+        return;
+      }
+
+      const chip = target.closest("#betaFindingComposer [data-unknown-phrase]");
+      if (chip) {
+        event.preventDefault();
+        event.stopPropagation();
+        const composer = ensureComposer();
+        prepareUnknownEditor(composer, String(chip.dataset.unknownPhrase || ""));
+      }
+    }, true);
   }
 
   async function copyGeneratedStatus() {
@@ -1376,6 +1401,7 @@
 
   function refreshBetaFeatures() {
     addBetaBadge();
+    bindGlobalFindingActions();
     syncComposer();
     void loadFindingLearningRegistry();
   }

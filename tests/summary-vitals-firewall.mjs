@@ -65,4 +65,10 @@ assert.match(
   "Browser patient state must restore vitals from the database."
 );
 
+assert.match(
+  generateSummary,
+  /sanitizeExampleSnapshot\(example\.case_snapshot\)/,
+  "Similar-case snapshots must pass through the vitals sanitizer before entering the Summary prompt."
+);
+
 console.log("Summary vitals firewall tests passed.");

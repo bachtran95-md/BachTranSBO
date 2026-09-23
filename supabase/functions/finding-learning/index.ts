@@ -330,12 +330,22 @@ async function suggestMapping(sourcePhraseInput: unknown) {
 }
 
 async function counts(db: ReturnType<typeof serviceClient>, ownerId: string) {
-  const [learning, candidates] = await Promise.all([
+  const [pending, approved, excluded, candidates] = await Promise.all([
+    db
+      .from("finding_learning_records")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("status", "pending"),
     db
       .from("finding_learning_records")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", ownerId)
       .eq("status", "approved"),
+    db
+      .from("finding_learning_records")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("status", "excluded"),
     db
       .from("finding_registry_candidates")
       .select("id", { count: "exact", head: true })
@@ -343,11 +353,15 @@ async function counts(db: ReturnType<typeof serviceClient>, ownerId: string) {
       .eq("state", "pending"),
   ]);
 
-  if (learning.error) throw learning.error;
+  if (pending.error) throw pending.error;
+  if (approved.error) throw approved.error;
+  if (excluded.error) throw excluded.error;
   if (candidates.error) throw candidates.error;
 
   return {
-    approvedLearning: learning.count || 0,
+    pendingLearning: pending.count || 0,
+    approvedLearning: approved.count || 0,
+    excludedLearning: excluded.count || 0,
     pendingCandidates: candidates.count || 0,
   };
 }
@@ -387,6 +401,109 @@ async function loadRegistry(db: ReturnType<typeof serviceClient>, ownerId: strin
     });
   }
   return records;
+}
+
+async function listLearningRecords(
+  db: ReturnType<typeof serviceClient>,
+  ownerId: string,
+  statusInput: unknown,
+  pageInput: unknown,
+  pageSizeInput: unknown,
+) {
+  const status = cleanText(statusInput || "pending", 16).toLowerCase();
+  if (!["pending", "approved", "excluded"].includes(status)) {
+    throw new Error("Invalid finding learning status.");
+  }
+
+  const page = Math.max(0, Math.floor(Number(pageInput) || 0));
+  const pageSize = Math.min(50, Math.max(1, Math.floor(Number(pageSizeInput) || 20)));
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await db
+    .from("finding_learning_records")
+    .select(
+      "id, source_phrase, normalized_phrase, mapping_kind, finding_key, canonical_label, target, section, output_text, conflict_text, attributes, status, review_note, reviewed_at, created_at, updated_at",
+      { count: "exact" },
+    )
+    .eq("owner_id", ownerId)
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+
+  return {
+    status,
+    page,
+    pageSize,
+    total: count || 0,
+    records: (data || []).map((row) => ({
+      id: row.id,
+      sourcePhrase: row.source_phrase,
+      normalizedPhrase: row.normalized_phrase,
+      mappingKind: row.mapping_kind,
+      findingKey: row.finding_key,
+      canonicalLabel: row.canonical_label,
+      target: row.target,
+      section: row.section,
+      outputText: row.output_text,
+      conflictText: row.conflict_text,
+      attributes: row.attributes || {},
+      status: row.status,
+      reviewNote: row.review_note || "",
+      reviewedAt: row.reviewed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  };
+}
+
+async function reviewLearningRecord(
+  db: ReturnType<typeof serviceClient>,
+  ownerId: string,
+  learningIdInput: unknown,
+  decisionInput: unknown,
+  noteInput: unknown,
+) {
+  const learningId = cleanText(learningIdInput, 80);
+  if (!learningId) throw new Error("Missing learning record.");
+
+  const decision = cleanText(decisionInput, 16).toLowerCase();
+  if (!["pending", "approved", "excluded"].includes(decision)) {
+    throw new Error("Invalid finding learning decision.");
+  }
+
+  const reviewNote = privacyText(noteInput, 500);
+  const reviewedAt = decision === "pending" ? null : new Date().toISOString();
+
+  const { data, error } = await db
+    .from("finding_learning_records")
+    .update({
+      status: decision,
+      review_note: reviewNote,
+      reviewed_at: reviewedAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", learningId)
+    .eq("owner_id", ownerId)
+    .select("id,status,review_note,reviewed_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Finding learning record was not found.");
+
+  if (decision !== "pending") {
+    const rebuilt = await db.rpc("build_finding_registry_candidates");
+    if (rebuilt.error) throw rebuilt.error;
+  }
+
+  return {
+    id: data.id,
+    status: data.status,
+    reviewNote: data.review_note || "",
+    reviewedAt: data.reviewed_at,
+  };
 }
 
 async function pendingPatch(db: ReturnType<typeof serviceClient>, ownerId: string) {
@@ -508,8 +625,8 @@ Deno.serve(async (req: Request) => {
       if (mappingKind === "new") {
         if (!canonicalLabel) throw new Error("New finding requires a label.");
         if (!target) throw new Error("New finding requires a target.");
-        if (!["A", "B", "C", "D", "E"].includes(section)) {
-          throw new Error("New finding requires an ABCDE section.");
+        if (!["A", "B", "C", "D", "E", "E1", "E2", "E3", "E4", "E5", "E6"].includes(section)) {
+          throw new Error("New finding requires a valid Státusz section.");
         }
         if (!outputText) throw new Error("New finding requires output text.");
       }
@@ -528,16 +645,15 @@ Deno.serve(async (req: Request) => {
           output_text: outputText,
           conflict_text: conflictText,
           attributes,
-          status: "approved",
+          status: "pending",
           updated_at: new Date().toISOString(),
         })
         .select(
-          "id, source_phrase, normalized_phrase, mapping_kind, finding_key, canonical_label, target, section, output_text, conflict_text, attributes, created_at",
+          "id, source_phrase, normalized_phrase, mapping_kind, finding_key, canonical_label, target, section, output_text, conflict_text, attributes, status, created_at",
         )
         .single();
 
       if (error) throw error;
-      const threshold = await maybeBuildThreshold(db, user.id);
       const overview = await counts(db, user.id);
 
       return json({
@@ -553,37 +669,43 @@ Deno.serve(async (req: Request) => {
           outputText: data.output_text,
           conflictText: data.conflict_text,
           attributes: data.attributes || {},
+          status: data.status,
           createdAt: data.created_at,
         },
-        threshold,
         overview,
       });
     }
 
-    if (action === "undo_learning") {
-      const learningId = cleanText(body?.learningId, 80);
-      if (!learningId) throw new Error("Missing learning record.");
+    if (action === "list_learning") {
+      const [list, overview] = await Promise.all([
+        listLearningRecords(db, user.id, body?.status, body?.page, body?.pageSize),
+        counts(db, user.id),
+      ]);
+      return json({ ...list, overview });
+    }
 
-      const { data, error } = await db
-        .from("finding_learning_records")
-        .update({
-          status: "reverted",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", learningId)
-        .eq("owner_id", user.id)
-        .eq("status", "approved")
-        .select("id")
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) throw new Error("Learning record was not found or already reverted.");
-
-      const result = await db.rpc("build_finding_registry_candidates");
-      if (result.error) throw result.error;
-
+    if (action === "review_learning") {
+      const record = await reviewLearningRecord(
+        db,
+        user.id,
+        body?.learningId,
+        body?.decision,
+        body?.note,
+      );
       const overview = await counts(db, user.id);
-      return json({ reverted: learningId, overview });
+      return json({ record, overview });
+    }
+
+    if (action === "undo_learning") {
+      const record = await reviewLearningRecord(
+        db,
+        user.id,
+        body?.learningId,
+        "excluded",
+        "",
+      );
+      const overview = await counts(db, user.id);
+      return json({ reverted: record.id, overview });
     }
 
     if (action === "build_candidates") {

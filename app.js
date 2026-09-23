@@ -2889,6 +2889,7 @@ async function finalizeSummary() {
   patient.summaryFinalizedText = text;
   patient.summaryFinalizedAt = nowIso();
   patient.updatedAt = nowIso();
+  let statusRevisionWarning = false;
 
   try {
     const revisionResult = await window.BachSBOBackend.finalizePatient(
@@ -2916,6 +2917,15 @@ async function finalizeSummary() {
     return;
   }
 
+  if (window.BachSBOStatusGenerator?.finalizeCase) {
+    try {
+      await window.BachSBOStatusGenerator.finalizeCase(state.shift?.id, patient);
+    } catch (error) {
+      statusRevisionWarning = true;
+      console.warn("Case finalized, but Státusz revision cache was retained because persistence failed.", error);
+    }
+  }
+
   const clipboardText = summaryWithFixedFooter(
     patient.summaryFinalizedText || patient.summary || text,
     patient.disposition
@@ -2924,12 +2934,20 @@ async function finalizeSummary() {
   try {
     await navigator.clipboard.writeText(clipboardText);
     flash(uiLang === "hu"
-      ? "Összefoglaló véglegesítve és a vágólapra másolva."
-      : "Summary finalized and copied to clipboard.");
+      ? statusRevisionWarning
+        ? "Összefoglaló véglegesítve és a vágólapra másolva. A Státusz cache megmaradt, mert a revízió mentése nem sikerült."
+        : "Összefoglaló véglegesítve és a vágólapra másolva."
+      : statusRevisionWarning
+        ? "Summary finalized and copied to clipboard. Status cache was retained because revision persistence failed."
+        : "Summary finalized and copied to clipboard.");
   } catch {
     flash(uiLang === "hu"
-      ? "Összefoglaló véglegesítve. A vágólap nem érhető el."
-      : "Summary finalized. Clipboard unavailable.");
+      ? statusRevisionWarning
+        ? "Összefoglaló véglegesítve. A Státusz cache megmaradt, mert a revízió mentése nem sikerült; a vágólap nem érhető el."
+        : "Összefoglaló véglegesítve. A vágólap nem érhető el."
+      : statusRevisionWarning
+        ? "Summary finalized. Status cache was retained because revision persistence failed; clipboard unavailable."
+        : "Summary finalized. Clipboard unavailable.");
   }
 
   renderApp();

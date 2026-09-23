@@ -4,12 +4,21 @@
   // Fast hotfix lane for Státusz vocabulary. Keep this file lexical only:
   // aliases, laterality/location terms, and general negation grammar.
   // Do not put workflow, rendering, persistence, or patient-state logic here.\n  // Every vocabulary hotfix must keep browser regression tests green.
-  const VERSION = "1.0";
+  const VERSION = "1.1";
 
   const aliases = Object.freeze([
     // Canonicalize exact clinical synonyms to tokens already understood by the engine.
     // Add narrow aliases here rather than broad fuzzy matches.
-    Object.freeze({ pattern: "\\blegszomj\\b", replacement: "dyspnoe" })
+    Object.freeze({ pattern: "\\blegszomj\\b", replacement: "dyspnoe" }),
+    // Common renal percussion wording -> existing E6 renal-angle concept.
+    Object.freeze({
+      pattern: "\\b(?:vese|vesetaj)\\s+(?:utogetesre|utesre|kopogtatasra)\\s+nem\\s+erzekeny\\b",
+      replacement: "vesetaj nem erzekeny"
+    }),
+    Object.freeze({
+      pattern: "\\b(?:vese|vesetaj)\\s+(?:utogetesre|utesre|kopogtatasra)\\s+erzekeny\\b",
+      replacement: "vesetaj erzekeny"
+    })
   ]);
 
   const sidePatterns = Object.freeze([

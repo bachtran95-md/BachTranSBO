@@ -1959,10 +1959,20 @@ const multiFindingState = await betaFeatures.evaluate(() => {
 if (multiFindingState.unknowns !== 0 || multiFindingState.highlighted < 6 || multiFindingState.copyDisabled) {
   throw new Error("Multi-finding Státusz did not render cleanly: " + JSON.stringify(multiFindingState));
 }
-for (const expected of ["RR: 135/80 Hgmm", "P: 118 /min", "Tachypnoés", "Jobb basalis crepitatio", "Mko. sípolás", "Tachycardia"]) {
+for (const expected of ["Tachypnoés", "Jobb basalis crepitatio", "Mko. sípolás", "Tachycardia", "epigastrialis nyomásérzékenység", "bal alhasi / BAQ defanz"]) {
   if (!multiFindingState.physical.includes(expected)) {
-    throw new Error("Canonical patient physical is missing Státusz content: " + expected + "\n" + multiFindingState.physical);
+    throw new Error("Canonical patient physical is missing positive Státusz content: " + expected + "\n" + multiFindingState.physical);
   }
+}
+for (const forbidden of ["RR: 135/80", "P: 118", "SpO₂: 94", "Légutak átjárhatók.", "Szívhangok ritmusosak, tiszták.", "Bélhangok normálisak."]) {
+  if (multiFindingState.physical.includes(forbidden)) {
+    throw new Error("Summary-facing physical leaked vitals or generated normal baseline: " + forbidden + "\n" + multiFindingState.physical);
+  }
+}
+if (!(multiFindingState.preview || "").includes("RR: 135/80 Hgmm") ||
+    !(multiFindingState.preview || "").includes("P: 118 /min") ||
+    !(multiFindingState.preview || "").includes("SpO₂: 94 %")) {
+  throw new Error("Copyable Status preview lost its vital parameter line");
 }
 if (!multiFindingState.explicitNormals.some((item) => item.section === "B" && item.concept === "breath_sound")) {
   throw new Error("Explicit normal pulmonary finding was not preserved for Summary context");

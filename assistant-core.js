@@ -33,7 +33,7 @@
     const out = {};
     for (const k of [
       ...fields,
-      "sex", "yob", "triageStatus", "disposition", "dischargeCondition",
+      "sex", "yob", "disposition", "dischargeCondition",
       "recommendations", "hospital", "ward", "admissionNote", "otherOutcome",
       "otherDetails", "arrivalMode", "arrivalOther", "tests"
     ]) out[k] = p[k] ?? null;

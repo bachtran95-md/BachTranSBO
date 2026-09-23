@@ -1904,6 +1904,13 @@ const unknownRaw = await betaFeatures.locator('[data-status-unknown-host="B"] .b
 if (!/pleuralis dörzszörej/i.test(unknownRaw || "")) {
   throw new Error("Second unknown finding was hidden by the first known finding: " + unknownRaw);
 }
+const bUnknownTargets = await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-target="0"] option').allTextContents();
+for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding — hozzáadás a végére"]) {
+  if (!bUnknownTargets.includes(expected)) {
+    throw new Error("Unknown B finding target option missing: " + expected + " -> " + JSON.stringify(bUnknownTargets));
+  }
+}
+await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-target="0"]').selectOption("B4");
 await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-text="0"]').fill(
   "Bal oldali pleuralis dörzszörej hallható."
 );
@@ -1913,6 +1920,10 @@ await betaFeatures.waitForFunction(() =>
   !(document.querySelector("#betaStatusCopyBtn")?.disabled) &&
   (document.querySelector("#betaStatusFinalPreview")?.textContent || "").includes("Bal oldali pleuralis dörzszörej hallható.")
 );
+const targetedUnknownPreview = await betaFeatures.locator("#betaStatusFinalPreview").textContent();
+if (!targetedUnknownPreview.includes("Bal oldali pleuralis dörzszörej hallható.")) {
+  throw new Error("Targeted B4 unknown finding was not rendered into the selected sub-block");
+}
 
 // Working cache is per-case and survives reload.
 await betaFeatures.waitForTimeout(900);

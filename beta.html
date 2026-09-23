@@ -588,46 +588,88 @@
 
         <div id="learningMessage" class="info-bar hidden"></div>
 
-        <div class="card learning-corpus-card">
-          <div class="card-h">
-            <div>
-              <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
-              <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
+        <div class="learning-section-tabs" id="learningSectionTabs">
+          <button class="btn small primary" type="button" data-learning-section="summary">ÖSSZEFOGLALÓ</button>
+          <button class="btn small" type="button" data-learning-section="status">
+            STÁTUSZ <span id="statusLearningPendingBadge"></span>
+          </button>
+        </div>
+
+        <div id="learningSummaryPane">
+          <div class="card learning-corpus-card">
+            <div class="card-h">
+              <div>
+                <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
+                <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
+              </div>
+            </div>
+            <div class="card-b" id="corpusReviewList">
+              <div class="subtle" data-i18n="loading">Betöltés…</div>
             </div>
           </div>
-          <div class="card-b" id="corpusReviewList">
-            <div class="subtle" data-i18n="loading">Betöltés…</div>
+
+          <div class="learning-grid">
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="writingStyle">Writing style</h3>
+                  <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
+                </div>
+                <button class="btn primary small" id="generateStyleBtn" type="button">
+                  <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
+                </button>
+              </div>
+              <div class="card-b" id="styleProfilesList">
+                <div class="subtle">Loading…</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
+                  <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+                </div>
+                <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
+                  <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
+                </button>
+              </div>
+              <div class="card-b" id="skillSuggestionsList">
+                <div class="subtle">Loading…</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="learning-grid">
-          <div class="card">
-            <div class="card-h">
-              <div>
-                <h3 data-i18n="writingStyle">Writing style</h3>
-                <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
-              </div>
-              <button class="btn primary small" id="generateStyleBtn" type="button">
-                <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
-              </button>
+        <div id="learningStatusPane" class="hidden">
+          <div class="learning-metrics status-learning-metrics">
+            <div class="card learning-metric">
+              <div class="subtle">Pending</div>
+              <div class="learning-number" id="statusLearningPendingCount">0</div>
             </div>
-            <div class="card-b" id="styleProfilesList">
-              <div class="subtle">Loading…</div>
+            <div class="card learning-metric">
+              <div class="subtle">Approved</div>
+              <div class="learning-number" id="statusLearningApprovedCount">0</div>
+            </div>
+            <div class="card learning-metric">
+              <div class="subtle">Excluded</div>
+              <div class="learning-number" id="statusLearningExcludedCount">0</div>
             </div>
           </div>
 
-          <div class="card">
+          <div class="card learning-corpus-card">
             <div class="card-h">
               <div>
-                <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
-                <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+                <h3>Státusz learning review</h3>
+                <div class="subtle">
+                  A Státusz modulban manuálisan megerősített findingok Pending állapotban maradnak,
+                  amíg külön jóvá nem hagyod vagy ki nem zárod őket. A 20-as oldalméret csak lapozás,
+                  régebbi elem nem tűnik el automatikusan.
+                </div>
               </div>
-              <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
-                <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
-              </button>
             </div>
-            <div class="card-b" id="skillSuggestionsList">
-              <div class="subtle">Loading…</div>
+            <div class="card-b" id="statusLearningList">
+              <div class="subtle">Betöltés…</div>
             </div>
           </div>
         </div>
@@ -768,12 +810,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?v=demographics-20260922-1"></script>
-  <script src="backend.js?v=corpus-review-20260923-1"></script>
+  <script src="backend.js?v=status-learning-20260923-1"></script>
   <script src="assistant-core.js?v=assistant-core-20260922-1"></script>
-  <script src="app.js?v=corpus-review-20260923-1"></script>
+  <script src="app.js?v=status-learning-20260923-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit.js?v=status-unify-20260923-2"></script>
   <script src="beta-features.js?v=notes-crud-20260923-1"></script>
-  <script src="beta-status-generator.js?v=status-negation-all-20260923-1"></script>
+  <script src="beta-status-generator.js?v=status-learning-20260923-1"></script>
 </body>
 </html>

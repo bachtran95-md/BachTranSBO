@@ -1546,16 +1546,47 @@
     return parts.length ? parts.join(", ") + "." : "";
   }
 
+  function unresolvedSegments(unknowns, sections) {
+    const allowed = new Set(Array.isArray(sections) ? sections : [sections]);
+    return (unknowns || [])
+      .filter((item) => allowed.has(item.section))
+      .map((item) => segment(
+        ensureSentence(item.raw) + " ",
+        "unresolved",
+        item.section,
+        "Nem felismert finding — nyers szöveg változatlanul megtartva."
+      ));
+  }
+
   function buildRenderModel() {
     const parsed = parseAll();
     const lines = [];
     const params = parameterLine();
     if (params) lines.push({ prefix: "", segments: [segment(params, "base", "")] });
-    lines.push({ prefix: "A: ", segments: renderA(parsed.findings) });
-    lines.push({ prefix: "B: ", segments: renderB(parsed.findings) });
-    lines.push({ prefix: "C: ", segments: renderC(parsed.findings) });
-    lines.push({ prefix: "D: ", segments: renderD(parsed.findings) });
-    lines.push({ prefix: "E: ", segments: renderE(parsed.findings) });
+
+    lines.push({
+      prefix: "A: ",
+      segments: [...renderA(parsed.findings), ...unresolvedSegments(parsed.unknowns, "A")]
+    });
+    lines.push({
+      prefix: "B: ",
+      segments: [...renderB(parsed.findings), ...unresolvedSegments(parsed.unknowns, "B")]
+    });
+    lines.push({
+      prefix: "C: ",
+      segments: [...renderC(parsed.findings), ...unresolvedSegments(parsed.unknowns, "C")]
+    });
+    lines.push({
+      prefix: "D: ",
+      segments: [...renderD(parsed.findings), ...unresolvedSegments(parsed.unknowns, "D")]
+    });
+    lines.push({
+      prefix: "E: ",
+      segments: [
+        ...renderE(parsed.findings),
+        ...unresolvedSegments(parsed.unknowns, ["E1", "E2", "E3", "E4", "E5", "E6"])
+      ]
+    });
     return { ...parsed, lines };
   }
 
@@ -1574,6 +1605,8 @@
           ? "status-explicit"
           : item.kind === "derived"
           ? "status-derived"
+          : item.kind === "unresolved"
+          ? "status-unresolved"
           : "";
         const attrs = [];
         if (item.source) attrs.push('data-status-source="' + esc(item.source) + '"');
@@ -1625,7 +1658,7 @@
     if (!activeState || !activeCaseId) return;
     if (!activeState.touched && !activeState.copiedAt) return;
 
-    const text = model.unknowns.length ? "" : modelText(model);
+    const text = modelText(model);
     const explicitNormals = model.findings
       .filter((item) => item.explicitNormal)
       .map((item) => ({
@@ -1683,12 +1716,12 @@
         .filter((item) => item?.learningError).length;
       alert.classList.toggle("hidden", model.unknowns.length === 0 && learningErrors === 0);
       alert.textContent = model.unknowns.length
-        ? model.unknowns.length + " nem felismert finding vár kézi megerősítésre. A Státusz addig nem másolható."
+        ? model.unknowns.length + " nem felismert finding maradt. A nyers szöveg bekerül a Státuszba; másolás és lezárás továbbra is engedélyezett."
         : learningErrors
         ? learningErrors + " megerősítés helyben mentve, de az AI tanulási Pending sorba mentés sikertelen."
         : "";
     }
-    if (copy) copy.disabled = model.unknowns.length > 0;
+    if (copy) copy.disabled = false;
     syncClinicalPhysical(model);
   }
 
@@ -1808,7 +1841,6 @@
     document.getElementById("betaStatusCopyBtn")?.addEventListener("click", async (event) => {
       if (!activeState) return;
       const model = buildRenderModel();
-      if (model.unknowns.length) return;
       const text = modelText(model);
       try {
         await navigator.clipboard.writeText(text);

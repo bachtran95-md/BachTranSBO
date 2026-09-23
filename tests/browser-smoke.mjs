@@ -2230,10 +2230,19 @@ await betaFeatures.waitForFunction(() =>
 
 // Suppressing a chip must change only the local preview.
 await betaFeatures.locator('[data-finding-key="crackles"]').click();
-await betaFeatures.waitForFunction(() =>
-  document.querySelector('[data-finding-key="crackles"]')?.classList.contains("suppressed") &&
-  (document.querySelector("#betaStatusPreview")?.value || "").includes("Zörejek: nincs.")
-);
+await betaFeatures.waitForTimeout(150);
+const suppressionDebug = await betaFeatures.evaluate(() => ({
+  suppressed: Boolean(document.querySelector('[data-finding-key="crackles"]')?.classList.contains("suppressed")),
+  preview: document.querySelector("#betaStatusPreview")?.value || "",
+  chips: [...document.querySelectorAll("#betaFindingComposer .beta-finding-chip")].map((node) => ({
+    key: node.dataset.findingKey || "",
+    className: node.className,
+    text: node.textContent || ""
+  }))
+}));
+if (!suppressionDebug.suppressed || !suppressionDebug.preview.includes("Zörejek: nincs.")) {
+  throw new Error("Finding suppression did not update preview: " + JSON.stringify(suppressionDebug));
+}
 
 // Standard template uses the same reviewed finding set.
 await betaFeatures.locator('[data-status-mode="standard"]').evaluate((button) => button.click());

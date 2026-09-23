@@ -1502,14 +1502,15 @@
 
   const wardOptions = [
     "Belgyógyászat",
-    "Kardiológia",
     "Gasztroenterológia",
-    "Infektológia",
-    "SBO",
-    "Sebészet",
-    "Neurológia",
     "Idegsebészet",
-    "Nefrológia"
+    "Infektológia",
+    "Intenzív Osztály",
+    "Kardiológia",
+    "Nefrológia",
+    "Neurológia",
+    "SBO",
+    "Sebészet"
   ];
 
   function syncArrivalVisual() {

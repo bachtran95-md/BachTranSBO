@@ -122,5 +122,15 @@ assert.match(
   /BachSBOStatusGenerator\?\.finalizeCase\(state\.shift\?\.id, patient\)/,
   "Clinical case finalization must trigger per-case Status revision persistence."
 );
+const finalizeShift = sliceFunction(
+  statusGenerator,
+  "async function finalizeShift(",
+  "function clearCaseCache("
+);
+assert.match(
+  finalizeShift,
+  /if \(!stateHasData\(state\)\) continue;/,
+  "END SHIFT must not rebuild and overwrite a revision after per-case cache cleanup."
+);
 
 console.log("Summary vitals + release integrity firewall tests passed.");

@@ -352,8 +352,17 @@
       .filter(Boolean);
   }
 
+  function stripStructuredSectionPrefix(value) {
+    return String(value || "")
+      .replace(/^(?:A|B|C|D|E[1-6])\s*:\s*/i, "")
+      .trim();
+  }
+
   function unknownSegments(source) {
-    return segmentClinicalText(source).filter((segment) => parseFindings(segment).length === 0);
+    return segmentClinicalText(source)
+      .map(stripStructuredSectionPrefix)
+      .filter(Boolean)
+      .filter((segment) => parseFindings(segment).length === 0);
   }
 
   async function loadFindingLearningRegistry(force = false) {

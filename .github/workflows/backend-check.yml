@@ -227,8 +227,16 @@ jobs:
             echo "saveState, savePatient and finalizePatient must all use caseRowFromPatient."
             exit 1
           fi
-          if [ "$(grep -c 'summaryRowFromPatient(patient, ownerId, now)' supabase/functions/clinical-store/index.ts)" -ne 3 ]; then
-            echo "saveState, savePatient and finalizePatient must all use summaryRowFromPatient."
+          if [ "$(grep -c 'summaryRowFromPatient(patient, ownerId, now)' supabase/functions/clinical-store/index.ts)" -ne 2 ]; then
+            echo "Summary serialization must remain centralized in working-state sync and finalization."
+            exit 1
+          fi
+          if [ "$(grep -c 'syncSummaryWorkingState(db, ownerId, patient, now)' supabase/functions/clinical-store/index.ts)" -ne 2 ]; then
+            echo "saveState and savePatient must preserve server-owned generated Summary provenance."
+            exit 1
+          fi
+          if ! grep -q 'select("generated_text, generated_at, model, skill_version")' supabase/functions/clinical-store/index.ts; then
+            echo "finalizePatient must read canonical generated Summary provenance from the server."
             exit 1
           fi
           if grep -E -q 'triage_status|triageStatus' supabase/functions/generate-summary/index.ts; then

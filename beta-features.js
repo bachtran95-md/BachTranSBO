@@ -991,16 +991,18 @@
       const suggestion = result?.suggestion;
       if (!suggestion) throw new Error("Finding AI backend is unavailable.");
 
-      // Autosave/render may replace the composer while the request is in flight.
-      // Apply the proposal only to the current live editor, and only if the
-      // physician is still reviewing the same unknown phrase.
-      if (
-        normalizeLearningPhrase(activeUnknownPhrase) !==
-        normalizeLearningPhrase(requestedPhrase)
-      ) {
-        return;
-      }
+      // Autosave/render may replace the composer and transiently clear
+      // activeUnknownPhrase while the request is in flight. The reliable
+      // stale-result check is whether the requested phrase is still unresolved
+      // in the CURRENT structured STATUS source.
+      const currentUnknowns = unknownSegments(structuredFindingSource());
+      const requestedKey = normalizeLearningPhrase(requestedPhrase);
+      const stillUnresolved = currentUnknowns.some(
+        (phrase) => normalizeLearningPhrase(phrase) === requestedKey
+      );
+      if (!stillUnresolved) return;
 
+      activeUnknownPhrase = requestedPhrase;
       composer = document.getElementById("betaFindingComposer");
       if (!composer) return;
       prepareUnknownEditor(composer, requestedPhrase);

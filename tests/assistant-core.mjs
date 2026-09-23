@@ -14,16 +14,17 @@ const snapshot = core.snapshot({
   sex: "male",
   yob: "1958",
   dischargeCondition: "Panaszmentes",
+  vitals: {
+    version: 1,
+    bloodPressure: "148/86",
+    pulse: "92",
+    temperature: "37.2",
+    respiratoryRate: "18",
+    spo2: "96",
+    oxygen: "2 L/min"
+  },
   physicalStatus: {
     version: 1,
-    parameters: {
-      bloodPressure: "148/86",
-      pulse: "92",
-      temperature: "37.2",
-      respiratoryRate: "18",
-      spo2: "96",
-      oxygen: "2 L/min"
-    },
     sections: {
       A: "Légút szabad",
       B: "Basalis crepitatio",
@@ -36,12 +37,23 @@ const snapshot = core.snapshot({
   }
 });
 assert.equal(snapshot.dischargeCondition, "Panaszmentes");
-assert.equal(snapshot.physicalStatus.parameters.bloodPressure, "148/86");
-assert.equal(snapshot.physicalStatus.parameters.spo2, "96");
+assert.equal(snapshot.vitals.bloodPressure, "148/86");
+assert.equal(snapshot.vitals.spo2, "96");
+assert.equal(snapshot.physicalStatus.parameters, undefined);
 assert.equal(snapshot.physicalStatus.sections.B, "Basalis crepitatio");
 assert.equal(snapshot.physicalStatus.sections.E6, "");
 assert.equal(snapshot.physicalStatus.generatedAt, undefined);
 assert.equal(snapshot.physicalStatus.legacyPhysical, undefined);
+
+const legacyVitalsSnapshot = core.snapshot({
+  physicalStatus: {
+    version: 1,
+    parameters: { pulse: "88", spo2: "98" },
+    sections: {}
+  }
+});
+assert.equal(legacyVitalsSnapshot.vitals.pulse, "88");
+assert.equal(legacyVitalsSnapshot.vitals.spo2, "98");
 
 const patient = {
   complaint: "Existing complaint",

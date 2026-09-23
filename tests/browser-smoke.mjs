@@ -1870,6 +1870,24 @@ if (!multiFindingState.statusComplete) {
   throw new Error("Resolved Státusz did not complete the Státusz workflow tab");
 }
 
+// Regression: rate + standalone regularity in the same C field must both resolve.
+await betaFeatures.locator('[data-status-section="C"]').fill("bradycardia, szabálytalan");
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Bradycardia") &&
+    /arrhythmi/i.test(preview) &&
+    document.querySelectorAll('[data-status-unknown-host="C"] .beta-status-unknown').length === 0;
+});
+const cardiacMultiFinding = await betaFeatures.evaluate(() => ({
+  preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+  unknowns: document.querySelectorAll('[data-status-unknown-host="C"] .beta-status-unknown').length
+}));
+if (cardiacMultiFinding.unknowns !== 0 ||
+    !cardiacMultiFinding.preview.includes("Bradycardia") ||
+    !/arrhythmi/i.test(cardiacMultiFinding.preview)) {
+  throw new Error("C multi-finding regularity regression failed: " + JSON.stringify(cardiacMultiFinding));
+}
+
 // A known finding must not hide a second unknown finding in the same textarea.
 // Unknown findings require physician-written standardized wording; no AI button.
 await betaFeatures.locator('[data-status-section="B"]').fill(

@@ -2052,7 +2052,11 @@
       if (!caseId) continue;
       const state = loadState(shiftId, caseId);
       const patient = (patients || []).find((item) => String(item.id) === caseId);
-      if (!stateHasData(state) && !String(patient?.others || "").trim()) continue;
+      // Per-case finalization clears its cache only after the revision is safely
+      // persisted. END SHIFT must therefore flush only caches that still exist;
+      // rebuilding a cleared completed case from clinicalNote alone could overwrite
+      // its already-saved raw Status revision with an empty generator state.
+      if (!stateHasData(state)) continue;
       const record = buildRecordFromState(state, patient?.others || "");
       records.push({
         caseId: record.caseId,

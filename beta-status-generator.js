@@ -978,7 +978,7 @@
           '<div class="beta-status-unknown-title">NEM FELISMERT FINDING</div>' +
           '<div class="beta-status-unknown-raw">' + esc(item.raw) + '</div>' +
           '<div class="beta-status-unknown-editor">' +
-            '<input type="text" data-status-confirm-text="' + index + '" value="' + esc(ensureSentence(item.raw)) + '" aria-label="Megerősített finding" />' +
+            '<input type="text" data-status-confirm-text="' + index + '" value="" placeholder="Teljes, standard magyar mondat…" aria-label="Megerősített finding" />' +
             '<button type="button" class="btn small" data-status-confirm="' + index + '">MEGERŐSÍTÉS</button>' +
           '</div>' +
         '</div>'

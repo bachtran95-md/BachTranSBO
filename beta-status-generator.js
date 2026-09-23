@@ -1672,6 +1672,25 @@
       .join("\n");
   }
 
+  // Summary/DB clinical physical text is deliberately narrower than the
+  // copyable full Status. Keep only actual positive/derived/unresolved findings.
+  // Vital parameters and generated baseline-normal sentences stay out of
+  // patient.physical so Summary generation cannot reuse their numbers.
+  function summaryPhysicalText(model) {
+    const allowedKinds = new Set(["modified", "derived", "unresolved"]);
+    return model.lines
+      .map((line) => {
+        const text = line.segments
+          .filter((item) => allowedKinds.has(item.kind))
+          .map((item) => item.text)
+          .join("")
+          .trim();
+        return text ? line.prefix + text : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
   function modelHtml(model) {
     return model.lines.map((line) => {
       const spans = line.segments.map((item) => {
@@ -1734,7 +1753,7 @@
     if (!activeState || !activeCaseId) return;
     if (!activeState.touched && !activeState.copiedAt) return;
 
-    const text = modelText(model);
+    const text = summaryPhysicalText(model);
     const explicitNormals = model.findings
       .filter((item) => item.explicitNormal)
       .map((item) => ({

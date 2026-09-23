@@ -976,8 +976,10 @@
   }
 
   async function suggestUnknownFinding(triggerButton = null) {
-    const composer = document.getElementById("betaFindingComposer");
+    let composer = document.getElementById("betaFindingComposer");
     if (!composer || !activeUnknownPhrase) return;
+
+    const requestedPhrase = activeUnknownPhrase;
     const editorButton = composer.querySelector("#betaSuggestFinding");
     const buttons = [editorButton, triggerButton].filter(Boolean);
     buttons.forEach((button) => { button.disabled = true; });
@@ -985,13 +987,27 @@
     updateLearningOverviewUi(composer);
 
     try {
-      const result = await window.BachSBOBackend?.findingLearningSuggest?.(activeUnknownPhrase);
+      const result = await window.BachSBOBackend?.findingLearningSuggest?.(requestedPhrase);
       const suggestion = result?.suggestion;
       if (!suggestion) throw new Error("Finding AI backend is unavailable.");
 
+      // Autosave/render may replace the composer while the request is in flight.
+      // Apply the proposal only to the current live editor, and only if the
+      // physician is still reviewing the same unknown phrase.
+      if (
+        normalizeLearningPhrase(activeUnknownPhrase) !==
+        normalizeLearningPhrase(requestedPhrase)
+      ) {
+        return;
+      }
+
+      composer = document.getElementById("betaFindingComposer");
+      if (!composer) return;
+      prepareUnknownEditor(composer, requestedPhrase);
+
       activeAiSuggestion = {
         ...suggestion,
-        sourcePhrase: result.sourcePhrase || activeUnknownPhrase
+        sourcePhrase: result.sourcePhrase || requestedPhrase
       };
 
       if (suggestion.mappingKind === "existing" && coreFindingMeta(suggestion.findingKey)) {
@@ -1005,9 +1021,9 @@
         const target = composer.querySelector("#betaNewFindingTarget");
         const output = composer.querySelector("#betaNewFindingOutput");
         const conflict = composer.querySelector("#betaNewFindingConflict");
-        if (label) label.value = suggestion.canonicalLabel || activeUnknownPhrase;
+        if (label) label.value = suggestion.canonicalLabel || requestedPhrase;
         if (target && targetMeta(suggestion.target)) target.value = suggestion.target || "other";
-        if (output) output.value = suggestion.outputText || ensureSentence(activeUnknownPhrase);
+        if (output) output.value = suggestion.outputText || ensureSentence(requestedPhrase);
         if (conflict) conflict.value = suggestion.conflictText || "";
         learningMessage = "AI új findingot javasol. Ellenőrizze a helyet, outputot és conflict részt, majd mentse kézzel.";
       }
@@ -1019,10 +1035,13 @@
     } catch (error) {
       activeAiSuggestion = null;
       learningMessage = `AI javaslat hiba: ${error?.message || error}`;
-      updateLearningOverviewUi(composer);
+      updateLearningOverviewUi(document.getElementById("betaFindingComposer"));
     } finally {
-      buttons.forEach((button) => {
-        if (button?.isConnected) button.disabled = false;
+      const liveComposer = document.getElementById("betaFindingComposer");
+      liveComposer?.querySelector("#betaSuggestFinding")?.removeAttribute("disabled");
+      if (triggerButton?.isConnected) triggerButton.disabled = false;
+      liveComposer?.querySelectorAll("[data-ai-unknown-phrase]").forEach((button) => {
+        button.disabled = false;
       });
     }
   }

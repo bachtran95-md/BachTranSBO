@@ -1844,9 +1844,10 @@ await betaFeatures.waitForFunction(() =>
   [...document.querySelectorAll(".beta-note-title")]
     .some((input) => input.value === "E2E note")
 );
-const persistedNote = betaFeatures.locator("[data-note-id]").filter({
-  has: betaFeatures.locator('.beta-note-title[value="E2E note"]')
-}).first();
+const persistedNote = betaFeatures.locator("[data-note-id]").first();
+if ((await persistedNote.locator(".beta-note-title").inputValue()) !== "E2E note") {
+  throw new Error("Persisted Beta note title was not restored after reload");
+}
 await persistedNote.locator(".beta-note-delete").click();
 await betaFeatures.waitForFunction(() =>
   JSON.parse(localStorage.getItem("__bach_sbo_e2e_notes") || "[]").length === 0

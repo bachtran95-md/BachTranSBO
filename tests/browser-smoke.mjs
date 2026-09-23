@@ -2023,6 +2023,22 @@ await betaFeatures.waitForFunction(() => {
     document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 0;
 });
 
+// E6 vocabulary regression: ordinary Hungarian renal percussion phrasing must
+// map to the existing renal-angle tenderness concept and replace the normal baseline.
+await betaFeatures.locator('[data-status-section="E6"]').fill("jobb vese ütögetésre érzékeny");
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Jobb vesetáj ütögetésre érzékeny.") &&
+    !preview.includes("Vesetájak ütögetésre nem érzékenyek.") &&
+    document.querySelectorAll('[data-status-unknown-host="E6"] .beta-status-unknown').length === 0;
+});
+await betaFeatures.locator('[data-status-section="E6"]').fill("vese ütögetésre nem érzékeny");
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Vesetájak ütögetésre nem érzékenyek.") &&
+    document.querySelectorAll('[data-status-unknown-host="E6"] .beta-status-unknown').length === 0;
+});
+
 // Regression: explicit negative dyspnoea must override the positive dyspnoea token
 // and remain an explicit normal finding for Summary context.
 await betaFeatures.locator('[data-status-section="B"]').fill(

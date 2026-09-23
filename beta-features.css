@@ -133,3 +133,47 @@ body.beta-build .beta-note-delete{
     width:100%;
   }
 }
+
+
+/* AI tanulás → Státusz review queue */
+body.beta-build .learning-section-tabs{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:0 0 18px;
+}
+body.beta-build .status-learning-metrics{
+  margin-top:2px;
+}
+body.beta-build #statusLearningList{
+  max-height:620px;
+  overflow:auto;
+}
+body.beta-build .status-learning-tabs{
+  margin:0 0 10px;
+}
+body.beta-build .status-learning-range{
+  margin-bottom:10px;
+}
+body.beta-build .status-learning-item{
+  background:#fff;
+}
+body.beta-build .status-learning-pair{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:10px;
+}
+body.beta-build .status-learning-source{
+  background:#fff;
+}
+body.beta-build .status-learning-pagination{
+  justify-content:space-between;
+  margin-top:14px;
+}
+
+@media (max-width:760px){
+  body.beta-build .status-learning-pair{
+    grid-template-columns:1fr;
+  }
+}

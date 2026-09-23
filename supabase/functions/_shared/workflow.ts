@@ -19,9 +19,20 @@ export function patientWorkflowBlockers(patient: any) {
     blockers.push("Arrival details");
   }
 
+  const structuredPhysical = patient?.physicalStatus?.version === 1
+    ? patient.physicalStatus
+    : null;
+  const physicalStructuredHasInput = Boolean(
+    structuredPhysical &&
+    [
+      ...Object.values(structuredPhysical.parameters || {}),
+      ...Object.values(structuredPhysical.sections || {}),
+    ].some((value) => String(value || "").trim())
+  );
   const physicalStructuredComplete = Boolean(
-    patient?.physicalStatus?.version === 1 &&
-    patient?.physicalStatus?.generatedAt
+    structuredPhysical &&
+    physicalStructuredHasInput &&
+    structuredPhysical.generatedAt
   );
 
   const requiredNarrative = [

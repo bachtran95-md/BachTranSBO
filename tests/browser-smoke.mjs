@@ -1804,6 +1804,22 @@ const statusPlacementOk = await betaFeatures.evaluate(() => {
 if (!statusPlacementOk) {
   throw new Error("Structured STATUS is not hydrated inside Fizikális vizsgálat before Finding Learning");
 }
+const statusOrder = await betaFeatures.evaluate(() => ({
+  params: [...document.querySelectorAll("#betaStructuredStatus [data-status-param]")]
+    .map((node) => node.dataset.statusParam),
+  sections: [...document.querySelectorAll("#betaStructuredStatus [data-status-section]")]
+    .map((node) => node.dataset.statusSection)
+}));
+if (JSON.stringify(statusOrder.params) !== JSON.stringify([
+  "bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"
+])) {
+  throw new Error("STATUS parameter order is wrong: " + JSON.stringify(statusOrder.params));
+}
+if (JSON.stringify(statusOrder.sections) !== JSON.stringify([
+  "A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"
+])) {
+  throw new Error("STATUS ABCDE order is wrong: " + JSON.stringify(statusOrder.sections));
+}
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");

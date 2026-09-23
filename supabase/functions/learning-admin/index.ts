@@ -71,6 +71,9 @@ async function overview(db: any, ownerId: string) {
   const [
     revisionsResult,
     corpusResult,
+    pendingCountResult,
+    approvedCountResult,
+    excludedCountResult,
     skillResult,
     profilesResult,
     coachRunsResult,
@@ -80,6 +83,7 @@ async function overview(db: any, ownerId: string) {
       .select("id", { count: "exact", head: true })
       .eq("owner_id", ownerId),
 
+    // Kept for the Stable UI. Beta uses the paginated status tabs below.
     db.from("summary_revisions")
       .select(
         "id, case_id, finalized_text, generated_text, finalized_at, learning_status, learning_note, learning_reviewed_at, model, embedding_model",
@@ -87,6 +91,21 @@ async function overview(db: any, ownerId: string) {
       .eq("owner_id", ownerId)
       .order("finalized_at", { ascending: false })
       .limit(20),
+
+    db.from("summary_revisions")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("learning_status", "pending"),
+
+    db.from("summary_revisions")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("learning_status", "approved"),
+
+    db.from("summary_revisions")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .eq("learning_status", "excluded"),
 
     db.from("skill_versions")
       .select("id, version, name, is_active, created_at")
@@ -122,6 +141,9 @@ async function overview(db: any, ownerId: string) {
   for (const result of [
     revisionsResult,
     corpusResult,
+    pendingCountResult,
+    approvedCountResult,
+    excludedCountResult,
     skillResult,
     profilesResult,
     coachRunsResult,
@@ -130,20 +152,57 @@ async function overview(db: any, ownerId: string) {
     if (result.error) throw result.error;
   }
 
-  const corpusRevisions = corpusResult.data || [];
-  const approvedCount = corpusRevisions.filter((item: any) => item.learning_status === "approved").length;
-  const excludedCount = corpusRevisions.filter((item: any) => item.learning_status === "excluded").length;
-
   return {
     finalizedCount: revisionsResult.count || 0,
-    corpusReviewedWindow: corpusRevisions.length,
-    corpusApprovedInWindow: approvedCount,
-    corpusExcludedInWindow: excludedCount,
-    corpusRevisions,
+    corpusCounts: {
+      pending: pendingCountResult.count || 0,
+      approved: approvedCountResult.count || 0,
+      excluded: excludedCountResult.count || 0,
+    },
+    corpusRevisions: corpusResult.data || [],
     activeSkill: skillResult.data || null,
     styleProfiles: profilesResult.data || [],
     styleCoachRuns: coachRunsResult.data || [],
     skillSuggestions: suggestionsResult.data || [],
+  };
+}
+
+async function listRevisions(
+  db: any,
+  ownerId: string,
+  statusInput: unknown,
+  pageInput: unknown,
+  pageSizeInput: unknown,
+) {
+  const status = String(statusInput || "pending");
+  if (!["pending", "approved", "excluded"].includes(status)) {
+    throw new Error("Invalid corpus status.");
+  }
+
+  const page = Math.max(0, Math.floor(Number(pageInput) || 0));
+  const pageSize = Math.min(50, Math.max(1, Math.floor(Number(pageSizeInput) || 20)));
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await db
+    .from("summary_revisions")
+    .select(
+      "id, case_id, finalized_text, generated_text, finalized_at, learning_status, learning_note, learning_reviewed_at, model, embedding_model",
+      { count: "exact" },
+    )
+    .eq("owner_id", ownerId)
+    .eq("learning_status", status)
+    .order("finalized_at", { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+
+  return {
+    status,
+    page,
+    pageSize,
+    total: count || 0,
+    revisions: data || [],
   };
 }
 
@@ -202,6 +261,18 @@ Deno.serve(async (req) => {
 
     if (action === "overview") {
       return json(await overview(db, user.id));
+    }
+
+    if (action === "list_revisions") {
+      return json(
+        await listRevisions(
+          db,
+          user.id,
+          body?.status,
+          body?.page,
+          body?.pageSize,
+        ),
+      );
     }
 
     if (action === "review_revision") {

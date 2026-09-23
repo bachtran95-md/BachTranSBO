@@ -580,9 +580,19 @@ function physicalStatusPositiveText(value) {
     .join("\n");
 }
 
+function physicalStatusHasInput(value) {
+  if (!value || typeof value !== "object") return false;
+  const status = normalizePhysicalStatusData(value);
+  return [
+    ...Object.values(status.parameters || {}),
+    ...Object.values(status.sections || {})
+  ].some((item) => String(item || "").trim());
+}
+
 function structuredPhysicalStatusComplete(patient) {
   return Boolean(
     patient?.physicalStatus?.version === 1 &&
+    physicalStatusHasInput(patient.physicalStatus) &&
     patient.physicalStatus.generatedAt
   );
 }

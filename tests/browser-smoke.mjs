@@ -1764,9 +1764,8 @@ await betaFeatures.waitForFunction(() =>
   document.body.classList.contains("beta-build") &&
   document.body.classList.contains("cockpit-ui")
 );
-if (!await betaFeatures.evaluate(() => Boolean(window.BACH_SBO_BETA_FINDING_REGISTRY))) {
-  throw new Error("Beta generated finding registry did not load before beta features");
-}
+// Current Beta Státusz architecture: one upgraded physical-examination source,
+ // six workflow tabs, browser-local per-case working cache, deterministic renderer.
 await betaFeatures.locator(".beta-build-badge").waitFor();
 await betaFeatures.waitForFunction(() => {
   const text = document.querySelector("#shiftMeta .shift-dashboard-pill")?.textContent || "";
@@ -1777,221 +1776,127 @@ for (const metricClass of ["shift-metric-cases", "shift-metric-active", "shift-m
     throw new Error("Beta shell is not tracking Stable shift metric: " + metricClass);
   }
 }
+
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
-await betaFeatures.locator("#caseTriageControl").waitFor();
-if (await betaFeatures.locator("#betaTriageControl").count()) {
-  throw new Error("Promoted triage is still duplicated in the beta-only layer");
+
+const betaTabLabels = await betaFeatures.locator("[data-cockpit-tab]").allTextContents();
+for (const expected of ["Klinikum", "Státusz", "Vizsgálatok", "Terápia és kórlefolyás", "Döntés", "Összefoglaló"]) {
+  if (!betaTabLabels.includes(expected)) {
+    throw new Error("Beta six-step workflow tab missing: " + expected + " -> " + JSON.stringify(betaTabLabels));
+  }
+}
+if (await betaFeatures.locator('[data-cockpit-tab="status"]').count() !== 1) {
+  throw new Error("Dedicated Státusz tab is missing");
 }
 
-await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
+await betaFeatures.locator('[data-cockpit-tab="status"]').click();
+await betaFeatures.locator("#betaStatusGenerator").waitFor();
 
-// Structured STATUS: parameters + positive findings are persisted, while the
-// full generated copy text remains derived UI output only.
-await betaFeatures.locator("#betaStructuredStatus").waitFor();
-
-// Beta migration invariant: once the structured module is active, legacy
-// physical text must never make the field complete by itself.
-const betaPhysicalMigrationState = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const fieldState = document.querySelector('[data-field-state="physical"]')?.textContent || "";
-  return {
-    version: patient?.physicalStatus?.version || null,
-    legacyPhysical: patient?.physicalStatus?.legacyPhysical || "",
-    hasStructuredInput: [
-      ...Object.values(patient?.physicalStatus?.parameters || {}),
-      ...Object.values(patient?.physicalStatus?.sections || {})
-    ].some((value) => String(value || "").trim()),
-    fieldState
-  };
-});
-if (
-  betaPhysicalMigrationState.version !== 1 ||
-  (!betaPhysicalMigrationState.hasStructuredInput &&
-    /KÉSZ|COMPLETE/i.test(betaPhysicalMigrationState.fieldState))
-) {
-  throw new Error("Legacy physical text incorrectly completed Beta STATUS: " + JSON.stringify(betaPhysicalMigrationState));
-}
-
-const statusPlacementOk = await betaFeatures.evaluate(() => {
-  const root = document.getElementById("betaStructuredStatus");
-  const field = root?.closest?.('[data-narrative-field="physical"]');
-  const composer = document.getElementById("betaFindingComposer");
-  return Boolean(
-    root &&
-    field &&
-    root.dataset.statusInitialized === "true" &&
-    root.querySelectorAll("[data-status-param]").length === 6 &&
-    root.querySelectorAll("[data-status-section]").length === 10 &&
-    (!composer || root.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING)
-  );
-});
-if (!statusPlacementOk) {
-  throw new Error("Structured STATUS is not hydrated inside Fizikális vizsgálat before Finding Learning");
-}
-const statusOrder = await betaFeatures.evaluate(() => ({
-  params: [...document.querySelectorAll("#betaStructuredStatus [data-status-param]")]
-    .map((node) => node.dataset.statusParam),
-  sections: [...document.querySelectorAll("#betaStructuredStatus [data-status-section]")]
-    .map((node) => node.dataset.statusSection)
-}));
-if (JSON.stringify(statusOrder.params) !== JSON.stringify([
-  "bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"
-])) {
-  throw new Error("STATUS parameter order is wrong: " + JSON.stringify(statusOrder.params));
-}
-if (JSON.stringify(statusOrder.sections) !== JSON.stringify([
-  "A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"
-])) {
-  throw new Error("STATUS ABCDE order is wrong: " + JSON.stringify(statusOrder.sections));
-}
-const statusVisibility = await betaFeatures.evaluate(() => {
-  const paramNodes = [...document.querySelectorAll("#betaStructuredStatus [data-status-param]")];
-  const sectionNodes = [...document.querySelectorAll("#betaStructuredStatus [data-status-section]")];
-  const visible = (node) => {
+const statusStructure = await betaFeatures.evaluate(() => ({
+  params: [...document.querySelectorAll("#betaStatusGenerator [data-status-param]")].map((node) => node.dataset.statusParam),
+  sections: [...document.querySelectorAll("#betaStatusGenerator [data-status-section]")].map((node) => node.dataset.statusSection),
+  visiblePhysicalTextareas: [...document.querySelectorAll("#fPhysical")].filter((node) => {
     const style = getComputedStyle(node);
     const rect = node.getBoundingClientRect();
     return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-  };
-  const sectionTops = sectionNodes.map((node) => node.getBoundingClientRect().top);
-  return {
-    allParamsVisible: paramNodes.length === 6 && paramNodes.every(visible),
-    allSectionsVisible: sectionNodes.length === 10 && sectionNodes.every(visible),
-    sectionTops,
-    strictlyVertical: sectionTops.every((top, index) => index === 0 || top > sectionTops[index - 1])
-  };
-});
-if (!statusVisibility.allParamsVisible || !statusVisibility.allSectionsVisible || !statusVisibility.strictlyVertical) {
-  throw new Error("STATUS inputs are not visibly ordered on screen: " + JSON.stringify(statusVisibility));
+  }).length
+}));
+if (JSON.stringify(statusStructure.params) !== JSON.stringify([
+  "bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"
+])) {
+  throw new Error("Státusz parameter order is wrong: " + JSON.stringify(statusStructure.params));
 }
-
-// Empty structured STATUS must remain incomplete even if a stale generatedAt existed.
-await betaFeatures.evaluate(() => {
-  document.querySelectorAll("#betaStructuredStatus [data-status-param], #betaStructuredStatus [data-status-section]")
-    .forEach((element) => {
-      element.value = "";
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-});
-await betaFeatures.waitForFunction(() =>
-  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Még nincs adat")
-);
-const emptyStatusState = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
-  return {
-    generatedAt: patient?.physicalStatus?.generatedAt || null,
-    physical: patient?.physical || "",
-    physicalBlocked: Boolean(workflow?.sections?.tests?.blockers?.some((x) =>
-      /Fizik|Physical examination/i.test(String(x))
-    )),
-    generatedClass: document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated")
-  };
-});
-if (
-  emptyStatusState.generatedAt ||
-  emptyStatusState.physical ||
-  !emptyStatusState.physicalBlocked ||
-  emptyStatusState.generatedClass
-) {
-  throw new Error("Empty STATUS was incorrectly marked complete: " + JSON.stringify(emptyStatusState));
+if (JSON.stringify(statusStructure.sections) !== JSON.stringify([
+  "A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"
+])) {
+  throw new Error("Státusz ABCDE order is wrong: " + JSON.stringify(statusStructure.sections));
+}
+if (statusStructure.visiblePhysicalTextareas !== 0) {
+  throw new Error("Legacy Fizikális vizsgálat textarea is still visible beside Státusz");
 }
 if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').getAttribute("inputmode")) !== "text") {
   throw new Error("Blood pressure input must allow slash on mobile keyboard");
 }
-if (!await betaFeatures.locator("#betaStructuredStatusPreview").isVisible()) {
-  throw new Error("Realtime STATUS preview is not always visible");
-}
 
+// Multiple findings in one textarea must all be parsed independently.
+// Also cover explicit normal input and pulse-derived tachycardia.
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
-await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
-await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");
-if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
-  throw new Error("Realtime STATUS must not expose a Generate button");
-}
-await betaFeatures.waitForFunction(() =>
-  document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated") &&
-  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
+await betaFeatures.locator('[data-status-param="pulse"]').fill("118");
+await betaFeatures.locator('[data-status-param="spo2"]').fill("94");
+await betaFeatures.locator('[data-status-section="B"]').fill(
+  "pulmo tiszta, tachypnoe, jobb basalis crepitatio, mko. sípolás"
 );
-for (const selector of [
-  '[data-status-param="bloodPressure"]',
-  '[data-status-param="pulse"]',
-  '[data-status-section="E5"]'
-]) {
-  if (!await betaFeatures.locator(selector).isVisible()) {
-    throw new Error("Structured STATUS input was hidden after generation: " + selector);
-  }
-}
-const structuredStatusState = await betaFeatures.evaluate(() => {
+await betaFeatures.locator('[data-status-section="E5"]').fill(
+  "epigastrialis nyomásérzékenység, BFQ defanz"
+);
+
+await betaFeatures.waitForFunction(() => {
+  const text = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return text.includes("Tachypnoés") &&
+    text.includes("Jobb basalis crepitatio") &&
+    text.includes("Mko. sípolás") &&
+    text.includes("Tachycardia") &&
+    text.includes("epigastrialis nyomásérzékenység") &&
+    text.includes("bal alhasi / BFQ defanz");
+});
+
+const multiFindingState = await betaFeatures.evaluate(() => {
   const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
   const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
   return {
+    preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+    unknowns: document.querySelectorAll(".beta-status-unknown").length,
+    highlighted: document.querySelectorAll(
+      "#betaStatusFinalPreview .status-modified, #betaStatusFinalPreview .status-derived, #betaStatusFinalPreview .status-explicit"
+    ).length,
     physical: patient?.physical || "",
-    physicalStatus: patient?.physicalStatus || null,
-    physicalReady: !workflow?.sections?.tests?.blockers?.some((x) =>
-      /Fizik|Physical examination/i.test(String(x))
-    )
+    explicitNormals: patient?.statusExplicitNormals || [],
+    statusComplete: Boolean(workflow?.sections?.status?.complete),
+    copyDisabled: Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
   };
 });
-if (
-  structuredStatusState.physicalStatus?.parameters?.bloodPressure !== "135/80" ||
-  structuredStatusState.physicalStatus?.parameters?.pulse !== "88" ||
-  structuredStatusState.physicalStatus?.sections?.E5 !== "Hasa érzékeny." ||
-  !structuredStatusState.physicalStatus?.generatedAt
-) {
-  throw new Error("Structured STATUS data did not persist in the case state: " + JSON.stringify(structuredStatusState));
+if (multiFindingState.unknowns !== 0 || multiFindingState.highlighted < 6 || multiFindingState.copyDisabled) {
+  throw new Error("Multi-finding Státusz did not render cleanly: " + JSON.stringify(multiFindingState));
 }
-if (
-  !structuredStatusState.physical.includes("E5: Hasa érzékeny.") ||
-  structuredStatusState.physical.includes("135/80") ||
-  structuredStatusState.physical.includes("Légutak átjárhatók")
-) {
-  throw new Error("Physical summary bridge contains parameters or generated normal text: " + structuredStatusState.physical);
-}
-if (!structuredStatusState.physicalReady) {
-  throw new Error("Generated structured STATUS did not resolve the Physical examination workflow blocker");
-}
-const structuredCopyPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
-for (const expected of [
-  "Paraméterek: vérnyomás 135/80 Hgmm, pulsus 88/perc.",
-  "A: Légutak átjárhatók.",
-  "E5 – Has:",
-  "nyomásérzékeny"
-]) {
-  if (!structuredCopyPreview.includes(expected)) {
-    throw new Error("Structured STATUS copy preview missing: " + expected + "\n" + structuredCopyPreview);
+for (const expected of ["RR: 135/80 Hgmm", "P: 118 /min", "Tachypnoés", "Jobb basalis crepitatio", "Mko. sípolás", "Tachycardia"]) {
+  if (!multiFindingState.physical.includes(expected)) {
+    throw new Error("Canonical patient physical is missing Státusz content: " + expected + "\n" + multiFindingState.physical);
   }
 }
-// EKG helper is deliberately ephemeral: editing its two templates must not
-// mutate the patient test state or feed the Summary data path.
-await betaFeatures.locator("#betaEkgCopyBuilder").waitFor();
-const ekgStateBefore = await betaFeatures.evaluate(() =>
-  JSON.stringify(window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.ekgs || [])
-);
-await betaFeatures.locator("#betaEkgFr").fill("72");
-await betaFeatures.locator("#betaEkgPq").fill("160");
-await betaFeatures.locator("#betaEkgQrs").fill("90");
-await betaFeatures.locator("#betaEkgQtc").fill("420");
-await betaFeatures.locator("#betaEkgTransition").fill("V3–V4");
-const detailedEkg = await betaFeatures.locator("#betaEkgOutput").inputValue();
-for (const expected of ["SR", "72/min", "PQ: 160 ms", "QRS: 90 ms", "QTc: 420 ms", "V3–V4"]) {
-  if (!detailedEkg.includes(expected)) {
-    throw new Error("Detailed EKG helper missing: " + expected + "\n" + detailedEkg);
-  }
+if (!multiFindingState.explicitNormals.some((item) => item.section === "B" && item.concept === "breath_sound")) {
+  throw new Error("Explicit normal pulmonary finding was not preserved for Summary context");
 }
-await betaFeatures.locator("#betaEkgTemplate").selectOption("short");
-const shortEkg = await betaFeatures.locator("#betaEkgOutput").inputValue();
-if (!shortEkg.includes("norm. átvezetési idők") || shortEkg.includes("PQ: 160 ms")) {
-  throw new Error("Short EKG helper did not switch templates: " + shortEkg);
-}
-const ekgStateAfter = await betaFeatures.evaluate(() =>
-  JSON.stringify(window.BachSBOClinicalUi?.getPatientSnapshot?.()?.tests?.ekgs || [])
-);
-if (ekgStateAfter !== ekgStateBefore) {
-  throw new Error("Local-only EKG helper mutated persisted EKG test state");
+if (!multiFindingState.statusComplete) {
+  throw new Error("Resolved Státusz did not complete the Státusz workflow tab");
 }
 
-// Reload regression: structured STATUS survives after the debounced autosave;
-// EKG helper resets because it is intentionally copy-only.
+// A known finding must not hide a second unknown finding in the same textarea.
+// Unknown findings require physician-written standardized wording; no AI button.
+await betaFeatures.locator('[data-status-section="B"]').fill(
+  "tachypnoe, bal pleuralis dörzszörej"
+);
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 1 &&
+  Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
+);
+if (await betaFeatures.locator('[data-ai-unknown-phrase], #betaSuggestFinding, #betaSaveNewFinding').count()) {
+  throw new Error("AI learning controls leaked back into the in-shift Státusz workflow");
+}
+const unknownRaw = await betaFeatures.locator('[data-status-unknown-host="B"] .beta-status-unknown-raw').textContent();
+if (!/pleuralis dörzszörej/i.test(unknownRaw || "")) {
+  throw new Error("Second unknown finding was hidden by the first known finding: " + unknownRaw);
+}
+await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-text="0"]').fill(
+  "Bal oldali pleuralis dörzszörej hallható."
+);
+await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm="0"]').click();
+await betaFeatures.waitForFunction(() =>
+  document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 0 &&
+  !(document.querySelector("#betaStatusCopyBtn")?.disabled) &&
+  (document.querySelector("#betaStatusFinalPreview")?.textContent || "").includes("Bal oldali pleuralis dörzszörej hallható.")
+);
+
+// Working cache is per-case and survives reload.
 await betaFeatures.waitForTimeout(900);
 await betaFeatures.reload({ waitUntil: "domcontentloaded" });
 if (await betaFeatures.locator("#authPassword").count()) {
@@ -2003,351 +1908,18 @@ if (await betaFeatures.locator("#chooseNormalMode").count()) {
 }
 await betaFeatures.locator("#patientsView:not(.hidden)").waitFor();
 await betaFeatures.locator("#patientTbody tr[data-id]").first().click();
-await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
-await betaFeatures.locator("#betaStructuredStatus").waitFor();
-await betaFeatures.waitForFunction(() =>
-  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
-);
+await betaFeatures.locator('[data-cockpit-tab="status"]').click();
+await betaFeatures.locator("#betaStatusGenerator").waitFor();
+
 if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80") {
-  throw new Error("Structured STATUS blood pressure did not survive reload");
+  throw new Error("Státusz parameter cache did not survive reload");
 }
-if ((await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
-  throw new Error("Structured STATUS positive E5 finding did not survive reload");
-}
-if (!await betaFeatures.locator('[data-status-param="bloodPressure"]').isVisible() ||
-    !await betaFeatures.locator('[data-status-section="E5"]').isVisible()) {
-  throw new Error("Structured STATUS facts should remain visible after reload");
-}
-if (!await betaFeatures.locator("#betaStructuredStatusPreview").isVisible()) {
-  throw new Error("Realtime STATUS preview should remain visible after reload");
-}
-if ((await betaFeatures.locator('[data-status-param="bloodPressure"]').inputValue()) !== "135/80" ||
-    (await betaFeatures.locator('[data-status-section="E5"]').inputValue()) !== "Hasa érzékeny.") {
-  throw new Error("Structured STATUS values changed after reload");
-}
-if ((await betaFeatures.locator("#betaEkgFr").inputValue()) !== "") {
-  throw new Error("Local-only EKG helper incorrectly survived reload");
-}
-
-// Beta-only physical finding composer: deterministic local parsing reads the
-// visible structured STATUS fields, never the hidden legacy fPhysical bridge.
-await betaFeatures.locator('[data-cockpit-tab="tests"]').click();
-const clearStructuredStatusSections = async () => {
-  await betaFeatures.evaluate(() => {
-    document.querySelectorAll("#betaStructuredStatus [data-status-section]").forEach((element) => {
-      element.value = "";
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  });
-};
-const fillStructuredStatusSection = async (section, value) => {
-  await betaFeatures.locator(`[data-status-section="${section}"]`).fill(value);
-};
-
-// Stale legacy bridge content must not leak into Finding Learning.
-await clearStructuredStatusSections();
-await betaFeatures.locator("#fPhysical").evaluate((element) => {
-  element.value = "mko. tüdő felett pangás. bal o. dörzszörej";
-  element.dispatchEvent(new Event("input", { bubbles: true }));
-});
-await betaFeatures.waitForFunction(() =>
-  (document.querySelector("#betaFindingCount")?.textContent || "").includes("0 felismerve") &&
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
-);
-
-await fillStructuredStatusSection("B", "dyspnoe nincs, jobb basalis crepitatio");
-await fillStructuredStatusSection("E5", "epig nyomérz");
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 3 &&
-  !(document.querySelector("#betaCopyStatus")?.disabled)
-);
-const abcdePreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
-for (const expected of [
-  "A: Légutak átjárhatók.",
-  "Nehézlégzés nincs.",
-  "jobb basalis crepitatio hallható",
-  "epigastriumban nyomásérzékeny"
-]) {
-  if (!abcdePreview.includes(expected)) {
-    throw new Error("ABCDE finding composer preview missing: " + expected + "\n" + abcdePreview);
-  }
-}
-if (abcdePreview.includes("Zörejek: nincs.")) {
-  throw new Error("ABCDE preview kept normal lung-noise text despite crepitatio");
-}
-
-// Real-world shorthand coverage: abdominal tenderness + tachyarrhythmia + murmur + bilateral congestion.
-await clearStructuredStatusSections();
-await fillStructuredStatusSection("B", "Mko. tüdő fölött pangás hallható.");
-await fillStructuredStatusSection("C", "Tachyarritmiás szívritmus, 6/5ös systolés zörej.");
-await fillStructuredStatusSection("E5", "Hasa érzékeny.");
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 4 &&
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0
-);
-const realWorldChips = await betaFeatures.locator("#betaFindingComposer .beta-finding-chip").allTextContents();
-for (const expected of [
-  "Hasi nyomásérzékenység",
-  "Tachyarrhythmiás szívritmus",
-  "6/5 systolés zörej",
-  "mko. tüdő felett pangás"
-]) {
-  if (!realWorldChips.includes(expected)) {
-    throw new Error("Real-world finding parser missed: " + expected + " -> " + JSON.stringify(realWorldChips));
-  }
-}
-const realWorldPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
-for (const expected of [
-  "nyomásérzékeny",
-  "tachyarrhythmiás",
-  "6/5 systolés zörej hallható",
-  "mko. tüdő felett pangás hallható"
-]) {
-  if (!realWorldPreview.includes(expected)) {
-    throw new Error("Real-world status preview missed: " + expected + "\n" + realWorldPreview);
-  }
-}
-
-// Every line must be reviewed independently: a known first line must not hide an unknown second line.
-await clearStructuredStatusSections();
-await fillStructuredStatusSection("B", "Bal oldalon pleuralis dörzszörej hallható.");
-await fillStructuredStatusSection("E5", "Hasa érzékeny.");
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
-  (document.querySelector("#betaUnknownChips .beta-unknown-chip")?.textContent || "").includes("pleuralis dörzszörej")
-);
-const realtimeUnknownState = await betaFeatures.evaluate(() => ({
-  statusText: document.querySelector("#betaStructuredStatusState")?.textContent || "",
-  copyDisabled: Boolean(document.querySelector("#betaStructuredStatusCopy")?.disabled),
-  generatedAt: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.physicalStatus?.generatedAt || null,
-  b: document.querySelector('[data-status-section="B"]')?.value || "",
-  e5: document.querySelector('[data-status-section="E5"]')?.value || ""
-}));
-if (
-  !realtimeUnknownState.statusText.includes("Folyamatban") ||
-  !realtimeUnknownState.copyDisabled ||
-  realtimeUnknownState.generatedAt
-) {
-  throw new Error("Realtime STATUS did not stay incomplete for unknown finding: " + JSON.stringify(realtimeUnknownState));
-}
-const directAiButtons = betaFeatures.locator("#betaUnknownChips [data-ai-unknown-phrase]");
-if (await directAiButtons.count() !== 1) {
-  throw new Error("Unknown finding does not expose a direct AI suggestion action");
-}
-
-// AI may populate a proposal, but it must not save anything before physician confirmation.
-await directAiButtons.click();
-await betaFeatures.waitForTimeout(200);
-const aiSuggestionDebug = await betaFeatures.evaluate(() => ({
-  label: document.querySelector("#betaNewFindingLabel")?.value || "",
-  output: document.querySelector("#betaNewFindingOutput")?.value || "",
-  message: document.querySelector("#betaLearningMessage")?.textContent || "",
-  phrase: document.querySelector("#betaLearningPhrase")?.textContent || "",
-  target: document.querySelector("#betaNewFindingTarget")?.value || "",
-  unknownCount: document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length,
-  aiButtonDisabled: Boolean(document.querySelector("#betaUnknownChips [data-ai-unknown-phrase]")?.disabled),
-  suggestButtonDisabled: Boolean(document.querySelector("#betaSuggestFinding")?.disabled),
-  backendSuggestType: typeof window.BachSBOBackend?.findingLearningSuggest,
-  caseId: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.id || ""
-}));
-if (
-  !(
-    (aiSuggestionDebug.label === "Pleuralis dörzszörej" &&
-      /pleuralis dörzszörej/i.test(aiSuggestionDebug.output)) ||
-    /AI javaslat hiba/i.test(aiSuggestionDebug.message)
-  )
-) {
-  throw new Error("AI suggestion did not resolve promptly: " + JSON.stringify(aiSuggestionDebug));
-}
-const aiFindingState = await betaFeatures.evaluate(() => ({
-  label: document.querySelector("#betaNewFindingLabel")?.value || "",
-  target: document.querySelector("#betaNewFindingTarget")?.value || "",
-  output: document.querySelector("#betaNewFindingOutput")?.value || "",
-  message: document.querySelector("#betaLearningMessage")?.textContent || ""
-}));
-if (
-  aiFindingState.label !== "Pleuralis dörzszörej" ||
-  aiFindingState.target !== "respiratory" ||
-  !aiFindingState.output.includes("pleuralis dörzszörej")
-) {
-  throw new Error("AI finding suggestion did not populate review form: " + JSON.stringify(aiFindingState));
-}
-if (!/0 tanítás/.test(await betaFeatures.locator("#betaLearningMeta").textContent())) {
-  throw new Error("AI finding suggestion was persisted without physician confirmation");
-}
-if (await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").count() !== 1) {
-  throw new Error("AI finding suggestion incorrectly resolved the unknown before confirmation");
-}
-
-await betaFeatures.locator("#betaSaveNewFinding").click();
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
-  [...document.querySelectorAll("#betaFindingComposer .beta-finding-chip")]
-    .some((node) => (node.textContent || "").includes("Pleuralis dörzszörej")) &&
-  !(document.querySelector("#betaCopyStatus")?.disabled)
-);
-const learnedPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
-if (!learnedPreview.includes("Bal oldalon pleuralis dörzszörej hallható.")) {
-  throw new Error("New learned finding was not rendered into the status preview");
-}
-
-// Existing-finding teaching must preserve structured attributes such as murmur grade.
-await clearStructuredStatusSections();
-await fillStructuredStatusSection("C", "Durva syst. zörej 4/6.");
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1
-);
-await betaFeatures.locator("#betaUnknownChips .beta-unknown-chip").click();
-await betaFeatures.locator("#betaExistingFindingSearch").fill("systolés zörej");
-await betaFeatures.locator('[data-existing-finding-key="systolic-murmur"]').click();
-if (!/Systolés zörej/.test(await betaFeatures.locator("#betaExistingFindingSelection").textContent())) {
-  throw new Error("Searchable existing-finding picker did not select systolic murmur");
-}
-await betaFeatures.locator("#betaSaveExistingFinding").click();
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 0 &&
-  (document.querySelector("#betaStatusPreview")?.value || "").includes("4/6 systolés zörej hallható")
-);
-
-await betaFeatures.waitForFunction(() =>
-  /2 tanítás mentve/.test(document.querySelector("#betaLearningMeta")?.textContent || "")
-);
-if (await betaFeatures.locator("#betaBuildCandidates, #betaCopyCandidatePatch").count()) {
-  throw new Error("Technical candidate/patch controls leaked into the physician workflow");
-}
-if (await betaFeatures.locator("#betaUndoLearning").isHidden()) {
-  throw new Error("Contextual undo action should be available after a teaching action");
-}
-
-// Restore the earlier fixture for chip suppression coverage.
-await clearStructuredStatusSections();
-await fillStructuredStatusSection("B", "dyspnoe nincs, jobb basalis crepitatio");
-await fillStructuredStatusSection("E5", "epig nyomérz");
-await betaFeatures.waitForFunction(() =>
-  document.querySelector('[data-finding-key="crackles"]')
-);
-
-// Suppressing a chip must change only the local preview.
-await betaFeatures.locator('[data-finding-key="crackles"]').click();
-await betaFeatures.waitForTimeout(150);
-const suppressionDebug = await betaFeatures.evaluate(() => ({
-  suppressed: Boolean(document.querySelector('[data-finding-key="crackles"]')?.classList.contains("suppressed")),
-  preview: document.querySelector("#betaStatusPreview")?.value || "",
-  chips: [...document.querySelectorAll("#betaFindingComposer .beta-finding-chip")].map((node) => ({
-    key: node.dataset.findingKey || "",
-    className: node.className,
-    text: node.textContent || ""
-  }))
-}));
-if (!suppressionDebug.suppressed || !suppressionDebug.preview.includes("Zörejek: nincs.")) {
-  throw new Error("Finding suppression did not update preview: " + JSON.stringify(suppressionDebug));
-}
-
-// Standard template uses the same reviewed finding set.
-await betaFeatures.locator('[data-status-mode="standard"]').evaluate((button) => button.click());
-await betaFeatures.waitForFunction(() =>
-  (document.querySelector("#betaStatusPreview")?.value || "").startsWith("Kp táplált.")
-);
-const standardPreview = await betaFeatures.locator("#betaStatusPreview").inputValue();
-if (!standardPreview.includes("epigastriumban nyomásérzékeny")) {
-  throw new Error("Standard finding composer did not apply epigastric tenderness");
-}
-
-// Generated status must not become part of the patient/workflow state.
-const composerPersistenceCheck = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const serialized = JSON.stringify(patient || {});
-  return {
-    physical: patient?.physical || "",
-    generatedLeaked: serialized.includes("Légutak átjárhatók") || serialized.includes("Kp táplált.")
-  };
-});
-if (
-  composerPersistenceCheck.physical !== "B: dyspnoe nincs, jobb basalis crepitatio\nE5: epig nyomérz" ||
-  composerPersistenceCheck.generatedLeaked
-) {
-  throw new Error("Generated beta status leaked into patient state: " + JSON.stringify(composerPersistenceCheck));
-}
-
-// Structured STATUS v1: Parameters + positive findings persist; generated full
-// normal-status prose remains copy-only and must not leak into patient state.
-await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
-await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
-await betaFeatures.locator('[data-status-section="B"]').fill("jobb basalis crepitatio");
-await betaFeatures.locator('[data-status-section="E5"]').fill("epig nyomérz");
-if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
-  throw new Error("Realtime STATUS must not expose a Generate button");
+if ((await betaFeatures.locator('[data-status-section="B"]').inputValue()) !== "tachypnoe, bal pleuralis dörzszörej") {
+  throw new Error("Státusz positive-finding cache did not survive reload");
 }
 await betaFeatures.waitForFunction(() =>
-  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Kész")
+  (document.querySelector("#betaStatusFinalPreview")?.textContent || "").includes("Bal oldali pleuralis dörzszörej hallható.")
 );
-
-const structuredPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();
-for (const expected of [
-  "Paraméterek: vérnyomás 135/80 Hgmm, pulsus 88/perc.",
-  "B:",
-  "jobb basalis crepitatio hallható",
-  "E1 – Általános állapot:",
-  "E5 – Has:",
-  "epigastriumban nyomásérzékeny",
-  "E6 – Vese / urogenitalis:"
-]) {
-  if (!structuredPreview.includes(expected)) {
-    throw new Error("Structured STATUS preview missing: " + expected + "\n" + structuredPreview);
-  }
-}
-
-const structuredPersistence = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  const serialized = JSON.stringify(patient || {});
-  return {
-    status: patient?.physicalStatus || null,
-    physical: patient?.physical || "",
-    generatedFullStatusLeaked:
-      serialized.includes("Légutak átjárhatók") ||
-      serialized.includes("E1 – Általános állapot:")
-  };
-});
-if (
-  structuredPersistence.status?.version !== 1 ||
-  structuredPersistence.status?.parameters?.bloodPressure !== "135/80" ||
-  structuredPersistence.status?.parameters?.pulse !== "88" ||
-  structuredPersistence.status?.sections?.B !== "jobb basalis crepitatio" ||
-  structuredPersistence.status?.sections?.E5 !== "epig nyomérz" ||
-  !structuredPersistence.status?.generatedAt ||
-  structuredPersistence.physical !== "B: jobb basalis crepitatio\nE5: epig nyomérz" ||
-  structuredPersistence.generatedFullStatusLeaked
-) {
-  throw new Error("Structured STATUS persistence contract failed: " + JSON.stringify(structuredPersistence));
-}
-
-// EKG quick template is deliberately local/copy-only and must never touch the case.
-await betaFeatures.locator("#betaEkgTemplate").selectOption("detailed");
-await betaFeatures.locator("#betaEkgFr").fill("70");
-await betaFeatures.locator("#betaEkgPq").fill("160");
-await betaFeatures.locator("#betaEkgQrs").fill("90");
-await betaFeatures.locator("#betaEkgQtc").fill("420");
-await betaFeatures.locator("#betaEkgTransition").fill("V3–V4");
-const ekgQuickText = await betaFeatures.locator("#betaEkgOutput").inputValue();
-for (const expected of [
-  "EKG: SR, fr: 70/min",
-  "PQ: 160 ms",
-  "QRS: 90 ms",
-  "QTc: 420 ms",
-  "Mellkasi átm: V3–V4"
-]) {
-  if (!ekgQuickText.includes(expected)) {
-    throw new Error("Local EKG helper missing: " + expected + " -> " + ekgQuickText);
-  }
-}
-const ekgDidNotPersist = await betaFeatures.evaluate(() => {
-  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
-  return !JSON.stringify(patient || {}).includes("EKG: SR, fr: 70/min");
-});
-if (!ekgDidNotPersist) {
-  throw new Error("Local EKG quick template leaked into patient state");
-}
 
 await betaFeatures.close();
 

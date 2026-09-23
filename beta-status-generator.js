@@ -251,9 +251,9 @@
     if (/sapadt/.test(n)) addFinding(out, "C", "peripheral_perfusion", "pallor", {}, raw);
     if (/marvanyoz/.test(n)) addFinding(out, "C", "peripheral_perfusion", "mottled", {}, raw);
 
-    if (/tachyarrhythmi/.test(n)) addFinding(out, "C", "heart_rhythm", "tachyarrhythmic", {}, raw);
-    else if (/arrhythmi|irregularis|szabalytalan.*ritmus/.test(n)) addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
-    else if (/ritmusos|regularis|szabalyos.*ritmus/.test(n)) addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
+    if (/tachyarrhythmi|tachyarritmi/.test(n)) addFinding(out, "C", "heart_rhythm", "tachyarrhythmic", {}, raw);
+    else if (/arrhythmi|aritmi|irregularis|irregular|irreg\.?|szabalytalan/.test(n)) addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
+    else if (/ritmusos|regularis|regular\b|reg\.?(?:\s|$)|szabalyos/.test(n)) addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
 
     if (/tachycard/.test(n)) addFinding(out, "C", "heart_rate_state", "tachycardic", {}, raw);
     if (/bradycard/.test(n)) addFinding(out, "C", "heart_rate_state", "bradycardic", {}, raw);

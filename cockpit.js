@@ -106,6 +106,7 @@
     const sections = workflow?.sections || {};
     return {
       clinical: !sections.clinical?.complete,
+      status: hasBetaStatusTab() ? !sections.status?.complete : false,
       tests: !sections.tests?.complete,
       course: !sections.course?.complete,
       disposition: !sections.disposition?.complete
@@ -117,7 +118,10 @@
     const gaps = hasCase ? tabSummaryGaps() : {};
     const summaryReady =
       hasCase &&
-      ["clinical", "tests", "course", "disposition"].every((key) => !gaps[key]);
+      (hasBetaStatusTab()
+        ? ["clinical", "status", "tests", "course", "disposition"]
+        : ["clinical", "tests", "course", "disposition"]
+      ).every((key) => !gaps[key]);
 
     document.querySelectorAll("[data-cockpit-tab]").forEach((button) => {
       const key = button.dataset.cockpitTab;

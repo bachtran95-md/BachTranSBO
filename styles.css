@@ -2854,6 +2854,48 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.sel
   box-shadow:0 0 0 2px rgba(34,197,94,.16);
 }
 
+/* Selection is a separate visual state from triage.
+   Triage keeps its red/yellow/green border; the active case gets a blue
+   surface + inner marker so it is obvious which chart is open. */
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected{
+  background:#dbeafe!important;
+  box-shadow:
+    inset 5px 0 0 #2563eb,
+    inset 0 0 0 2px rgba(37,99,235,.42),
+    0 2px 8px rgba(15,23,42,.08)!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected:hover{
+  background:#dbeafe!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected td:first-child{
+  position:relative;
+  padding-left:18px;
+  color:#1d4ed8;
+  font-weight:950;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected td:first-child::before{
+  content:"▶";
+  position:absolute;
+  left:5px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#2563eb;
+  font-size:8px;
+  line-height:1;
+}
+
+/* Closed rows remain muted, but the open chart is still unmistakable. */
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.completed.selected{
+  background:#e7eef8!important;
+  box-shadow:
+    inset 5px 0 0 #64748b,
+    inset 0 0 0 2px rgba(100,116,139,.28)!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.completed.selected td:first-child,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.completed.selected td:first-child::before{
+  color:#64748b;
+}
+
 @media (max-width:1180px){
   body.cockpit-ui .shift-dashboard-start{display:none}
   body.cockpit-ui .shift-dashboard-pill{

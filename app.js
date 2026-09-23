@@ -40,7 +40,7 @@ const I18N = {
     mainComplaint:"Main complaint", addCase:"ADD CASE", caseRecord:"Case list",
     caseStatusHint:"Status shows unresolved items for each case.",
     selectCasePrompt:"Select a case from the list.", noCaseSelected:"No case selected.",
-    reopenCase:"REOPEN CASE", sectionClinical:"1. Clinical", complaint:"Complaint",
+    reopenCase:"REOPEN CASE", sectionClinical:"1. Clinical", sectionStatusBeta:"2. Status", sectionTestsBeta:"3. Investigations", sectionCourseBeta:"4. Treatment and course", finalDecisionBeta:"5. Final decision / disposition", caseSummaryBeta:"6. Case summary", complaint:"Complaint",
     patientHistory:"Medical history", markNone:"NONE", required:"REQUIRED", complete:"COMPLETE", none:"NONE",
     sectionTests:"2. Physical status and investigations",
     testLegend:"Orange = unresolved. Enter a result to turn green, or mark Not ordered to turn grey.",
@@ -104,7 +104,7 @@ const I18N = {
     mainComplaint:"Fő panasz", addCase:"ESET HOZZÁADÁSA", caseRecord:"Esetlista",
     caseStatusHint:"A státusz az eset még rendezetlen tételeit mutatja.",
     selectCasePrompt:"Válasszon egy esetet a listából.", noCaseSelected:"Nincs kiválasztott eset.",
-    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikum", complaint:"Jelen panaszok",
+    reopenCase:"ESET ÚJRANYITÁSA", sectionClinical:"1. Klinikum", sectionStatusBeta:"2. Státusz", sectionTestsBeta:"3. Vizsgálatok", sectionCourseBeta:"4. Terápia és kórlefolyás", finalDecisionBeta:"5. Döntés", caseSummaryBeta:"6. Összefoglaló", complaint:"Jelen panaszok",
     patientHistory:"Anamnézis", markNone:"NINCS", required:"KÖTELEZŐ", complete:"KÉSZ", none:"NINCS",
     sectionTests:"2. Fizikális státusz és vizsgálatok",
     testLegend:"Narancs = rendezetlen. Eredmény megadásakor zöldre vált; ha nem történt vizsgálat, jelölje „Nem történt” állapotra.",
@@ -791,7 +791,11 @@ function workflowStatus(patient) {
   }
 
   const testsBlockers = [];
-  if (narrativeStatus(patient, "physical") === "waiting") {
+  if (document.body.classList.contains("beta-build")) {
+    if (narrativeStatus(patient, "physical") === "waiting") {
+      clinicalBlockers.push(t(NARRATIVE_FIELDS.physical.labelKey));
+    }
+  } else if (narrativeStatus(patient, "physical") === "waiting") {
     testsBlockers.push(t(NARRATIVE_FIELDS.physical.labelKey));
   }
   testsBlockers.push(...waitingLabels(patient));
@@ -2931,7 +2935,14 @@ function endShiftStep2() {
 
     try {
       await persistNow();
+      if (window.BachSBOStatusGenerator?.finalizeShift) {
+        await window.BachSBOStatusGenerator.finalizeShift(
+          closingShiftId,
+          activeShiftPatients()
+        );
+      }
       await window.BachSBOBackend.closeShift(closingShiftId);
+      window.BachSBOStatusGenerator?.clearShiftCache?.(closingShiftId);
       state = defaultState();
       selectedPatientId = null;
       closeModal();

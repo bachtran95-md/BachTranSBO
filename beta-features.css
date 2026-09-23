@@ -43,13 +43,25 @@ body.beta-build .beta-simple-status-textarea{
 body.beta-build #notesView{
   max-width:980px;
 }
-body.beta-build .beta-notes-card{
+body.beta-build .beta-notes-heading{
+  align-items:flex-end;
+}
+body.beta-build .beta-notes-status{
+  min-height:18px;
+  margin-top:10px;
+}
+body.beta-build .beta-notes-status.error,
+body.beta-build .beta-note-item-status.error{
+  color:#b42318;
+}
+body.beta-build .beta-notes-empty{
   margin-top:14px;
 }
 body.beta-build .beta-note-list{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
+  margin-top:14px;
 }
 body.beta-build .beta-note-snippet{
   padding:11px;
@@ -64,41 +76,60 @@ body.beta-build .beta-note-snippet-head{
   gap:10px;
   margin-bottom:8px;
 }
-body.beta-build .beta-note-snippet-head strong{
-  font-size:12px;
-  color:#334155;
-}
-body.beta-build .beta-note-snippet textarea{
-  min-height:72px;
+body.beta-build .beta-note-title{
+  flex:1;
+  min-width:0;
   margin:0;
+  border:1px solid transparent;
+  background:transparent;
+  color:#334155;
+  font-size:12px;
+  font-weight:800;
+}
+body.beta-build .beta-note-title:focus{
+  border-color:#93c5fd;
+  background:#fff;
+}
+body.beta-build .beta-note-card-actions{
+  flex-wrap:nowrap;
+}
+body.beta-build .beta-note-content{
+  min-height:110px;
+  margin:0;
+  resize:vertical;
   background:#fff;
   font-size:12px;
   line-height:1.45;
 }
-
-body.beta-build .beta-important-note{
-  min-height:96px;
-  line-height:1.45;
-  resize:vertical;
-}
-body.beta-build .beta-important-note-actions{
+body.beta-build .beta-note-item-footer{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:8px;
+  justify-content:flex-end;
+  min-height:18px;
+  margin-top:7px;
+}
+body.beta-build .beta-note-delete{
+  border-color:#fecaca;
+  background:#fff5f5;
+  color:#b91c1c;
 }
 
 @media (max-width:760px){
   body.beta-build .beta-simple-status-textarea{
     min-height:210px;
   }
+  body.beta-build .beta-notes-heading{
+    align-items:flex-start;
+    gap:10px;
+  }
   body.beta-build .beta-note-list{
     grid-template-columns:1fr;
   }
-  body.beta-build .beta-note-snippet-head,
-  body.beta-build .beta-important-note-actions{
+  body.beta-build .beta-note-snippet-head{
     align-items:flex-start;
+    flex-direction:column;
+  }
+  body.beta-build .beta-note-card-actions{
+    width:100%;
   }
 }

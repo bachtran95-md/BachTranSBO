@@ -2735,7 +2735,11 @@ async function generateSummary() {
     // Persist first so the AI only sees the de-identified database copy.
     await persistNow();
 
-    const result = await window.BachSBOBackend.generateSummary(patient.id);
+    const statusGeneratorContext = window.BachSBOStatusGenerator?.getSummaryContext?.(patient.id);
+    const statusContext = statusGeneratorContext
+      ? { explicitNormalFindings: statusGeneratorContext.explicitNormalFindings || [] }
+      : null;
+    const result = await window.BachSBOBackend.generateSummary(patient.id, statusContext);
 
     patient.summary = result.summary || "";
     patient.summaryGeneratedText = patient.summary;

@@ -2090,10 +2090,24 @@ for (const [input, expected] of [
 // An unfamiliar bowel-sound modifier must stay unresolved instead of silently
 // becoming a normal bowel-sound finding.
 await betaFeatures.locator('[data-status-section="E5"]').fill("tompa bélhangok");
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll('[data-status-unknown-host="E5"] .beta-status-unknown').length === 1 &&
-  Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
-);
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  return document.querySelectorAll('[data-status-unknown-host="E5"] .beta-status-unknown').length === 1 &&
+    !Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled) &&
+    preview.includes("Tompa bélhangok.") &&
+    Boolean(workflow?.sections?.status?.complete);
+});
+const unresolvedBowelState = await betaFeatures.evaluate(() => ({
+  preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+  physical: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.physical || "",
+  statusComplete: Boolean(window.BachSBOClinicalUi?.getWorkflowStatus?.()?.sections?.status?.complete)
+}));
+if (!unresolvedBowelState.preview.includes("Tompa bélhangok.") ||
+    !unresolvedBowelState.physical.includes("Tompa bélhangok.") ||
+    !unresolvedBowelState.statusComplete) {
+  throw new Error("Unresolved bowel sound did not pass through safely: " + JSON.stringify(unresolvedBowelState));
+}
 await betaFeatures.locator('[data-status-section="E5"]').fill("");
 for (const forbidden of [
   "Stridor hallható.",
@@ -2136,20 +2150,37 @@ if (cardiacMultiFinding.unknowns !== 0 ||
 }
 
 // A known finding must not hide a second unknown finding in the same textarea.
-// Unknown findings require physician-written standardized wording; no AI button.
+// During Beta hardening, unresolved raw text must remain visible/copyable and
+// must not block the Status workflow; manual standardization remains optional.
 await betaFeatures.locator('[data-status-section="B"]').fill(
   "tachypnoe, bal pleuralis dörzszörej"
 );
-await betaFeatures.waitForFunction(() =>
-  document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 1 &&
-  Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
-);
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  const workflow = window.BachSBOClinicalUi?.getWorkflowStatus?.();
+  return document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 1 &&
+    !Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled) &&
+    preview.includes("Bal pleuralis dörzszörej.") &&
+    Boolean(workflow?.sections?.status?.complete);
+});
 if (await betaFeatures.locator('[data-ai-unknown-phrase], #betaSuggestFinding, #betaSaveNewFinding').count()) {
   throw new Error("AI learning controls leaked back into the in-shift Státusz workflow");
 }
 const unknownRaw = await betaFeatures.locator('[data-status-unknown-host="B"] .beta-status-unknown-raw').textContent();
 if (!/pleuralis dörzszörej/i.test(unknownRaw || "")) {
   throw new Error("Second unknown finding was hidden by the first known finding: " + unknownRaw);
+}
+const unresolvedBState = await betaFeatures.evaluate(() => ({
+  preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+  physical: window.BachSBOClinicalUi?.getPatientSnapshot?.()?.physical || "",
+  statusComplete: Boolean(window.BachSBOClinicalUi?.getWorkflowStatus?.()?.sections?.status?.complete),
+  copyDisabled: Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
+}));
+if (!unresolvedBState.preview.includes("Bal pleuralis dörzszörej.") ||
+    !unresolvedBState.physical.includes("Bal pleuralis dörzszörej.") ||
+    !unresolvedBState.statusComplete ||
+    unresolvedBState.copyDisabled) {
+  throw new Error("Unresolved Status finding blocked workflow or was dropped: " + JSON.stringify(unresolvedBState));
 }
 const bUnknownTargets = await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-target="0"] option').allTextContents();
 for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding — hozzáadás a végére"]) {

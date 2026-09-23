@@ -258,6 +258,9 @@ function corpusSnapshot(patient: any) {
       : structuredPhysicalStatus(patient)?.generatedAt
       ? "structured"
       : "provided",
+    status_explicit_normal_findings: Array.isArray(patient.statusExplicitNormals)
+      ? patient.statusExplicitNormals
+      : [],
     diagnoses: patient.diagnoses || "",
     diagnoses_status: patient.diagnosesSkipped ? "none" : "provided",
     tests,
@@ -344,6 +347,9 @@ function caseRowFromPatient(
     history_skipped: Boolean(patient.historySkipped),
     physical_exam: positivePhysicalText(patient),
     physical_exam_skipped: Boolean(patient.physicalSkipped),
+    status_explicit_normals: Array.isArray(patient.statusExplicitNormals)
+      ? patient.statusExplicitNormals
+      : [],
     physical_status_data: structuredPhysicalStatus(patient) || {},
     diagnoses: patient.diagnoses || "",
     diagnoses_skipped: Boolean(patient.diagnosesSkipped),

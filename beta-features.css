@@ -565,27 +565,30 @@ body.beta-build .beta-status-positive-head{
   padding-top:10px;
 }
 body.beta-build .beta-status-positive-grid{
-  display:grid;
-  gap:5px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
   padding:0 12px 12px;
 }
 body.beta-build .beta-status-positive-row{
-  display:grid;
-  grid-template-columns:190px minmax(0,1fr);
-  align-items:start;
-  gap:8px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:4px;
+  width:100%;
 }
 body.beta-build .beta-status-positive-row > span{
-  padding-top:7px;
-  font-size:10px;
+  padding-top:0;
+  font-size:11px;
   font-weight:850;
   color:#334155;
 }
 body.beta-build .beta-status-positive-row textarea{
-  min-height:44px;
-  height:44px;
-  padding:7px 8px;
-  font-size:11px;
+  width:100%;
+  min-height:48px;
+  height:48px;
+  padding:8px 9px;
+  font-size:12px;
   line-height:1.35;
   resize:vertical;
 }
@@ -702,13 +705,6 @@ body.beta-build .beta-ekg-output-row .btn{
 @media (max-width:760px){
   body.beta-build .beta-status-parameters{
     grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  body.beta-build .beta-status-positive-row{
-    grid-template-columns:1fr;
-    gap:3px;
-  }
-  body.beta-build .beta-status-positive-row > span{
-    padding-top:0;
   }
   body.beta-build .beta-ekg-inputs{
     grid-template-columns:repeat(2,minmax(0,1fr));

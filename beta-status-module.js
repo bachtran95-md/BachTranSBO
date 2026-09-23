@@ -186,21 +186,23 @@
   function updateGeneratedUi(root, unknowns = unresolvedFindings(localStatus)) {
     const hasInput = hasStructuredInput(localStatus);
     const ready = Boolean(hasInput && localStatus?.generatedAt && unknowns.length === 0);
-    const done = root.querySelector("#betaStructuredStatusDone");
     const preview = root.querySelector("#betaStructuredStatusPreview");
-    const view = root.querySelector("#betaStructuredStatusView");
     const copy = root.querySelector("#betaStructuredStatusCopy");
+    const state = root.querySelector("#betaStructuredStatusState");
     const error = root.querySelector("#betaStructuredStatusError");
 
     root.classList.toggle("is-generated", ready);
-    done?.classList.toggle("hidden", !ready);
 
-    if (preview) {
-      preview.value = generatedStatusText(localStatus);
-      if (!ready) preview.classList.add("hidden");
-    }
-    if (view) view.disabled = !ready;
+    if (preview) preview.value = generatedStatusText(localStatus);
     if (copy) copy.disabled = !ready;
+
+    if (state) {
+      state.textContent = !hasInput
+        ? "Még nincs adat"
+        : unknowns.length
+        ? `Folyamatban • ${unknowns.length} ismeretlen finding`
+        : "✓ Kész";
+    }
 
     if (error) {
       if (unknowns.length) {
@@ -256,9 +258,10 @@
           ${PARAM_DEFS.map(([key, label, placeholder]) => `
             <label>
               <span>${escapeHtml(label)}</span>
-              <input type="text" inputmode="decimal"
+              <input type="text" inputmode="${key === "bloodPressure" ? "text" : "decimal"}"
                 data-status-param="${escapeHtml(key)}"
-                placeholder="${escapeHtml(placeholder)}" autocomplete="off" />
+                placeholder="${escapeHtml(placeholder)}" autocomplete="off"
+                ${key === "bloodPressure" ? 'autocapitalize="off" spellcheck="false"' : ""} />
             </label>
           `).join("")}
         </div>
@@ -287,15 +290,15 @@
 
         <div class="beta-structured-status-error hidden" id="betaStructuredStatusError"></div>
 
-        <div class="beta-structured-status-done hidden" id="betaStructuredStatusDone">
+        <div class="beta-structured-status-done" id="betaStructuredStatusDone">
           <div class="beta-structured-status-done-head">
-            <strong>✓ Státusz automatikusan frissítve</strong>
             <div>
-              <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
-              <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
+              <strong>ÉLŐ STATUS ELŐNÉZET</strong>
+              <span class="beta-structured-status-state" id="betaStructuredStatusState">Még nincs adat</span>
             </div>
+            <button type="button" class="btn small primary" id="betaStructuredStatusCopy" disabled>MÁSOLÁS</button>
           </div>
-          <textarea class="beta-structured-status-preview hidden"
+          <textarea class="beta-structured-status-preview"
             id="betaStructuredStatusPreview" readonly></textarea>
         </div>
       `;
@@ -307,13 +310,6 @@
 
       root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
         input.addEventListener("input", () => markEdited(root));
-      });
-
-      root.querySelector("#betaStructuredStatusView")?.addEventListener("click", () => {
-        const preview = root.querySelector("#betaStructuredStatusPreview");
-        if (!preview) return;
-        preview.value = generatedStatusText(localStatus);
-        preview.classList.toggle("hidden");
       });
 
       root.querySelector("#betaStructuredStatusCopy")?.addEventListener("click", async (event) => {
@@ -331,7 +327,6 @@
             document.execCommand("copy");
           }
         }
-        if (preview) preview.classList.add("hidden");
         const button = event.currentTarget;
         const original = button.textContent;
         button.textContent = "MÁSOLVA ✓";

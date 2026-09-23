@@ -1177,18 +1177,6 @@
         else suppressedFindingKeys.add(key);
         syncComposer();
       });
-      composer.querySelector("#betaUnknownChips")?.addEventListener("click", async (event) => {
-        const aiButton = event.target.closest("[data-ai-unknown-phrase]");
-        if (aiButton) {
-          prepareUnknownEditor(composer, aiButton.dataset.aiUnknownPhrase || "");
-          await suggestUnknownFinding(aiButton);
-          return;
-        }
-
-        const chip = event.target.closest("[data-unknown-phrase]");
-        if (!chip) return;
-        prepareUnknownEditor(composer, chip.dataset.unknownPhrase || "");
-      });
       composer.querySelector("#betaSuggestFinding")?.addEventListener("click", () => suggestUnknownFinding());
       composer.querySelector("#betaExistingFindingSearch")?.addEventListener("input", () => renderExistingFindingPicker(composer));
       composer.querySelector("#betaExistingFindingList")?.addEventListener("click", (event) => {
@@ -1313,6 +1301,17 @@
         aiButton.dataset.aiUnknownPhrase = phrase;
         aiButton.textContent = "AI JAVASLAT";
         aiButton.title = "AI javaslat készítése ehhez az ismeretlen findinghoz";
+
+        // These nodes are recreated on every sync. Bind directly so DOM moves
+        // or composer rehydration cannot detach the physician interactions.
+        button.addEventListener("click", () => {
+          prepareUnknownEditor(document.getElementById("betaFindingComposer"), phrase);
+        });
+        aiButton.addEventListener("click", async () => {
+          const liveComposer = document.getElementById("betaFindingComposer");
+          prepareUnknownEditor(liveComposer, phrase);
+          await suggestUnknownFinding(aiButton);
+        });
 
         item.append(button, aiButton);
         unknownChips.appendChild(item);

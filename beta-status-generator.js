@@ -245,7 +245,9 @@
     const n = fold(text);
     const negation = "(?:nincs|nincsenek|nem\\s+(?:eszlelheto|lathato|hallhato|tapinthato|jelez|all\\s+fenn|igazolhato|van)|negativ)";
     return new RegExp(
-      "(?:" + conceptSource + ").{0,36}(?:" + negation + ")|(?:" + negation + ").{0,36}(?:" + conceptSource + ")"
+      "(?:" + conceptSource + ").{0,36}(?:" + negation + ")|" +
+      "(?:" + negation + ").{0,36}(?:" + conceptSource + ")|" +
+      "\\bnem\\s+(?:" + conceptSource + ")"
     ).test(n);
   }
 
@@ -740,7 +742,8 @@
     const n = fold(raw);
     const out = [];
     const side = sideOf(raw);
-    if (conceptIsNegated(n, "vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv") || /giordano.*negativ|veseutes.*negativ/.test(n)) {
+    if (/vesetaj.*nem erzekeny|vesetajak.*nem erzekeny|giordano.*negativ|veseutes.*negativ/.test(n) ||
+        conceptIsNegated(n, "giordano.*pozitiv|veseutes.*pozitiv")) {
       addFinding(out, "E6", "renal_angle_tenderness", "none", {}, raw, true);
     } else if (/vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv/.test(n)) {
       addFinding(out, "E6", "renal_angle_tenderness", "present", { side }, raw);
@@ -1152,7 +1155,8 @@
 
     if (!pushTargetOverride(parts, findings, "C", "C7")) {
       for (const item of findingsFor(findings, "C", "active_bleeding")) {
-        parts.push(segment("Aktív vérzés észlelhető. ", "modified", "C"));
+        if (item.value === "none") parts.push(segment("Aktív vérzés nincs. ", "explicit", "C"));
+        else parts.push(segment("Aktív vérzés észlelhető. ", "modified", "C"));
       }
     }
 
@@ -1423,7 +1427,11 @@
 
     if (!pushTargetOverride(parts, findings, "E5", "E5.4")) {
       for (const guarding of findingsFor(findings, "E5", "guarding")) {
-        if (guarding.value === "present") parts.push(segment((locationText(guarding.attributes.location) ? locationText(guarding.attributes.location) + " " : "") + "defanz észlelhető. ", "modified", "E5"));
+        if (guarding.value === "present") {
+          parts.push(segment((locationText(guarding.attributes.location) ? locationText(guarding.attributes.location) + " " : "") + "defanz észlelhető. ", "modified", "E5"));
+        } else if (guarding.value === "none") {
+          parts.push(segment((locationText(guarding.attributes.location) ? locationText(guarding.attributes.location) + " " : "") + "defanz nincs. ", "explicit", "E5"));
+        }
       }
     }
 

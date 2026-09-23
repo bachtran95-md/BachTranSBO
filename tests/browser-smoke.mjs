@@ -1650,12 +1650,9 @@ await beta.waitForFunction(() =>
 );
 
 await beta.locator("#aiLearningNav").click();
-const pausedStatusLearning = beta.locator('[data-learning-section="status"]');
-if (!(await pausedStatusLearning.isDisabled())) {
-  throw new Error("Paused Status learning tab must remain visible but disabled");
-}
-if (!(await pausedStatusLearning.textContent()).includes("KIKAPCSOLVA")) {
-  throw new Error("Paused Status learning tab is not clearly labelled");
+// Status learning is a Beta-only dormant feature. Stable must not expose it.
+if (await beta.locator('[data-learning-section="status"]').count()) {
+  throw new Error("Beta-only Status learning control leaked into Stable");
 }
 await beta.locator("#styleProfilesList").waitFor();
 await beta.waitForFunction(() =>
@@ -1817,6 +1814,20 @@ for (const metricClass of ["shift-metric-cases", "shift-metric-active", "shift-m
   if (await betaFeatures.locator("#shiftMeta ." + metricClass).count() !== 1) {
     throw new Error("Beta shell is not tracking Stable shift metric: " + metricClass);
   }
+}
+
+// Status learning stays visible in Beta as a dormant reminder, but cannot be opened.
+await betaFeatures.locator("#aiLearningNav").click();
+await betaFeatures.locator("#aiLearningView:not(.hidden)").waitFor();
+const pausedStatusLearning = betaFeatures.locator('[data-learning-section="status"]');
+if (await pausedStatusLearning.count() !== 1) {
+  throw new Error("Paused Status learning tab must remain present in Beta");
+}
+if (!(await pausedStatusLearning.isDisabled())) {
+  throw new Error("Paused Status learning tab must remain disabled");
+}
+if (!(await pausedStatusLearning.textContent()).includes("KIKAPCSOLVA")) {
+  throw new Error("Paused Status learning tab is not clearly labelled");
 }
 
 

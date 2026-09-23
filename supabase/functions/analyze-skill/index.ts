@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { openAiApiKey } from "../_shared/openai.ts";
+import { callResponses, responseText } from "../_shared/responses.ts";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") || "*";
 
@@ -66,17 +66,6 @@ function serviceClient() {
   );
 }
 
-function responseText(payload: any): string {
-  if (typeof payload?.output_text === "string") return payload.output_text.trim();
-
-  const chunks: string[] = [];
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (typeof content?.text === "string") chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
-}
 
 function clamp(value: unknown, max = 3500) {
   const text = String(value ?? "").trim();
@@ -84,7 +73,7 @@ function clamp(value: unknown, max = 3500) {
 }
 
 async function generateSuggestion(skill: any, revisions: any[]) {
-  const model = Deno.env.get("SKILL_ANALYSIS_MODEL") || "gpt-5.6-luna";
+  const model = Deno.env.get("SKILL_ANALYSIS_MODEL") || "gpt-6-luna";
 
   const pairs = revisions.map((r, index) => [
     `PAIR ${index + 1}`,
@@ -116,26 +105,13 @@ async function generateSuggestion(skill: any, revisions: any[]) {
     pairs,
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAiApiKey()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-    }),
+  const payload = await callResponses({
+    model,
+    input: prompt,
+    max_output_tokens: 8000,
+    prompt_cache_key: "bachtransbo-analyze-skill-v1",
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Skill analysis failed (${response.status}): ${detail.slice(0, 500)}`,
-    );
-  }
-
-  const payload = await response.json();
   const suggestion = responseText(payload);
   if (!suggestion) throw new Error("Skill analysis returned no suggestion.");
 
@@ -285,3 +261,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

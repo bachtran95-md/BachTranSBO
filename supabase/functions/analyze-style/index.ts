@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { openAiApiKey } from "../_shared/openai.ts";
+import { callResponses, responseText } from "../_shared/responses.ts";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") || "*";
 
@@ -66,17 +66,6 @@ function serviceClient() {
   );
 }
 
-function responseText(payload: any): string {
-  if (typeof payload?.output_text === "string") return payload.output_text.trim();
-
-  const chunks: string[] = [];
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (typeof content?.text === "string") chunks.push(content.text);
-    }
-  }
-  return chunks.join("\n").trim();
-}
 
 function clampText(value: unknown, max = 4500) {
   const text = String(value ?? "").trim();
@@ -91,7 +80,7 @@ async function generateStyleProfile(
 ) {
   const model = Deno.env.get("STYLE_COACH_MODEL") ||
     Deno.env.get("STYLE_MODEL") ||
-    "gpt-5.6-luna";
+    "gpt-6-luna";
 
   const examples = revisions.map((r, index) => [
     `PAIR ${index + 1}`,
@@ -133,26 +122,24 @@ async function generateStyleProfile(
     "The candidate_profile should preserve the doctor's consistent preferences unless they reduce clarity or continuity, and should gently improve them toward the official documentation rules.",
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAiApiKey()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-    }),
+  const payload = await callResponses({
+    model,
+    input: prompt,
+    max_output_tokens: 8000,
+    prompt_cache_key: "bachtransbo-analyze-style-v1",
+    text: { format: {
+      type: "json_schema", name: "style_profile", strict: true,
+      schema: {
+        type: "object", additionalProperties: false,
+        required: ["analysis", "candidate_profile"],
+        properties: {
+          analysis: { type: "string" },
+          candidate_profile: { type: "string" },
+        },
+      },
+    } },
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `Style Coach failed (${response.status}): ${detail.slice(0, 500)}`,
-    );
-  }
-
-  const payload = await response.json();
   const raw = responseText(payload);
   if (!raw) throw new Error("Style Coach returned an empty response.");
 
@@ -429,3 +416,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

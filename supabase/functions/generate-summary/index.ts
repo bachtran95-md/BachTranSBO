@@ -219,6 +219,9 @@ function casePayload(caseRow: any, tests: any[]) {
       : structuredPhysicalComplete(caseRow)
       ? "structured_positive_findings"
       : "provided",
+    status_explicit_normal_findings: Array.isArray(caseRow.status_explicit_normals)
+      ? caseRow.status_explicit_normals
+      : [],
     diagnoses: caseRow.diagnoses || "",
     diagnoses_status: caseRow.diagnoses_skipped ? "none" : "provided",
     tests: tests.map((row) => ({
@@ -360,9 +363,6 @@ Deno.serve(async (req) => {
     const user = await getUser(req);
     const body = await req.json();
     const caseId = String(body?.caseId || "");
-    const explicitNormalFindings = Array.isArray(body?.statusContext?.explicitNormalFindings)
-      ? body.statusContext.explicitNormalFindings.slice(0, 50)
-      : [];
 
     if (!caseId) return json({ error: "caseId is required." }, 400);
 
@@ -435,9 +435,6 @@ Deno.serve(async (req) => {
     if (documentationRulesError) throw documentationRulesError;
 
     const clinicalCase = casePayload(caseRow, tests || []);
-    if (explicitNormalFindings.length) {
-      clinicalCase.status_explicit_normal_findings = explicitNormalFindings;
-    }
     const examples = await similarCases(db, user.id, caseId, clinicalCase);
 
     const exampleBlock = examples.length

@@ -657,7 +657,7 @@ if (stablePersistedTriage !== "yellow") {
   throw new Error("Stable case triage did not persist: " + stablePersistedTriage);
 }
 
-// Selection must remain visually distinct from triage color.
+// Selected case inherits a stronger triage tint and uses a left-pointing marker.
 const selectedCaseVisual = await page.locator("#patientTbody tr.selected[data-id]").evaluate((row) => {
   const firstCell = row.querySelector("td:first-child");
   return {
@@ -667,11 +667,11 @@ const selectedCaseVisual = await page.locator("#patientTbody tr.selected[data-id
   };
 });
 if (
-  selectedCaseVisual.background !== "rgb(219, 234, 254)" ||
-  !selectedCaseVisual.boxShadow.includes("37, 99, 235") ||
-  !selectedCaseVisual.marker.includes("▶")
+  selectedCaseVisual.background !== "rgb(253, 230, 138)" ||
+  !selectedCaseVisual.boxShadow.includes("202, 138, 4") ||
+  !selectedCaseVisual.marker.includes("◀")
 ) {
-  throw new Error("Selected case is not visually distinct from triage: " + JSON.stringify(selectedCaseVisual));
+  throw new Error("Selected case does not inherit the yellow triage emphasis: " + JSON.stringify(selectedCaseVisual));
 }
 
 await page.locator("#normalRawBadge:not(.hidden)").waitFor();

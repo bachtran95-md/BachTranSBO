@@ -2854,34 +2854,70 @@ body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.sel
   box-shadow:0 0 0 2px rgba(34,197,94,.16);
 }
 
-/* Selection is a separate visual state from triage.
-   Triage keeps its red/yellow/green border; the active case gets a blue
-   surface + inner marker so it is obvious which chart is open. */
+/* Selection is distinct from triage, but inherits the triage colour.
+   The left-pointing marker shows which chart is open; the stronger row tint
+   keeps the clinical triage colour meaningful at a glance. */
 body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected{
-  background:#dbeafe!important;
+  background:#e2e8f0!important;
   box-shadow:
-    inset 5px 0 0 #2563eb,
-    inset 0 0 0 2px rgba(37,99,235,.42),
+    inset 5px 0 0 #475569,
+    inset 0 0 0 2px rgba(71,85,105,.34),
     0 2px 8px rgba(15,23,42,.08)!important;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected:hover{
-  background:#dbeafe!important;
+  background:#e2e8f0!important;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected td:first-child{
   position:relative;
   padding-left:18px;
-  color:#1d4ed8;
+  color:#334155;
   font-weight:950;
 }
 body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected td:first-child::before{
-  content:"▶";
+  content:"◀";
   position:absolute;
   left:5px;
   top:50%;
   transform:translateY(-50%);
-  color:#2563eb;
+  color:#475569;
   font-size:8px;
   line-height:1;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-red,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-red:hover{
+  background:#fecaca!important;
+  box-shadow:
+    inset 5px 0 0 #dc2626,
+    inset 0 0 0 2px rgba(220,38,38,.40),
+    0 2px 8px rgba(127,29,29,.10)!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-red td:first-child,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-red td:first-child::before{
+  color:#b91c1c;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-yellow,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-yellow:hover{
+  background:#fde68a!important;
+  box-shadow:
+    inset 5px 0 0 #ca8a04,
+    inset 0 0 0 2px rgba(202,138,4,.42),
+    0 2px 8px rgba(113,63,18,.10)!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-yellow td:first-child,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-yellow td:first-child::before{
+  color:#a16207;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-green,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-green:hover{
+  background:#bbf7d0!important;
+  box-shadow:
+    inset 5px 0 0 #16a34a,
+    inset 0 0 0 2px rgba(22,163,74,.38),
+    0 2px 8px rgba(20,83,45,.10)!important;
+}
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-green td:first-child,
+body.cockpit-ui .cockpit-case-list .patient-table tr.cockpit-compact-patient.selected.triage-green td:first-child::before{
+  color:#15803d;
 }
 
 /* Closed rows remain muted, but the open chart is still unmistakable. */

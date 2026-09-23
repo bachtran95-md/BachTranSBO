@@ -241,21 +241,66 @@
       .filter(Boolean);
   }
 
+  function conceptIsNegated(text, conceptSource) {
+    const n = fold(text);
+    const negation = "(?:nincs|nincsenek|nem\\s+(?:eszlelheto|lathato|hallhato|tapinthato|jelez|all\\s+fenn|igazolhato|van)|negativ)";
+    return new RegExp(
+      "(?:" + conceptSource + ").{0,36}(?:" + negation + ")|(?:" + negation + ").{0,36}(?:" + conceptSource + ")"
+    ).test(n);
+  }
+
+  function addExplicitNormalNote(list, section, text, raw, target = "") {
+    addFinding(
+      list,
+      section,
+      "explicit_normal_note",
+      "none",
+      { text: ensureSentence(text), target },
+      raw,
+      true,
+      "input"
+    );
+  }
+
   function parseA(raw) {
     const n = fold(raw);
     const out = [];
+
     if (/legut.*(atjarhat|szabad)|szabad legut|airway.*patent/.test(n)) addFinding(out, "A", "airway_patency", "patent", {}, raw, true);
     if (/legut.*(nem atjar|obstruct|elzart)|airway.*obstruct/.test(n)) addFinding(out, "A", "airway_patency", "obstructed", {}, raw);
+
     if (/nem tud beszel/.test(n)) addFinding(out, "A", "speech", "unable", {}, raw);
     else if (/\bbeszel\b/.test(n)) addFinding(out, "A", "speech", "speaks", {}, raw, true);
-    if (/szivast igenyel|szivas szukseges|suction|valadek|valadekos/.test(n)) addFinding(out, "A", "airway_secretions", "present", {}, raw);
-    if (/stridor/.test(n)) addFinding(out, "A", "stridor", "present", {}, raw);
-    if (/horkol/.test(n)) addFinding(out, "A", "snoring_respiration", "present", {}, raw);
-    if (/gurgul/.test(n)) addFinding(out, "A", "gurgling_respiration", "present", {}, raw);
-    if (/idegentest/.test(n)) addFinding(out, "A", "foreign_body", "present", {}, raw);
-    if (/tracheost|tracheostoma|tracheostomia/.test(n)) addFinding(out, "A", "airway_device", "tracheostomy", {}, raw);
-    else if (/ett\b|et tubus|endotrache|tubus|intubal/.test(n)) addFinding(out, "A", "airway_device", "ett", {}, raw);
-    else if (/airway adjunct|guedel|wendel|nasopharyngealis tubus|oropharyngealis tubus/.test(n)) addFinding(out, "A", "airway_device", "adjunct", {}, raw);
+
+    if (conceptIsNegated(n, "valadek|szivas|suction")) {
+      addExplicitNormalNote(out, "A", "Légúti váladék nincs.", raw, "A3");
+    } else if (/szivast igenyel|szivas szukseges|suction|valadek|valadekos/.test(n)) {
+      addFinding(out, "A", "airway_secretions", "present", {}, raw);
+    }
+
+    if (conceptIsNegated(n, "stridor")) addExplicitNormalNote(out, "A", "Stridor nincs.", raw, "A4");
+    else if (/stridor/.test(n)) addFinding(out, "A", "stridor", "present", {}, raw);
+
+    if (conceptIsNegated(n, "horkol")) addExplicitNormalNote(out, "A", "Horkoló légzés nincs.", raw, "A4");
+    else if (/horkol/.test(n)) addFinding(out, "A", "snoring_respiration", "present", {}, raw);
+
+    if (conceptIsNegated(n, "gurgul")) addExplicitNormalNote(out, "A", "Gurgulázó légzés nincs.", raw, "A4");
+    else if (/gurgul/.test(n)) addFinding(out, "A", "gurgling_respiration", "present", {}, raw);
+
+    if (conceptIsNegated(n, "idegentest")) addExplicitNormalNote(out, "A", "Légúti idegentest nincs.", raw, "A5");
+    else if (/idegentest/.test(n)) addFinding(out, "A", "foreign_body", "present", {}, raw);
+
+    const deviceNegated = conceptIsNegated(n, "tracheost|tubus|intubal|airway adjunct|guedel|wendel");
+    if (deviceNegated) {
+      addExplicitNormalNote(out, "A", "Légúti segédeszköz nincs.", raw, "A6");
+    } else if (/tracheost|tracheostoma|tracheostomia/.test(n)) {
+      addFinding(out, "A", "airway_device", "tracheostomy", {}, raw);
+    } else if (/ett\b|et tubus|endotrache|tubus|intubal/.test(n)) {
+      addFinding(out, "A", "airway_device", "ett", {}, raw);
+    } else if (/airway adjunct|guedel|wendel|nasopharyngealis tubus|oropharyngealis tubus/.test(n)) {
+      addFinding(out, "A", "airway_device", "adjunct", {}, raw);
+    }
+
     return out;
   }
 
@@ -265,25 +310,45 @@
     const side = sideOf(raw);
     const location = locationOf(raw);
 
-    const dyspnoeaExplicitlyAbsent =
-      /dyspno\w*\s*(nincs|nem all fenn|nem eszlelheto|nem jelez)|nincs\s+dyspno|nem\s+dyspno|nehezlegzes\s*(nincs|nem eszlelheto)|fulladas\s*(nincs|nem jelez)/.test(n);
+    const respiratoryNegatives = [
+      ["tachydyspno", "Tachydyspnoe nincs."],
+      ["tachypno", "Tachypnoe nincs."],
+      ["bradypno", "Bradypnoe nincs."],
+      ["kussmaul", "Kussmaul-légzés nincs."],
+      ["pihego|gasp", "Pihegő légzés nincs."],
+      ["apno", "Apnoe nincs."],
+      ["dyspno|nehezlegzes|fulladas", "Dyspnoe nincs."]
+    ];
+    let respiratoryNegated = false;
+    for (const [pattern, text] of respiratoryNegatives) {
+      if (conceptIsNegated(n, pattern)) {
+        addExplicitNormalNote(out, "B", text, raw, "B1");
+        respiratoryNegated = true;
+        break;
+      }
+    }
 
-    if (dyspnoeaExplicitlyAbsent) addFinding(out, "B", "respiratory_pattern", "dyspnoea_absent", {}, raw, true);
-    else if (/tachydyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachydyspnoea", {}, raw);
-    else if (/tachypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachypnoea", {}, raw);
-    else if (/bradypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "bradypnoea", {}, raw);
-    else if (/kussmaul/.test(n)) addFinding(out, "B", "respiratory_pattern", "kussmaul", {}, raw);
-    else if (/pihego|gasp/.test(n)) addFinding(out, "B", "respiratory_pattern", "gasping", {}, raw);
-    else if (/apno/.test(n)) addFinding(out, "B", "respiratory_pattern", "apnoea", {}, raw);
-    else if (/dyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "dyspnoea", {}, raw);
-    else if (/eupno/.test(n)) addFinding(out, "B", "respiratory_pattern", "eupnoea", {}, raw, true);
+    if (!respiratoryNegated) {
+      if (/tachydyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachydyspnoea", {}, raw);
+      else if (/tachypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "tachypnoea", {}, raw);
+      else if (/bradypno/.test(n)) addFinding(out, "B", "respiratory_pattern", "bradypnoea", {}, raw);
+      else if (/kussmaul/.test(n)) addFinding(out, "B", "respiratory_pattern", "kussmaul", {}, raw);
+      else if (/pihego|gasp/.test(n)) addFinding(out, "B", "respiratory_pattern", "gasping", {}, raw);
+      else if (/apno/.test(n)) addFinding(out, "B", "respiratory_pattern", "apnoea", {}, raw);
+      else if (/dyspno/.test(n)) addFinding(out, "B", "respiratory_pattern", "dyspnoea", {}, raw);
+      else if (/eupno/.test(n)) addFinding(out, "B", "respiratory_pattern", "eupnoea", {}, raw, true);
+    }
 
-    if (/emphysem/.test(n)) addFinding(out, "B", "chest_shape", "emphysematous", {}, raw);
-    if (/hordo alak|hordomellkas/.test(n)) addFinding(out, "B", "chest_shape", "barrel", {}, raw);
-    if (/mellkas.*aszim|aszimmetrikus mellkas/.test(n)) addFinding(out, "B", "chest_shape", "asymmetric", { side }, raw);
-    if (/mellkas.*serul/.test(n)) addFinding(out, "B", "chest_shape", "trauma", { side }, raw);
-    if (/mellkas.*deform/.test(n)) addFinding(out, "B", "chest_shape", "deformity", { side }, raw);
-    if (/mellkas.*reszaranyos/.test(n)) addFinding(out, "B", "chest_shape", "normal", {}, raw, true);
+    if (conceptIsNegated(n, "mellkas.*aszim|aszimmetri|deform|serul")) {
+      addExplicitNormalNote(out, "B", "Mellkasi aszimmetria, deformitás vagy sérülés nincs.", raw, "B2");
+    } else {
+      if (/emphysem/.test(n)) addFinding(out, "B", "chest_shape", "emphysematous", {}, raw);
+      if (/hordo alak|hordomellkas/.test(n)) addFinding(out, "B", "chest_shape", "barrel", {}, raw);
+      if (/mellkas.*aszim|aszimmetrikus mellkas/.test(n)) addFinding(out, "B", "chest_shape", "asymmetric", { side }, raw);
+      if (/mellkas.*serul/.test(n)) addFinding(out, "B", "chest_shape", "trauma", { side }, raw);
+      if (/mellkas.*deform/.test(n)) addFinding(out, "B", "chest_shape", "deformity", { side }, raw);
+      if (/mellkas.*reszaranyos/.test(n)) addFinding(out, "B", "chest_shape", "normal", {}, raw, true);
+    }
 
     let breathType = "";
     if (/legzes.*hianyz|nem hallhato.*legzes|legzes.*nem hallhato|silent lung/.test(n)) breathType = "absent";
@@ -293,25 +358,42 @@
     else if (/pulmo.*tiszta|tiszta.*pulmo|tiszta legzes|alaplegzes.*normal|normal.*alaplegzes|sejtes alaplegzes|vesicularis/.test(n)) breathType = "normal";
     if (breathType) addFinding(out, "B", "breath_sound", breathType, { side, location }, raw, breathType === "normal");
 
-    const fineCrackles = /aproholyagu.*szorty|finom.*(crep|szorty)|fine crackles/.test(n);
-    const coarseCrackles = /nagyholyagu.*szorty|durva.*szorty|coarse crackles/.test(n);
-    if (fineCrackles) addFinding(out, "B", "adventitious_sound", "fine_crackles", { side, location }, raw);
-    if (coarseCrackles) addFinding(out, "B", "adventitious_sound", "coarse_crackles", { side, location }, raw);
-    if (!fineCrackles && !coarseCrackles && /crepitat|crep\b|crackles|ropogas/.test(n)) addFinding(out, "B", "adventitious_sound", "crepitation", { side, location }, raw);
-    if (/sipol|wheez|sibil/.test(n)) addFinding(out, "B", "adventitious_sound", "wheeze", { side, location }, raw);
-    if (/bugas|bugo|rhonch/.test(n)) addFinding(out, "B", "adventitious_sound", "rhonchus", { side, location }, raw);
-    if (/stridor/.test(n)) addFinding(out, "B", "adventitious_sound", "stridor", { side, location }, raw);
+    const extraSounds = [
+      ["aproholyagu.*szorty|finom.*(?:crep|szorty)|fine crackles", "fine_crackles", "Apróhólyagú szörtyzörej nincs."],
+      ["nagyholyagu.*szorty|durva.*szorty|coarse crackles", "coarse_crackles", "Nagyhólyagú szörtyzörej nincs."],
+      ["crepitat|crep\\b|crackles|ropogas", "crepitation", "Crepitatio nincs."],
+      ["sipol|wheez|sibil", "wheeze", "Sípolás nincs."],
+      ["bugas|bugo|rhonch", "rhonchus", "Búgás nincs."],
+      ["stridor", "stridor", "Stridor nincs."]
+    ];
+    for (const [pattern, value, normalText] of extraSounds) {
+      if (conceptIsNegated(n, pattern)) {
+        addExplicitNormalNote(out, "B", normalText, raw, "B4");
+      } else if (new RegExp(pattern).test(n)) {
+        addFinding(out, "B", "adventitious_sound", value, { side, location }, raw);
+      }
+    }
 
-    if (/segedlegzoizm|accessory muscle/.test(n)) addFinding(out, "B", "breathing_work", "accessory_muscles", {}, raw);
-    if (/intercostalis.*behuz|bordakozi.*behuz|retractio/.test(n)) addFinding(out, "B", "breathing_work", "intercostal_retraction", {}, raw);
-    if (/paradox.*legzes/.test(n)) addFinding(out, "B", "breathing_work", "paradoxical", {}, raw);
-    if (/legzesi munka.*fokoz|fokozott.*legzesi munka/.test(n)) addFinding(out, "B", "breathing_work", "increased", {}, raw);
-    if (/legzesi munka.*normal/.test(n)) addFinding(out, "B", "breathing_work", "normal", {}, raw, true);
+    const workNegated = conceptIsNegated(n, "segedlegzoizm|intercostalis.*behuz|bordakozi.*behuz|retractio|paradox.*legzes|fokozott.*legzesi munka");
+    if (workNegated) {
+      addFinding(out, "B", "breathing_work", "normal", {}, raw, true);
+    } else {
+      if (/segedlegzoizm|accessory muscle/.test(n)) addFinding(out, "B", "breathing_work", "accessory_muscles", {}, raw);
+      if (/intercostalis.*behuz|bordakozi.*behuz|retractio/.test(n)) addFinding(out, "B", "breathing_work", "intercostal_retraction", {}, raw);
+      if (/paradox.*legzes/.test(n)) addFinding(out, "B", "breathing_work", "paradoxical", {}, raw);
+      if (/legzesi munka.*fokoz|fokozott.*legzesi munka/.test(n)) addFinding(out, "B", "breathing_work", "increased", {}, raw);
+      if (/legzesi munka.*normal/.test(n)) addFinding(out, "B", "breathing_work", "normal", {}, raw, true);
+    }
 
-    if (/periferias.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "peripheral", {}, raw);
-    else if (/centralis.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "central", {}, raw);
-    else if (/galler.*(cyanos|cianoz)/.test(n)) addFinding(out, "B", "cyanosis", "collar", {}, raw);
-    else if (/(cyanos|cianoz).*nincs/.test(n)) addFinding(out, "B", "cyanosis", "none", {}, raw, true);
+    if (conceptIsNegated(n, "cyanos|cianoz")) {
+      addFinding(out, "B", "cyanosis", "none", {}, raw, true);
+    } else if (/periferias.*(?:cyanos|cianoz)/.test(n)) {
+      addFinding(out, "B", "cyanosis", "peripheral", {}, raw);
+    } else if (/centralis.*(?:cyanos|cianoz)/.test(n)) {
+      addFinding(out, "B", "cyanosis", "central", {}, raw);
+    } else if (/galler.*(?:cyanos|cianoz)/.test(n)) {
+      addFinding(out, "B", "cyanosis", "collar", {}, raw);
+    }
 
     return out;
   }
@@ -321,10 +403,14 @@
     const out = [];
     const side = sideOf(raw);
 
-    if (/jol tapinthato.*periferias pulzus|periferias pulzus.*jol tapinthato|perif.*pulzus.*jo/.test(n)) addFinding(out, "C", "peripheral_pulse", "normal", {}, raw, true);
-    if (/gyengen tapinthato.*periferias pulzus|gyenge.*periferias pulzus|filiformis.*pulzus|perif.*pulzus.*gyenge/.test(n)) addFinding(out, "C", "peripheral_pulse", "weak", {}, raw);
-    if (/periferian.*nem tapinthato.*centralisan.*tapinthato/.test(n)) addFinding(out, "C", "peripheral_pulse", "central_only", {}, raw);
-    if (/pulzusaszim/.test(n)) addFinding(out, "C", "peripheral_pulse", "asymmetric", { side }, raw);
+    if (conceptIsNegated(n, "pulzusaszim")) {
+      addFinding(out, "C", "peripheral_pulse", "normal", {}, raw, true);
+    } else {
+      if (/jol tapinthato.*periferias pulzus|periferias pulzus.*jol tapinthato|perif.*pulzus.*jo/.test(n)) addFinding(out, "C", "peripheral_pulse", "normal", {}, raw, true);
+      if (/gyengen tapinthato.*periferias pulzus|gyenge.*periferias pulzus|filiformis.*pulzus|perif.*pulzus.*gyenge/.test(n)) addFinding(out, "C", "peripheral_pulse", "weak", {}, raw);
+      if (/periferian.*nem tapinthato.*centralisan.*tapinthato/.test(n)) addFinding(out, "C", "peripheral_pulse", "central_only", {}, raw);
+      if (/pulzusaszim/.test(n)) addFinding(out, "C", "peripheral_pulse", "asymmetric", { side }, raw);
+    }
 
     const crtMatch = raw.match(/CRT\s*<?\s*(\d+(?:[.,]\d+)?)\s*s?/i);
     if (crtMatch) {
@@ -332,36 +418,67 @@
       addFinding(out, "C", "crt", "numeric", { seconds }, raw, seconds < 2);
     }
 
-    if (/huvos.*perifer|hideg.*perifer|hideg acr/.test(n)) addFinding(out, "C", "peripheral_perfusion", "cool", {}, raw);
-    if (/verejtezik|verejtekezes|diaphoresis/.test(n)) addFinding(out, "C", "peripheral_perfusion", "sweating", {}, raw);
-    if (/sapadt/.test(n)) addFinding(out, "C", "peripheral_perfusion", "pallor", {}, raw);
-    if (/marvanyoz/.test(n)) addFinding(out, "C", "peripheral_perfusion", "mottled", {}, raw);
-
-    if (/tachyarrhythmi|tachyarritmi/.test(n)) addFinding(out, "C", "heart_rhythm", "tachyarrhythmic", {}, raw);
-    else if (/arrhythmi|aritmi|irregularis|irregular|irreg\.?|szabalytalan/.test(n)) addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
-    else if (/ritmusos|regularis|regular\b|reg\.?(?:\s|$)|szabalyos/.test(n)) addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
-
-    if (/tachycard/.test(n)) addFinding(out, "C", "heart_rate_state", "tachycardic", {}, raw);
-    if (/bradycard/.test(n)) addFinding(out, "C", "heart_rate_state", "bradycardic", {}, raw);
-
-    if (/zorej.*nem hallhato|szivzorej.*nincs|zorejmentes/.test(n)) addFinding(out, "C", "cardiac_murmur", "none", {}, raw, true);
-    if (/systoles.*zorej|zorej.*systoles|syst\.?\s*zorej/.test(n)) {
-      const grade = raw.match(/([1-6])\s*\/\s*6/);
-      addFinding(out, "C", "cardiac_murmur", "systolic", {
-        grade: grade ? grade[1] + "/6" : "",
-        maximum: /apex/i.test(raw) ? "apex" : "",
-        radiation: /axilla/i.test(raw) ? "axilla" : ""
-      }, raw);
-    }
-    if (/diastoles.*zorej|zorej.*diastoles|diast\.?\s*zorej/.test(n)) {
-      const grade = raw.match(/([1-6])\s*\/\s*6/);
-      addFinding(out, "C", "cardiac_murmur", "diastolic", { grade: grade ? grade[1] + "/6" : "" }, raw);
+    const perfusionTerms = [
+      ["huvos.*perifer|hideg.*perifer|hideg acr", "cool", "Hűvös perifériák nincsenek."],
+      ["verejtezik|verejtekezes|diaphoresis", "sweating", "Verejtékezés nincs."],
+      ["sapadt|pallor", "pallor", "Sápadtság nincs."],
+      ["marvanyoz", "mottled", "Márványozottság nincs."]
+    ];
+    for (const [pattern, value, normalText] of perfusionTerms) {
+      if (conceptIsNegated(n, pattern)) {
+        addExplicitNormalNote(out, "C", normalText, raw, "C3");
+      } else if (new RegExp(pattern).test(n)) {
+        addFinding(out, "C", "peripheral_perfusion", value, {}, raw);
+      }
     }
 
-    if (/nyaki venak.*teltek|jugularis.*(telt|tagult)|jvp.*emelkedett/.test(n) && !/nem teltek/.test(n)) addFinding(out, "C", "jvp", "distended", {}, raw);
-    else if (/nyaki venak.*nem teltek|jugularis.*nem telt|jvp.*normal/.test(n)) addFinding(out, "C", "jvp", "normal", {}, raw, true);
+    if (conceptIsNegated(n, "arrhythmi|aritmi|irregular|szabalytalan")) {
+      addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
+    } else if (/tachyarrhythmi|tachyarritmi/.test(n)) {
+      addFinding(out, "C", "heart_rhythm", "tachyarrhythmic", {}, raw);
+    } else if (/arrhythmi|aritmi|irregularis|irregular|irreg\.?|szabalytalan/.test(n)) {
+      addFinding(out, "C", "heart_rhythm", "arrhythmic", {}, raw);
+    } else if (/ritmusos|regularis|regular\b|reg\.?(?:\s|$)|szabalyos/.test(n)) {
+      addFinding(out, "C", "heart_rhythm", "regular", {}, raw, true);
+    }
 
-    if (/aktiv.*verzes|eros.*verzes/.test(n)) addFinding(out, "C", "active_bleeding", "present", { location: locationOf(raw) }, raw);
+    if (conceptIsNegated(n, "tachycard")) addExplicitNormalNote(out, "C", "Tachycardia nincs.", raw, "C4");
+    else if (/tachycard/.test(n)) addFinding(out, "C", "heart_rate_state", "tachycardic", {}, raw);
+
+    if (conceptIsNegated(n, "bradycard")) addExplicitNormalNote(out, "C", "Bradycardia nincs.", raw, "C4");
+    else if (/bradycard/.test(n)) addFinding(out, "C", "heart_rate_state", "bradycardic", {}, raw);
+
+    const noMurmur = conceptIsNegated(n, "zorej|szivzorej") || /zorejmentes/.test(n);
+    if (noMurmur) {
+      addFinding(out, "C", "cardiac_murmur", "none", {}, raw, true);
+    } else {
+      if (/systoles.*zorej|zorej.*systoles|syst\.?\s*zorej/.test(n)) {
+        const grade = raw.match(/([1-6])\s*\/\s*6/);
+        addFinding(out, "C", "cardiac_murmur", "systolic", {
+          grade: grade ? grade[1] + "/6" : "",
+          maximum: /apex/i.test(raw) ? "apex" : "",
+          radiation: /axilla/i.test(raw) ? "axilla" : ""
+        }, raw);
+      }
+      if (/diastoles.*zorej|zorej.*diastoles|diast\.?\s*zorej/.test(n)) {
+        const grade = raw.match(/([1-6])\s*\/\s*6/);
+        addFinding(out, "C", "cardiac_murmur", "diastolic", { grade: grade ? grade[1] + "/6" : "" }, raw);
+      }
+    }
+
+    if (conceptIsNegated(n, "nyaki venak.*telt|jugularis.*telt|jvp.*emelkedett")) {
+      addFinding(out, "C", "jvp", "normal", {}, raw, true);
+    } else if (/nyaki venak.*teltek|jugularis.*(?:telt|tagult)|jvp.*emelkedett/.test(n)) {
+      addFinding(out, "C", "jvp", "distended", {}, raw);
+    } else if (/nyaki venak.*nem teltek|jugularis.*nem telt|jvp.*normal/.test(n)) {
+      addFinding(out, "C", "jvp", "normal", {}, raw, true);
+    }
+
+    if (conceptIsNegated(n, "aktiv.*verzes|eros.*verzes|verzes")) {
+      addFinding(out, "C", "active_bleeding", "none", {}, raw, true);
+    } else if (/aktiv.*verzes|eros.*verzes/.test(n)) {
+      addFinding(out, "C", "active_bleeding", "present", { location: locationOf(raw) }, raw);
+    }
     return out;
   }
 
@@ -385,51 +502,99 @@
       if (gcsTotal) addFinding(out, "D", "gcs", "total", { total: Number(gcsTotal[1]) }, raw, Number(gcsTotal[1]) === 15);
     }
 
-    if (/terben.*idoben.*sajat szemelyere.*orient/.test(n)) addFinding(out, "D", "orientation", "oriented", {}, raw, true);
-    if (/dezorient/.test(n)) addFinding(out, "D", "orientation", "disoriented", {}, raw);
-    if (/demencia/.test(n)) addFinding(out, "D", "mental_state", "known_dementia", {}, raw);
-    if (/zavart|confus/.test(n)) addFinding(out, "D", "mental_state", "confused", {}, raw);
-    if (/agitalt|agitat/.test(n)) addFinding(out, "D", "mental_state", "agitated", {}, raw);
-    if (/somnol/.test(n)) addFinding(out, "D", "mental_state", "somnolent", {}, raw);
-    if (/sopor/.test(n)) addFinding(out, "D", "mental_state", "soporous", {}, raw);
-    if (/comat|coma\b/.test(n)) addFinding(out, "D", "mental_state", "comatose", {}, raw);
+    if (conceptIsNegated(n, "dezorient")) addFinding(out, "D", "orientation", "oriented", {}, raw, true);
+    else if (/terben.*idoben.*sajat szemelyere.*orient/.test(n)) addFinding(out, "D", "orientation", "oriented", {}, raw, true);
+    else if (/dezorient/.test(n)) addFinding(out, "D", "orientation", "disoriented", {}, raw);
 
-    if (/aphasia.*nincs|aphasia nincs/.test(n)) addFinding(out, "D", "aphasia", "none", {}, raw, true);
-    if (/motoros.*aphasia/.test(n)) addFinding(out, "D", "aphasia", "motor", {}, raw);
-    if (/sensoros.*aphasia/.test(n)) addFinding(out, "D", "aphasia", "sensory", {}, raw);
-    if (/globalis.*aphasia/.test(n)) addFinding(out, "D", "aphasia", "global", {}, raw);
+    const mentalTerms = [
+      ["zavart|confus", "confused", "Zavartság nincs."],
+      ["agitalt|agitat", "agitated", "Agitáltság nincs."],
+      ["somnol", "somnolent", "Somnolentia nincs."],
+      ["sopor", "soporous", "Sopor nincs."],
+      ["comat|coma\\b", "comatose", "Coma nincs."]
+    ];
+    if (/demencia/.test(n) && !conceptIsNegated(n, "demencia")) addFinding(out, "D", "mental_state", "known_dementia", {}, raw);
+    for (const [pattern, value, normalText] of mentalTerms) {
+      if (conceptIsNegated(n, pattern)) addExplicitNormalNote(out, "D", normalText, raw, "D3");
+      else if (new RegExp(pattern).test(n)) addFinding(out, "D", "mental_state", value, {}, raw);
+    }
 
-    if (/latens.*paresis/.test(n)) addFinding(out, "D", "paresis", "latent", { side }, raw);
-    if (/hemiparesis/.test(n)) addFinding(out, "D", "paresis", "hemiparesis", { side }, raw);
-    else if (/monoparesis/.test(n)) addFinding(out, "D", "paresis", "monoparesis", { side }, raw);
-    else if (/paraparesis/.test(n)) addFinding(out, "D", "paresis", "paraparesis", { side }, raw);
-    else if (/tetraparesis/.test(n)) addFinding(out, "D", "paresis", "tetraparesis", { side }, raw);
-    else if (/vegtagparesis|paresis/.test(n) && !/facialis/.test(n) && !/latens/.test(n) && !/nincs/.test(n)) {
+    if (conceptIsNegated(n, "aphasia")) {
+      addFinding(out, "D", "aphasia", "none", {}, raw, true);
+    } else if (/motoros.*aphasia/.test(n)) {
+      addFinding(out, "D", "aphasia", "motor", {}, raw);
+    } else if (/sensoros.*aphasia/.test(n)) {
+      addFinding(out, "D", "aphasia", "sensory", {}, raw);
+    } else if (/globalis.*aphasia/.test(n)) {
+      addFinding(out, "D", "aphasia", "global", {}, raw);
+    }
+
+    if (conceptIsNegated(n, "paresis|hemiparesis|monoparesis|paraparesis|tetraparesis")) {
+      addFinding(out, "D", "paresis", "none", {}, raw, true);
+    } else if (/latens.*paresis/.test(n)) {
+      addFinding(out, "D", "paresis", "latent", { side }, raw);
+    } else if (/hemiparesis/.test(n)) {
+      addFinding(out, "D", "paresis", "hemiparesis", { side }, raw);
+    } else if (/monoparesis/.test(n)) {
+      addFinding(out, "D", "paresis", "monoparesis", { side }, raw);
+    } else if (/paraparesis/.test(n)) {
+      addFinding(out, "D", "paresis", "paraparesis", { side }, raw);
+    } else if (/tetraparesis/.test(n)) {
+      addFinding(out, "D", "paresis", "tetraparesis", { side }, raw);
+    } else if (/vegtagparesis|paresis/.test(n) && !/facialis/.test(n) && !/latens/.test(n)) {
       addFinding(out, "D", "paresis", "limb", { side }, raw);
     }
-    if (/paresis.*nincs/.test(n) && !/facialis/.test(n)) addFinding(out, "D", "paresis", "none", {}, raw, true);
 
-    if (/facialis paresis.*nincs/.test(n)) addFinding(out, "D", "facial_paresis", "none", {}, raw, true);
+    if (conceptIsNegated(n, "facialis paresis")) addFinding(out, "D", "facial_paresis", "none", {}, raw, true);
     else if (/facialis paresis/.test(n)) addFinding(out, "D", "facial_paresis", "present", { side }, raw);
 
-    if (/anisocor/.test(n)) addFinding(out, "D", "pupil", "anisocoria", { side }, raw);
-    if (/myosis/.test(n)) addFinding(out, "D", "pupil", "miosis", { side }, raw);
-    if (/mydriasis/.test(n)) addFinding(out, "D", "pupil", "mydriasis", { side }, raw);
+    const pupilNegatives = [
+      ["anisocor", "Anisocoria nincs."],
+      ["myosis", "Myosis nincs."],
+      ["mydriasis", "Mydriasis nincs."]
+    ];
+    let pupilSpecificNegation = false;
+    for (const [pattern, normalText] of pupilNegatives) {
+      if (conceptIsNegated(n, pattern)) {
+        addExplicitNormalNote(out, "D", normalText, raw, "D7");
+        pupilSpecificNegation = true;
+      }
+    }
+    if (!pupilSpecificNegation) {
+      if (/anisocor/.test(n)) addFinding(out, "D", "pupil", "anisocoria", { side }, raw);
+      if (/myosis/.test(n)) addFinding(out, "D", "pupil", "miosis", { side }, raw);
+      if (/mydriasis/.test(n)) addFinding(out, "D", "pupil", "mydriasis", { side }, raw);
+    }
     if (/fenymerev|fenyre nem reag/.test(n)) addFinding(out, "D", "pupil", "nonreactive", { side }, raw);
     if (/pupillak.*kerek.*egyenlo.*fenyre reag|pupillak.*isocor.*fotoreag|isocor.*fenyreakcio.*megtartott/.test(n)) addFinding(out, "D", "pupil", "normal", {}, raw, true);
 
-    if (/horizontalis.*nystag/.test(n)) addFinding(out, "D", "nystagmus", "horizontal", { side }, raw);
-    else if (/vertikalis.*nystag/.test(n)) addFinding(out, "D", "nystagmus", "vertical", {}, raw);
-    else if (/rotatoros.*nystag/.test(n)) addFinding(out, "D", "nystagmus", "rotatory", {}, raw);
-    else if (/nystagmus.*nincs/.test(n)) addFinding(out, "D", "nystagmus", "none", {}, raw, true);
+    if (conceptIsNegated(n, "nystagmus")) {
+      addFinding(out, "D", "nystagmus", "none", {}, raw, true);
+    } else if (/horizontalis.*nystag/.test(n)) {
+      addFinding(out, "D", "nystagmus", "horizontal", { side }, raw);
+    } else if (/vertikalis.*nystag/.test(n)) {
+      addFinding(out, "D", "nystagmus", "vertical", {}, raw);
+    } else if (/rotatoros.*nystag/.test(n)) {
+      addFinding(out, "D", "nystagmus", "rotatory", {}, raw);
+    }
 
-    if (/tarkokotott/.test(n)) addFinding(out, "D", "meningeal", "neck_stiffness", {}, raw);
-    if (/meningealis.*pozitiv/.test(n)) addFinding(out, "D", "meningeal", "positive", {}, raw);
-    if (/meningealis.*nincsenek|meningealis.*nincs|meningealis.*negativ|tarko.*szabad/.test(n)) addFinding(out, "D", "meningeal", "none", {}, raw, true);
+    if (conceptIsNegated(n, "meningealis|tarkokotott")) {
+      addFinding(out, "D", "meningeal", "none", {}, raw, true);
+    } else if (/tarkokotott/.test(n)) {
+      addFinding(out, "D", "meningeal", "neck_stiffness", {}, raw);
+    } else if (/meningealis.*pozitiv/.test(n)) {
+      addFinding(out, "D", "meningeal", "positive", {}, raw);
+    } else if (/tarko.*szabad/.test(n)) {
+      addFinding(out, "D", "meningeal", "none", {}, raw, true);
+    }
 
     if (/sensorium.*szimmetrikusan.*megtartott/.test(n)) addFinding(out, "D", "sensorium", "symmetric", {}, raw, true);
-    if (/goc(tunet|jel).*nincs|neurologiai.*goc.*nincs|focalis.*neurologiai.*elteres.*nincs/.test(n)) addFinding(out, "D", "focal_neuro", "none", {}, raw, true);
-    if (/goc(tunet|jel).*pozitiv|neurologiai.*goc|focalis.*neurologiai.*deficit/.test(n) && !/nincs/.test(n)) addFinding(out, "D", "focal_neuro", "present", { side }, raw);
+
+    if (conceptIsNegated(n, "goc(?:tunet|jel)|neurologiai.*goc|focalis.*neurologiai")) {
+      addFinding(out, "D", "focal_neuro", "none", {}, raw, true);
+    } else if (/goc(?:tunet|jel).*pozitiv|neurologiai.*goc|focalis.*neurologiai.*deficit/.test(n)) {
+      addFinding(out, "D", "focal_neuro", "present", { side }, raw);
+    }
     return out;
   }
 
@@ -437,13 +602,17 @@
     const n = fold(raw);
     const out = [];
     if (/jo altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "good", {}, raw, true);
-    if (/kozepes|kp\.? altalanos allapot|kozepsulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "medium", {}, raw);
-    if (/rossz altalanos allapot|elesett|sulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "poor", {}, raw);
+    if (conceptIsNegated(n, "elesett|rossz altalanos allapot|sulyos altalanos allapot")) {
+      addExplicitNormalNote(out, "E1", "Elesettség nincs.", raw, "E1.3");
+    } else {
+      if (/kozepes|kp\.? altalanos allapot|kozepsulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "medium", {}, raw);
+      if (/rossz altalanos allapot|elesett|sulyos altalanos allapot/.test(n)) addFinding(out, "E1", "general_condition", "poor", {}, raw);
+    }
     if (/kp\.? fejlett/.test(n)) addFinding(out, "E1", "build", "medium", {}, raw, true);
     if (/kp\.? taplalt/.test(n)) addFinding(out, "E1", "nutrition", "medium", {}, raw, true);
-    if (/sovany/.test(n)) addFinding(out, "E1", "nutrition", "thin", {}, raw);
-    if (/cachec/.test(n)) addFinding(out, "E1", "nutrition", "cachectic", {}, raw);
-    if (/obes|elhiz/.test(n)) addFinding(out, "E1", "nutrition", "obese", {}, raw);
+    if (!conceptIsNegated(n, "sovany") && /sovany/.test(n)) addFinding(out, "E1", "nutrition", "thin", {}, raw);
+    if (!conceptIsNegated(n, "cachec") && /cachec/.test(n)) addFinding(out, "E1", "nutrition", "cachectic", {}, raw);
+    if (!conceptIsNegated(n, "obes|elhiz") && /obes|elhiz/.test(n)) addFinding(out, "E1", "nutrition", "obese", {}, raw);
     return out;
   }
 
@@ -451,14 +620,26 @@
     const n = fold(raw);
     const out = [];
     if (/borszin.*normal/.test(n)) addFinding(out, "E2", "skin_color", "normal", {}, raw, true);
-    if (/sapadt|pallor/.test(n)) addFinding(out, "E2", "skin_color", "pallor", {}, raw);
-    if (/icter|subicter/.test(n)) addFinding(out, "E2", "skin_color", "jaundice", {}, raw);
-    if (/exsic|dehydrat/.test(n)) addFinding(out, "E2", "hydration", "dehydrated", {}, raw);
-    if (/csokkent.*turgor/.test(n)) addFinding(out, "E2", "skin_turgor", "reduced", {}, raw);
+
+    if (conceptIsNegated(n, "sapadt|pallor")) addExplicitNormalNote(out, "E2", "Sápadtság nincs.", raw, "E2.1");
+    else if (/sapadt|pallor/.test(n)) addFinding(out, "E2", "skin_color", "pallor", {}, raw);
+
+    if (conceptIsNegated(n, "icter|subicter")) addExplicitNormalNote(out, "E2", "Icterus nincs.", raw, "E2.1");
+    else if (/icter|subicter/.test(n)) addFinding(out, "E2", "skin_color", "jaundice", {}, raw);
+
+    if (conceptIsNegated(n, "exsic|dehydrat")) addExplicitNormalNote(out, "E2", "Exsiccosis nincs.", raw, "E2.2");
+    else if (/exsic|dehydrat/.test(n)) addFinding(out, "E2", "hydration", "dehydrated", {}, raw);
+
+    if (conceptIsNegated(n, "csokkent.*turgor")) addFinding(out, "E2", "skin_turgor", "normal", {}, raw, true);
+    else if (/csokkent.*turgor/.test(n)) addFinding(out, "E2", "skin_turgor", "reduced", {}, raw);
     if (/turgor.*megtartott/.test(n)) addFinding(out, "E2", "skin_turgor", "normal", {}, raw, true);
-    if (/szaraz.*nyalkahartya/.test(n)) addFinding(out, "E2", "mucosa", "dry", {}, raw);
+
+    if (conceptIsNegated(n, "szaraz.*nyalkahartya")) addFinding(out, "E2", "mucosa", "normal", {}, raw, true);
+    else if (/szaraz.*nyalkahartya/.test(n)) addFinding(out, "E2", "mucosa", "dry", {}, raw);
     if (/nyalkahartyak.*kp.*verteltek/.test(n)) addFinding(out, "E2", "mucosa", "normal", {}, raw, true);
-    if (/nyelv.*szaraz/.test(n)) addFinding(out, "E2", "tongue", "dry", {}, raw);
+
+    if (conceptIsNegated(n, "nyelv.*szaraz|szaraz.*nyelv")) addFinding(out, "E2", "tongue", "normal", {}, raw, true);
+    else if (/nyelv.*szaraz/.test(n)) addFinding(out, "E2", "tongue", "dry", {}, raw);
     if (/nyelv.*nedves/.test(n)) addFinding(out, "E2", "tongue", "normal", {}, raw, true);
     return out;
   }
@@ -466,8 +647,10 @@
   function parseE3(raw) {
     const n = fold(raw);
     const out = [];
-    if (/kulserelmi nyom.*nincs|serules.*nincs/.test(n)) addFinding(out, "E3", "injury", "none", {}, raw, true);
-    if (/serules|seb|haematoma|hematoma|horzsol|laceratio|zuzodas|contusio|vagas|szurt seb|harapott seb/.test(n) && !/nincs/.test(n)) {
+    const injuryPattern = "serules|seb|haematoma|hematoma|horzsol|laceratio|zuzodas|contusio|vagas|szurt seb|harapott seb|kulserelmi nyom";
+    if (conceptIsNegated(n, injuryPattern)) {
+      addFinding(out, "E3", "injury", "none", {}, raw, true);
+    } else if (new RegExp(injuryPattern).test(n)) {
       addFinding(out, "E3", "injury", "present", { side: sideOf(raw), location: locationOf(raw) }, raw);
     }
     return out;
@@ -478,13 +661,24 @@
     const out = [];
     const side = sideOf(raw);
     if (/vegtagok.*alakilag.*funkcionalisan.*epek/.test(n)) addFinding(out, "E4", "limb_status", "normal", {}, raw, true);
-    if (/oedema|odema|vizeny|vizenyos|pitting/.test(n)) addFinding(out, "E4", "limb_edema", /nincs|nem eszlelheto/.test(n) ? "none" : "present", { side }, raw, /nincs|nem eszlelheto/.test(n));
-    if (/aszimmetri/.test(n)) addFinding(out, "E4", "limb_asymmetry", "present", { side }, raw);
-    if (/korfogatkulonbseg/.test(n)) addFinding(out, "E4", "circumference_difference", "present", { side }, raw);
-    if (/homersekletkulonbseg/.test(n)) addFinding(out, "E4", "temperature_difference", "present", { side }, raw);
-    if (/mvt|dvt|homans/.test(n)) addFinding(out, "E4", "dvt_sign", /nincs|negativ/.test(n) ? "none" : "present", { side }, raw, /nincs|negativ/.test(n));
-    if (/deformitas/.test(n)) addFinding(out, "E4", "limb_deformity", "present", { side }, raw);
-    if (/mozgas.*korlatoz/.test(n)) addFinding(out, "E4", "restricted_movement", "present", { side }, raw);
+
+    const limbTerms = [
+      ["oedema|odema|vizeny|vizenyos|pitting", "limb_edema", "Oedema nincs.", "E4.1"],
+      ["aszimmetri", "limb_asymmetry", "Végtagaszimmetria nincs.", "E4.2"],
+      ["korfogatkulonbseg", "circumference_difference", "Körfogatkülönbség nincs.", "E4.3"],
+      ["homersekletkulonbseg", "temperature_difference", "Hőmérsékletkülönbség nincs.", "E4.4"],
+      ["mvt|dvt|homans", "dvt_sign", "MVT/DVT jelek nincsenek.", "E4.5"],
+      ["deformitas", "limb_deformity", "Végtagi deformitás nincs.", "E4.6"],
+      ["mozgas.*korlatoz", "restricted_movement", "Mozgáskorlátozottság nincs.", "E4.7"]
+    ];
+
+    for (const [pattern, concept, normalText, target] of limbTerms) {
+      if (conceptIsNegated(n, pattern)) {
+        addExplicitNormalNote(out, "E4", normalText, raw, target);
+      } else if (new RegExp(pattern).test(n)) {
+        addFinding(out, "E4", concept, "present", { side }, raw);
+      }
+    }
     return out;
   }
 
@@ -494,25 +688,44 @@
     const location = locationOf(raw);
 
     if (/mellkas szintjeben.*puha.*betapinthato|has.*puha.*betapinthato|puha.*has/.test(n)) addFinding(out, "E5", "abdomen_shape", "normal", {}, raw, true);
-    if (/elodomborodo/.test(n)) addFinding(out, "E5", "abdomen_shape", "distended", {}, raw);
-    if (/beesett/.test(n)) addFinding(out, "E5", "abdomen_shape", "scaphoid", {}, raw);
-    if (/deszkakemeny/.test(n)) addFinding(out, "E5", "abdomen_shape", "board_like", {}, raw);
-    else if (/feszes/.test(n)) addFinding(out, "E5", "abdomen_shape", "tense", {}, raw);
+    if (!conceptIsNegated(n, "elodomborodo") && /elodomborodo/.test(n)) addFinding(out, "E5", "abdomen_shape", "distended", {}, raw);
+    if (!conceptIsNegated(n, "beesett") && /beesett/.test(n)) addFinding(out, "E5", "abdomen_shape", "scaphoid", {}, raw);
+    if (!conceptIsNegated(n, "deszkakemeny") && /deszkakemeny/.test(n)) addFinding(out, "E5", "abdomen_shape", "board_like", {}, raw);
+    else if (!conceptIsNegated(n, "feszes") && /feszes/.test(n)) addFinding(out, "E5", "abdomen_shape", "tense", {}, raw);
 
-    if (/hasi fajdalom|fajdalom/.test(n) && !/nyomaserzekeny/.test(n)) {
+    if (conceptIsNegated(n, "hasi fajdalom|fajdalom")) {
+      addExplicitNormalNote(out, "E5", "Hasi fájdalom nincs.", raw, "E5.2");
+    } else if (/hasi fajdalom|fajdalom/.test(n) && !/nyomaserzekeny/.test(n)) {
       let character = "";
       if (/gorcsos/.test(n)) character = "cramping";
       else if (/ego/.test(n)) character = "burning";
       else if (/szuro/.test(n)) character = "stabbing";
       addFinding(out, "E5", "abdominal_pain", "present", { location, character }, raw);
     }
-    if (/nyomaserzekeny|ny\.?\s*erz|nyom\.?\s*erz/.test(n)) addFinding(out, "E5", "abdominal_tenderness", /nem nyomaserzekeny|nem ny\.?\s*erz|nem nyom\.?\s*erz/.test(n) ? "none" : "present", { location }, raw, /nem nyomaserzekeny|nem ny\.?\s*erz|nem nyom\.?\s*erz/.test(n));
-    if (/defanz|defense|muscularis vedekezes/.test(n)) addFinding(out, "E5", "guarding", /nincs|negativ/.test(n) ? "none" : "present", { location }, raw, /nincs|negativ/.test(n));
-    if (/resistentia/.test(n)) addFinding(out, "E5", "abdominal_mass", /nincs|nem tap/.test(n) ? "none" : "present", { location }, raw, /nincs|nem tap/.test(n));
+
+    const tendernessPattern = "nyomaserzekeny|ny\\.?\\s*erz|nyom\\.?\\s*erz";
+    if (conceptIsNegated(n, tendernessPattern)) {
+      addExplicitNormalNote(out, "E5", "Nyomásérzékenység nincs.", raw, "E5.3");
+    } else if (new RegExp(tendernessPattern).test(n)) {
+      addFinding(out, "E5", "abdominal_tenderness", "present", { location }, raw);
+    }
+
+    const guardingPattern = "defanz|defense|muscularis vedekezes";
+    if (conceptIsNegated(n, guardingPattern)) {
+      addFinding(out, "E5", "guarding", "none", { location }, raw, true);
+    } else if (new RegExp(guardingPattern).test(n)) {
+      addFinding(out, "E5", "guarding", "present", { location }, raw);
+    }
+
+    if (/resistentia/.test(n)) {
+      addFinding(out, "E5", "abdominal_mass", conceptIsNegated(n, "resistentia") ? "none" : "present", { location }, raw, conceptIsNegated(n, "resistentia"));
+    }
 
     if (/hepar/.test(n)) addFinding(out, "E5", "liver_palpation", /nem tap/.test(n) ? "not_palpable" : "palpable", {}, raw, /nem tap/.test(n));
     if (/lep|lien/.test(n)) addFinding(out, "E5", "spleen_palpation", /nem tap/.test(n) ? "not_palpable" : "palpable", {}, raw, /nem tap/.test(n));
 
+    // "Bélhang nincs" remains abnormal by definition, so this concept intentionally
+    // does NOT use the general negation-to-normal rule.
     if (/belhang/.test(n)) {
       let value = "normal";
       if (/elenk|fokozott|hyperactiv/.test(n)) value = "increased";
@@ -527,7 +740,7 @@
     const n = fold(raw);
     const out = [];
     const side = sideOf(raw);
-    if (/vesetajak.*nem erzekeny|vesetaj.*nem erzekeny|giordano.*negativ|veseutes.*negativ/.test(n)) {
+    if (conceptIsNegated(n, "vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv") || /giordano.*negativ|veseutes.*negativ/.test(n)) {
       addFinding(out, "E6", "renal_angle_tenderness", "none", {}, raw, true);
     } else if (/vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv/.test(n)) {
       addFinding(out, "E6", "renal_angle_tenderness", "present", { side }, raw);
@@ -704,6 +917,14 @@
     return true;
   }
 
+  function appendExplicitNormalNotes(parts, findings, section) {
+    for (const item of findingsFor(findings, section, "explicit_normal_note")) {
+      const text = ensureSentence(item.attributes?.text || "");
+      if (!text) continue;
+      parts.push(segment(text + " ", "explicit", section));
+    }
+  }
+
   function appendNewCustoms(parts, findings, section) {
     for (const item of findingsFor(findings, section, "custom")) {
       if (item.source !== "manual_confirmation") continue;
@@ -748,6 +969,7 @@
       if (device?.value === "adjunct") parts.push(segment("Légúti segédeszköz van. ", "modified", "A"));
     }
 
+    appendExplicitNormalNotes(parts, findings, "A");
     appendNewCustoms(parts, findings, "A");
     return parts;
   }
@@ -851,6 +1073,7 @@
       parts.push(segment(cyanosisText + " ", cyanosis && cyanosis.value !== "none" ? "modified" : cyanosis?.explicitNormal ? "explicit" : "base", "B"));
     }
 
+    appendExplicitNormalNotes(parts, findings, "B");
     appendNewCustoms(parts, findings, "B");
     return parts;
   }
@@ -933,6 +1156,7 @@
       }
     }
 
+    appendExplicitNormalNotes(parts, findings, "C");
     appendNewCustoms(parts, findings, "C");
     return parts;
   }
@@ -1054,6 +1278,7 @@
       else parts.push(segment((sideText(focal.attributes.side) ? sideText(focal.attributes.side) + " oldali " : "") + "neurológiai góctünet észlelhető. ", "modified", "D"));
     }
 
+    appendExplicitNormalNotes(parts, findings, "D");
     appendNewCustoms(parts, findings, "D");
     return parts;
   }
@@ -1081,6 +1306,7 @@
       parts.push(segment(e1 + " ", e1Modified ? "modified" : (condition?.explicitNormal || nutrition?.explicitNormal) ? "explicit" : "base", "E1"));
     }
     pushTargetOverride(parts, findings, "E1", "E1.4");
+    appendExplicitNormalNotes(parts, findings, "E1");
     appendNewCustoms(parts, findings, "E1");
 
     const hasE2SkinOverride = customTargetText(findings, "E2", "E2.1") || customTargetText(findings, "E2", "E2.2");
@@ -1116,6 +1342,7 @@
         "E2"
       ));
     }
+    appendExplicitNormalNotes(parts, findings, "E2");
     appendNewCustoms(parts, findings, "E2");
 
     if (!pushTargetOverride(parts, findings, "E3", "E3.1")) {
@@ -1130,6 +1357,7 @@
         }
       }
     }
+    appendExplicitNormalNotes(parts, findings, "E3");
     appendNewCustoms(parts, findings, "E3");
 
     const e4TargetConcept = {
@@ -1165,6 +1393,7 @@
         }
       }
     }
+    appendExplicitNormalNotes(parts, findings, "E4");
     appendNewCustoms(parts, findings, "E4");
 
     if (!pushTargetOverride(parts, findings, "E5", "E5.1")) {
@@ -1228,6 +1457,7 @@
       }[bowel?.value] || "Bélhangok normálisak.";
       parts.push(segment(bowelText + " ", bowel && bowel.value !== "normal" ? "modified" : bowel?.explicitNormal ? "explicit" : "base", "E5"));
     }
+    appendExplicitNormalNotes(parts, findings, "E5");
     appendNewCustoms(parts, findings, "E5");
 
     if (!pushTargetOverride(parts, findings, "E6", "E6.1")) {
@@ -1244,6 +1474,7 @@
       }
     }
     pushTargetOverride(parts, findings, "E6", "E6.2");
+    appendExplicitNormalNotes(parts, findings, "E6");
     appendNewCustoms(parts, findings, "E6");
 
     return parts;

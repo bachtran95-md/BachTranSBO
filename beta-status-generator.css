@@ -40,7 +40,16 @@ body.beta-build .beta-status-parameter-grid label > span{
 body.beta-build .beta-status-parameter-grid input{
   min-height:36px;
   padding:7px 9px;
+  color:#1f2937;
   font-size:12px;
+  text-align:left;
+}
+body.beta-build .beta-status-parameter-grid input:placeholder-shown{
+  text-align:right;
+}
+body.beta-build .beta-status-parameter-grid input::placeholder{
+  color:#94a3b8;
+  opacity:.58;
 }
 body.beta-build .beta-status-generator-columns{
   display:grid;

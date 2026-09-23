@@ -1842,7 +1842,9 @@ if (!statusVisibility.allParamsVisible || !statusVisibility.allSectionsVisible |
 await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80");
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="E5"]').fill("Hasa érzékeny.");
-await betaFeatures.locator("#betaGenerateStructuredStatus").click();
+if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
+  throw new Error("Realtime STATUS must not expose a Generate button");
+}
 await betaFeatures.waitForFunction(() =>
   document.querySelector("#betaStructuredStatus")?.classList.contains("is-generated") &&
   !document.querySelector("#betaStructuredStatusDone")?.classList.contains("hidden")
@@ -2171,7 +2173,9 @@ await betaFeatures.locator('[data-status-param="bloodPressure"]').fill("135/80")
 await betaFeatures.locator('[data-status-param="pulse"]').fill("88");
 await betaFeatures.locator('[data-status-section="B"]').fill("jobb basalis crepitatio");
 await betaFeatures.locator('[data-status-section="E5"]').fill("epig nyomérz");
-await betaFeatures.locator("#betaGenerateStructuredStatus").click();
+if (await betaFeatures.locator("#betaGenerateStructuredStatus").count()) {
+  throw new Error("Realtime STATUS must not expose a Generate button");
+}
 await betaFeatures.locator("#betaStructuredStatusDone:not(.hidden)").waitFor();
 
 const structuredPreview = await betaFeatures.locator("#betaStructuredStatusPreview").inputValue();

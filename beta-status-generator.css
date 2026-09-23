@@ -51,6 +51,26 @@ body.beta-build .beta-status-parameter-grid input::placeholder{
   color:#94a3b8;
   opacity:.58;
 }
+body.beta-build .beta-status-clinical-note-card{
+  border:1px solid #d8dee8;
+  border-radius:12px;
+  background:#fff;
+  padding:12px 14px;
+}
+body.beta-build .beta-status-clinical-note-card textarea{
+  width:100%;
+  min-height:70px;
+  margin-top:8px;
+  padding:9px 10px;
+  resize:vertical;
+  background:#fff;
+  font-size:13px;
+  line-height:1.45;
+}
+body.beta-build .beta-status-clinical-note-card textarea::placeholder{
+  color:#94a3b8;
+  opacity:.58;
+}
 body.beta-build .beta-status-generator-columns{
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(0,1fr);
@@ -212,6 +232,10 @@ body.beta-build .beta-status-final-preview .status-unresolved{
 }
 body.beta-build .beta-status-final-preview .status-unresolved:hover{
   background:#fff7ed;
+}
+body.beta-build .beta-status-final-preview .status-note{
+  color:#3730a3;
+  font-weight:800;
 }
 body.beta-build .beta-status-final-preview .status-prefix{
   color:#111827;

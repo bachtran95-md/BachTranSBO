@@ -1269,7 +1269,12 @@
     if (!stateHasData(state)) return null;
     const record = buildRecordFromState(state);
     return {
-      explicitNormalFindings: record.payload.explicit_normal_findings,
+      explicitNormalFindings: record.payload.explicit_normal_findings.map((item) => ({
+        section: item.section,
+        concept: item.concept,
+        value: item.value,
+        attributes: item.attributes || {}
+      })),
       finalStatusDraft: record.payload.final_status,
       unresolved: record.unresolved
     };

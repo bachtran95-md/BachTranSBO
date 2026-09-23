@@ -843,6 +843,58 @@
     };
   }
 
+  async function listNotes() {
+    return invokeAuthedFunction(
+      "clinical-store",
+      { action: "list_notes" },
+      "Notes load"
+    );
+  }
+
+  async function createNote(note = {}) {
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "create_note",
+        note: {
+          title: String(note.title || ""),
+          content: String(note.content || "")
+        }
+      },
+      "Note create"
+    );
+  }
+
+  async function updateNote(noteId, note = {}) {
+    if (!noteId) throw new Error("Missing note ID.");
+
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "update_note",
+        noteId,
+        note: {
+          title: String(note.title || ""),
+          content: String(note.content || "")
+        }
+      },
+      "Note save"
+    );
+  }
+
+  async function deleteNote(noteId) {
+    if (!noteId) throw new Error("Missing note ID.");
+
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "delete_note",
+        noteId
+      },
+      "Note delete"
+    );
+  }
+
   async function getLearningOverview() {
     return invokeAuthedFunction(
       "learning-admin",
@@ -947,6 +999,10 @@
     saveCaseRawData,
     deleteCaseRawData,
     subscribeCaseRawData,
+    listNotes,
+    createNote,
+    updateNote,
+    deleteNote,
     getLearningOverview,
     reviewCorpusRevision,
     analyzeStyle,

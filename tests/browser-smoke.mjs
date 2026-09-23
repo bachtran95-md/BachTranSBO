@@ -1870,6 +1870,33 @@ if (!multiFindingState.statusComplete) {
   throw new Error("Resolved Státusz did not complete the Státusz workflow tab");
 }
 
+// Regression: explicit negative dyspnoea must override the positive dyspnoea token
+// and remain an explicit normal finding for Summary context.
+await betaFeatures.locator('[data-status-section="B"]').fill(
+  "dyspnoe nincs. Légzési munka normális."
+);
+await betaFeatures.waitForFunction(() => {
+  const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+  return preview.includes("Dyspnoe nincs.") &&
+    !preview.includes("Dyspnoés.") &&
+    preview.includes("Légzési munka normális.") &&
+    document.querySelectorAll('[data-status-unknown-host="B"] .beta-status-unknown').length === 0;
+});
+const negativeDyspnoeaState = await betaFeatures.evaluate(() => {
+  const patient = window.BachSBOClinicalUi?.getPatientSnapshot?.();
+  return {
+    preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
+    explicitNormals: patient?.statusExplicitNormals || []
+  };
+});
+if (!negativeDyspnoeaState.explicitNormals.some((item) =>
+  item.section === "B" &&
+  item.concept === "respiratory_pattern" &&
+  item.value === "dyspnoea_absent"
+)) {
+  throw new Error("Explicit negative dyspnoea was not preserved for Summary context: " + JSON.stringify(negativeDyspnoeaState));
+}
+
 // Regression: rate + standalone regularity in the same C field must both resolve.
 await betaFeatures.locator('[data-status-section="C"]').fill("bradycardia, szabálytalan");
 await betaFeatures.waitForFunction(() => {

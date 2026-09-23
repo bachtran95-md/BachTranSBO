@@ -373,6 +373,7 @@
         learningOverview = result?.overview || learningOverview;
         learningRegistryLoaded = true;
         syncComposer();
+        document.dispatchEvent(new CustomEvent("bachsbo:finding-learning-changed"));
       } catch (error) {
         console.warn("Finding learning registry unavailable:", error);
       } finally {
@@ -895,6 +896,7 @@
       ? "Mentve. A küszöb elérve, a jelölt patch automatikusan frissült."
       : "Mentve a learning registrybe.";
     syncComposer();
+    document.dispatchEvent(new CustomEvent("bachsbo:finding-learning-changed"));
   }
 
   async function saveExistingLearning() {
@@ -1036,6 +1038,7 @@
       activeAiSuggestion = null;
       learningMessage = "Az utolsó tanítás visszavonva.";
       syncComposer();
+      document.dispatchEvent(new CustomEvent("bachsbo:finding-learning-changed"));
     } catch (error) {
       learningMessage = `Visszavonási hiba: ${error?.message || error}`;
       updateLearningOverviewUi(document.getElementById("betaFindingComposer"));
@@ -1296,7 +1299,7 @@
     warning.textContent = !hasSource
       ? ""
       : unknowns.length
-        ? `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez a STATUS GENERÁLÁSA előtt.`
+        ? `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez; a STATUS automatikusan frissül.`
         : !active.length
           ? "Nem ismertem fel biztos findingot. A normál status létrehozása blokkolva van."
           : "";

@@ -8,7 +8,7 @@
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center — Beta</title>
   <link rel="stylesheet" href="styles.css?v=stable-shift-triage-20260922-2" />
-  <link rel="stylesheet" href="beta-features.css?v=status-learning-20260923-2" />
+  <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=parameter-placeholder-20260923-1" />
 </head>
 <body class="beta-build beta-simple-status">
@@ -590,8 +590,13 @@
 
         <div class="learning-section-tabs" id="learningSectionTabs">
           <button class="btn small primary" type="button" data-learning-section="summary">ÖSSZEFOGLALÓ</button>
-          <button class="btn small" type="button" data-learning-section="status">
-            STÁTUSZ <span id="statusLearningPendingBadge"></span>
+          <button
+            class="btn small status-learning-disabled"
+            type="button"
+            data-learning-section="status"
+            disabled
+            title="Elkészült, de ideiglenesen nincs használatban.">
+            STÁTUSZ · KIKAPCSOLVA
           </button>
         </div>
 
@@ -812,10 +817,10 @@
   <script src="case-ui.js?v=demographics-20260922-1"></script>
   <script src="backend.js?v=status-learning-20260923-2"></script>
   <script src="assistant-core.js?v=assistant-core-20260922-1"></script>
-  <script src="app.js?v=status-learning-20260923-2"></script>
+  <script src="app.js?v=status-learning-paused-20260923-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit.js?v=status-unify-20260923-2"></script>
   <script src="beta-features.js?v=notes-crud-20260923-1"></script>
-  <script src="beta-status-generator.js?v=bowel-sounds-20260923-2"></script>
+  <script src="beta-status-generator.js?v=status-learning-paused-20260923-1"></script>
 </body>
 </html>

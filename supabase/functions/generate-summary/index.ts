@@ -104,6 +104,31 @@ function stripLegacyVitalLines(value: unknown) {
     .trim();
 }
 
+function sanitizeExampleSnapshot(value: unknown) {
+  const snapshot = value && typeof value === "object"
+    ? structuredClone(value as Record<string, unknown>)
+    : {};
+  delete (snapshot as any).vitals;
+  delete (snapshot as any).parameters;
+  if ("physical_examination" in snapshot) {
+    (snapshot as any).physical_examination =
+      stripLegacyVitalLines((snapshot as any).physical_examination);
+  }
+  if (
+    (snapshot as any).physical_status &&
+    typeof (snapshot as any).physical_status === "object"
+  ) {
+    delete (snapshot as any).physical_status.parameters;
+  }
+  if (
+    (snapshot as any).physical_status_data &&
+    typeof (snapshot as any).physical_status_data === "object"
+  ) {
+    delete (snapshot as any).physical_status_data.parameters;
+  }
+  return snapshot;
+}
+
 function structuredPhysicalStatus(caseRow: any) {
   const value = caseRow?.physical_status_data;
   return value && typeof value === "object" && Number(value.version) === 1
@@ -469,7 +494,7 @@ Deno.serve(async (req) => {
           `--- APPROVED EXAMPLE ${index + 1} ---`,
           `Similarity: ${Number(example.similarity || 0).toFixed(3)}`,
           "Clinical input:",
-          JSON.stringify(example.case_snapshot, null, 2),
+          JSON.stringify(sanitizeExampleSnapshot(example.case_snapshot), null, 2),
           "Doctor-finalized documentation:",
           String(example.finalized_text || ""),
         ].join("\n")).join("\n\n")

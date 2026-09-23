@@ -146,6 +146,7 @@ const backendMock = String.raw`
   ];
   let findingLearningRecords = [];
   let findingCandidates = [];
+  window.__BACH_E2E_FINDING_LEARNING_COUNT = () => findingLearningRecords.length;
 
   const findingOverview = () => ({
     approvedLearning: findingLearningRecords.length,
@@ -1649,6 +1650,13 @@ await beta.waitForFunction(() =>
 );
 
 await beta.locator("#aiLearningNav").click();
+const pausedStatusLearning = beta.locator('[data-learning-section="status"]');
+if (!(await pausedStatusLearning.isDisabled())) {
+  throw new Error("Paused Status learning tab must remain visible but disabled");
+}
+if (!(await pausedStatusLearning.textContent()).includes("KIKAPCSOLVA")) {
+  throw new Error("Paused Status learning tab is not clearly labelled");
+}
 await beta.locator("#styleProfilesList").waitFor();
 await beta.waitForFunction(() =>
   (document.querySelector("#styleProfilesList")?.textContent || "").includes("Candidate two analysis")
@@ -2142,6 +2150,12 @@ await betaFeatures.waitForFunction(() =>
 const targetedUnknownPreview = await betaFeatures.locator("#betaStatusFinalPreview").textContent();
 if (!targetedUnknownPreview.includes("Bal oldali pleuralis dörzszörej hallható.")) {
   throw new Error("Targeted B4 unknown finding was not rendered into the selected sub-block");
+}
+const pausedLearningCount = await betaFeatures.evaluate(() =>
+  window.__BACH_E2E_FINDING_LEARNING_COUNT?.() ?? -1
+);
+if (pausedLearningCount !== 0) {
+  throw new Error("Paused Status learning still collected feedback: " + pausedLearningCount);
 }
 
 // Working cache is per-case and survives reload.

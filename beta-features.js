@@ -980,6 +980,7 @@
     if (!composer || !activeUnknownPhrase) return;
 
     const requestedPhrase = activeUnknownPhrase;
+    const requestedCaseId = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.id || "";
     const editorButton = composer.querySelector("#betaSuggestFinding");
     const buttons = [editorButton, triggerButton].filter(Boolean);
     buttons.forEach((button) => { button.disabled = true; });
@@ -991,21 +992,12 @@
       const suggestion = result?.suggestion;
       if (!suggestion) throw new Error("Finding AI backend is unavailable.");
 
-      // Autosave/render may replace the composer and transiently clear
-      // activeUnknownPhrase while the request is in flight. The reliable
-      // stale-result check is whether the requested phrase is still unresolved
-      // in the CURRENT structured STATUS source.
-      const requestedKey = normalizeLearningPhrase(requestedPhrase);
-      let stillUnresolved = false;
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        const currentUnknowns = unknownSegments(structuredFindingSource());
-        stillUnresolved = currentUnknowns.some(
-          (phrase) => normalizeLearningPhrase(phrase) === requestedKey
-        );
-        if (stillUnresolved) break;
-        await new Promise((resolve) => window.setTimeout(resolve, 50));
-      }
-      if (!stillUnresolved) return;
+      // AI proposals are review-only and never persist without physician
+      // confirmation. Autosave/DOM rerenders must therefore not silently drop
+      // an explicitly requested suggestion. Only discard it if the physician
+      // has actually switched to another case while the request was in flight.
+      const currentCaseId = window.BachSBOClinicalUi?.getPatientSnapshot?.()?.id || "";
+      if (requestedCaseId && currentCaseId && currentCaseId !== requestedCaseId) return;
 
       activeUnknownPhrase = requestedPhrase;
       composer = document.getElementById("betaFindingComposer");

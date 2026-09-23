@@ -117,8 +117,18 @@ function positivePhysicalText(caseRow: any) {
 function workflowBlockers(caseRow: any, tests: any[]) {
   const blockers: string[] = [];
 
+  const structuredPhysical = structuredPhysicalStatus(caseRow);
+  const physicalStructuredHasInput = Boolean(
+    structuredPhysical &&
+    [
+      ...Object.values(structuredPhysical.parameters || {}),
+      ...Object.values(structuredPhysical.sections || {}),
+    ].some((value) => String(value || "").trim())
+  );
   const physicalStructuredComplete = Boolean(
-    structuredPhysicalStatus(caseRow)?.generatedAt
+    structuredPhysical &&
+    physicalStructuredHasInput &&
+    structuredPhysical.generatedAt
   );
 
   const requiredNarrative = [
@@ -199,7 +209,7 @@ function casePayload(caseRow: any, tests: any[]) {
     physical_examination: positivePhysicalText(caseRow),
     physical_examination_status: caseRow.physical_exam_skipped
       ? "none"
-      : structuredPhysicalStatus(caseRow)?.generatedAt
+      : physicalStructuredComplete
       ? "structured_positive_findings"
       : "provided",
     diagnoses: caseRow.diagnoses || "",

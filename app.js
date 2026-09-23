@@ -7,6 +7,10 @@ let currentView = "patients";
 let corpusReviewTab = "pending";
 let corpusReviewPage = 0;
 const CORPUS_REVIEW_PAGE_SIZE = 20;
+let learningSection = "summary";
+let statusLearningTab = "pending";
+let statusLearningPage = 0;
+const STATUS_LEARNING_PAGE_SIZE = 20;
 let appMode = null;
 let rawTransferWorkspace = { shift: null, cases: [] };
 let rawTransferSelectedCaseId = null;
@@ -3036,6 +3040,216 @@ function learningMessage(message, isError = false) {
   el.style.color = isError ? "#991b1b" : "";
 }
 
+function syncLearningSectionUi() {
+  const isStatus = learningSection === "status";
+  document.getElementById("learningSummaryPane")?.classList.toggle("hidden", isStatus);
+  document.getElementById("learningStatusPane")?.classList.toggle("hidden", !isStatus);
+  document.querySelectorAll("[data-learning-section]").forEach((button) => {
+    button.classList.toggle("primary", button.dataset.learningSection === learningSection);
+  });
+}
+
+function updateStatusLearningCounts(overview = {}) {
+  const pending = Number(overview.pendingLearning || 0);
+  const approved = Number(overview.approvedLearning || 0);
+  const excluded = Number(overview.excludedLearning || 0);
+  const set = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  };
+  set("statusLearningPendingCount", pending);
+  set("statusLearningApprovedCount", approved);
+  set("statusLearningExcludedCount", excluded);
+  const badge = document.getElementById("statusLearningPendingBadge");
+  if (badge) badge.textContent = pending ? "(" + pending + ")" : "";
+}
+
+async function refreshStatusLearningBadge() {
+  if (!document.body.classList.contains("beta-build")) return;
+  if (!window.BachSBOBackend?.findingLearningList) return;
+  try {
+    const result = await window.BachSBOBackend.findingLearningList("pending", 0, 1);
+    updateStatusLearningCounts(result?.overview || {});
+  } catch {
+    // The Status learning queue is auxiliary; do not break the Summary learning view.
+  }
+}
+
+async function renderStatusLearningDashboard() {
+  const host = document.getElementById("statusLearningList");
+  if (!host || !window.BachSBOBackend?.findingLearningList) return;
+
+  host.innerHTML = `<div class="subtle">${uiLang === "hu" ? "Betöltés…" : "Loading…"}</div>`;
+
+  const result = await window.BachSBOBackend.findingLearningList(
+    statusLearningTab,
+    statusLearningPage,
+    STATUS_LEARNING_PAGE_SIZE
+  );
+
+  const records = result?.records || [];
+  const total = Number(result?.total || 0);
+  const overview = result?.overview || {};
+  updateStatusLearningCounts(overview);
+
+  if (statusLearningPage > 0 && total > 0 && records.length === 0) {
+    statusLearningPage = Math.max(0, statusLearningPage - 1);
+    return renderStatusLearningDashboard();
+  }
+
+  const counts = {
+    pending: Number(overview.pendingLearning || 0),
+    approved: Number(overview.approvedLearning || 0),
+    excluded: Number(overview.excludedLearning || 0)
+  };
+
+  const statusClass = (status) =>
+    status === "approved" ? "done" :
+    status === "excluded" ? "rejected" :
+    "pending";
+
+  const tabs = ["pending", "approved", "excluded"].map((status) => `
+    <button
+      class="btn small ${statusLearningTab === status ? "primary" : ""}"
+      type="button"
+      data-status-learning-tab="${status}">
+      ${status.toUpperCase()} (${counts[status]})
+    </button>
+  `).join("");
+
+  const cards = records.length
+    ? records.map((item) => {
+        const created = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+        const reviewed = item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : "";
+        const destination = [item.section, item.target].filter(Boolean).join(" → ");
+        const kind = item.mappingKind === "new"
+          ? (uiLang === "hu" ? "ÚJ FINDING" : "NEW FINDING")
+          : (uiLang === "hu" ? "MEGLÉVŐ ALRÉSZ" : "EXISTING SUBSECTION");
+
+        const actions = item.status === "pending"
+          ? `
+              <button class="btn success small" data-status-learning-review="${item.id}" data-decision="approved">
+                ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
+              </button>
+              <button class="btn small" data-status-learning-review="${item.id}" data-decision="excluded">
+                ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
+              </button>
+            `
+          : item.status === "approved"
+          ? `
+              <button class="btn small" data-status-learning-review="${item.id}" data-decision="pending">
+                ${uiLang === "hu" ? "VISSZA PENDINGBE" : "BACK TO PENDING"}
+              </button>
+              <button class="btn small" data-status-learning-review="${item.id}" data-decision="excluded">
+                ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
+              </button>
+            `
+          : `
+              <button class="btn small" data-status-learning-review="${item.id}" data-decision="pending">
+                ${uiLang === "hu" ? "VISSZA PENDINGBE" : "BACK TO PENDING"}
+              </button>
+              <button class="btn success small" data-status-learning-review="${item.id}" data-decision="approved">
+                ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
+              </button>
+            `;
+
+        return `
+          <div class="learning-item status-learning-item">
+            <div class="learning-item-head">
+              <div>
+                <b>${esc(kind)}</b>
+                <div class="subtle">${esc(destination || item.section || "")}${created ? " • " + esc(created) : ""}</div>
+              </div>
+              <span class="badge ${statusClass(item.status)}">${esc(String(item.status || "").toUpperCase())}</span>
+            </div>
+            <div class="status-learning-pair">
+              <div>
+                <div class="subtle">${uiLang === "hu" ? "Beírt kifejezés" : "Entered phrase"}</div>
+                <div class="learning-text status-learning-source">${esc(item.sourcePhrase || "")}</div>
+              </div>
+              <div>
+                <div class="subtle">${uiLang === "hu" ? "Megerősített Státusz-szöveg" : "Confirmed Status text"}</div>
+                <div class="learning-text">${esc(item.outputText || item.canonicalLabel || "")}</div>
+              </div>
+            </div>
+            ${item.reviewNote ? `<div class="footer-note">${uiLang === "hu" ? "Megjegyzés" : "Note"}: ${esc(item.reviewNote)}</div>` : ""}
+            ${reviewed ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrizve" : "Reviewed"}: ${esc(reviewed)}</div>` : ""}
+            <div class="learning-actions">${actions}</div>
+          </div>
+        `;
+      }).join("")
+    : `<div class="subtle">${uiLang === "hu" ? "Ebben a kategóriában nincs Státusz feedback." : "No Status feedback in this category."}</div>`;
+
+  const from = total ? statusLearningPage * STATUS_LEARNING_PAGE_SIZE + 1 : 0;
+  const to = Math.min(total, (statusLearningPage + 1) * STATUS_LEARNING_PAGE_SIZE);
+  const hasPrev = statusLearningPage > 0;
+  const hasNext = to < total;
+
+  host.innerHTML = `
+    <div class="learning-actions status-learning-tabs">
+      ${tabs}
+    </div>
+    <div class="subtle status-learning-range">${total ? `${from}–${to} / ${total}` : "0"}</div>
+    ${cards}
+    ${total > STATUS_LEARNING_PAGE_SIZE ? `
+      <div class="learning-actions status-learning-pagination">
+        <button class="btn small" type="button" data-status-learning-page="prev" ${hasPrev ? "" : "disabled"}>
+          ${uiLang === "hu" ? "ELŐZŐ" : "PREVIOUS"}
+        </button>
+        <button class="btn small" type="button" data-status-learning-page="next" ${hasNext ? "" : "disabled"}>
+          ${uiLang === "hu" ? "KÖVETKEZŐ" : "NEXT"}
+        </button>
+      </div>
+    ` : ""}
+  `;
+
+  host.querySelectorAll("[data-status-learning-tab]").forEach((button) => {
+    button.onclick = () => {
+      statusLearningTab = button.dataset.statusLearningTab || "pending";
+      statusLearningPage = 0;
+      renderStatusLearningDashboard().catch(handleBackendError);
+    };
+  });
+
+  host.querySelectorAll("[data-status-learning-page]").forEach((button) => {
+    button.onclick = () => {
+      statusLearningPage = button.dataset.statusLearningPage === "prev"
+        ? Math.max(0, statusLearningPage - 1)
+        : statusLearningPage + 1;
+      renderStatusLearningDashboard().catch(handleBackendError);
+    };
+  });
+
+  host.querySelectorAll("[data-status-learning-review]").forEach((button) => {
+    button.onclick = async () => {
+      const id = button.dataset.statusLearningReview;
+      const decision = button.dataset.decision || "pending";
+      host.querySelectorAll(`[data-status-learning-review="${id}"]`).forEach((x) => {
+        x.disabled = true;
+      });
+      try {
+        await window.BachSBOBackend.findingLearningReview(id, decision);
+        learningMessage(
+          decision === "approved"
+            ? (uiLang === "hu" ? "A Státusz feedback jóváhagyva." : "Status feedback approved.")
+            : decision === "excluded"
+            ? (uiLang === "hu" ? "A Státusz feedback kizárva." : "Status feedback excluded.")
+            : (uiLang === "hu" ? "A Státusz feedback visszakerült Pending állapotba." : "Status feedback returned to Pending.")
+        );
+        await renderStatusLearningDashboard();
+      } catch (error) {
+        learningMessage(
+          error?.message || (uiLang === "hu" ? "A Státusz feedback ellenőrzése sikertelen." : "Status feedback review failed."),
+          true
+        );
+        host.querySelectorAll(`[data-status-learning-review="${id}"]`).forEach((x) => {
+          x.disabled = false;
+        });
+      }
+    };
+  });
+}
+
 async function renderCorpusRevisions(source) {
   const host = document.getElementById("corpusReviewList");
   if (!host) return;
@@ -3407,6 +3621,13 @@ async function renderLearningDashboard() {
   if (!backendReady) return;
 
   learningMessage("");
+  syncLearningSectionUi();
+
+  if (document.body.classList.contains("beta-build") && learningSection === "status") {
+    await renderStatusLearningDashboard();
+    return;
+  }
+
   const overview = await window.BachSBOBackend.getLearningOverview();
 
   document.getElementById("learningFinalizedCount").textContent =
@@ -3436,6 +3657,8 @@ async function renderLearningDashboard() {
 
   styleButton.disabled = approvedCount < 5;
   skillButton.disabled = approvedCount < 10;
+
+  await refreshStatusLearningBadge();
 }
 
 async function generateStyleCandidate() {
@@ -3994,6 +4217,14 @@ document.getElementById("changeAdminPasswordBtn").onclick = changeAdminPassword;
 document.getElementById("adminSignOutBtn").onclick = signOut;
 document.getElementById("refreshLearningBtn").onclick = () =>
   renderLearningDashboard().catch(handleBackendError);
+document.querySelectorAll("[data-learning-section]").forEach((button) => {
+  button.onclick = () => {
+    learningSection = button.dataset.learningSection === "status" ? "status" : "summary";
+    if (learningSection === "status") statusLearningPage = 0;
+    syncLearningSectionUi();
+    renderLearningDashboard().catch(handleBackendError);
+  };
+});
 document.getElementById("generateStyleBtn").onclick = generateStyleCandidate;
 document.getElementById("generateSkillSuggestionBtn").onclick =
   generateSkillSuggestion;

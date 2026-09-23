@@ -1193,12 +1193,31 @@
     return composer;
   }
 
+  function structuredFindingSource() {
+    const root = document.getElementById("betaStructuredStatus");
+    const fields = root
+      ? [...root.querySelectorAll("[data-status-section]")]
+      : [];
+
+    if (fields.length) {
+      return fields
+        .map((field) => {
+          const key = String(field.dataset.statusSection || "").trim();
+          const value = String(field.value || "").trim();
+          return key && value ? `${key}: ${value}` : "";
+        })
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    return String(document.getElementById("fPhysical")?.value || "");
+  }
+
   function syncComposer() {
     const composer = ensureComposer();
-    const physical = document.getElementById("fPhysical");
-    if (!composer || !physical) return;
+    if (!composer) return;
 
-    const source = physical.value || "";
+    const source = structuredFindingSource();
     if (source !== lastPhysicalSource) {
       lastPhysicalSource = source;
       suppressedFindingKeys = new Set();

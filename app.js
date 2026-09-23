@@ -763,6 +763,7 @@ function workflowStatus(patient) {
     return {
       sections: {
         clinical: { complete: false, blockers: [] },
+        status: { complete: false, blockers: [] },
         tests: { complete: false, blockers: [] },
         course: { complete: false, blockers: [] },
         disposition: { complete: false, blockers: [] }
@@ -790,10 +791,11 @@ function workflowStatus(patient) {
     }
   }
 
+  const statusBlockers = [];
   const testsBlockers = [];
   if (document.body.classList.contains("beta-build")) {
     if (narrativeStatus(patient, "physical") === "waiting") {
-      clinicalBlockers.push(t(NARRATIVE_FIELDS.physical.labelKey));
+      statusBlockers.push(uiLang === "hu" ? "Státusz" : "Status");
     }
   } else if (narrativeStatus(patient, "physical") === "waiting") {
     testsBlockers.push(t(NARRATIVE_FIELDS.physical.labelKey));
@@ -834,6 +836,12 @@ function workflowStatus(patient) {
 
   const sections = {
     clinical: { complete: clinicalBlockers.length === 0, blockers: clinicalBlockers },
+    status: {
+      complete: document.body.classList.contains("beta-build")
+        ? statusBlockers.length === 0
+        : true,
+      blockers: document.body.classList.contains("beta-build") ? statusBlockers : []
+    },
     tests: { complete: testsBlockers.length === 0, blockers: testsBlockers },
     course: { complete: courseBlockers.length === 0, blockers: courseBlockers },
     disposition: { complete: dispositionBlockers.length === 0, blockers: dispositionBlockers }

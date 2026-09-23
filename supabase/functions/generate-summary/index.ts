@@ -147,6 +147,18 @@ function structuredPhysicalComplete(caseRow: any) {
   );
 }
 
+function simplePhysicalComplete(caseRow: any) {
+  if (String(caseRow?.physical_exam || "").trim()) return true;
+  if (Array.isArray(caseRow?.status_explicit_normals) && caseRow.status_explicit_normals.length) return true;
+  const vitals = caseRow?.vitals;
+  return Boolean(
+    vitals &&
+    typeof vitals === "object" &&
+    ["bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"]
+      .some((key) => String(vitals?.[key] || "").trim())
+  );
+}
+
 function workflowBlockers(caseRow: any, tests: any[]) {
   const blockers: string[] = [];
 
@@ -168,6 +180,7 @@ function workflowBlockers(caseRow: any, tests: any[]) {
       if (!structuredComplete) blockers.push(String(label));
       continue;
     }
+    if (label === "Physical examination" && simplePhysicalComplete(caseRow)) continue;
 
     if (!String(value || "").trim()) blockers.push(String(label));
   }

@@ -185,7 +185,7 @@
       field.insertBefore(root, physical);
     }
 
-    if (!root.dataset.statusInitialized) {
+    if (!root.querySelector("[data-status-param]")) {
       root.className = "beta-structured-status";
       root.innerHTML = `
         <div class="beta-status-block-head">
@@ -244,8 +244,11 @@
             id="betaStructuredStatusPreview" readonly></textarea>
         </div>
       `;
+    }
 
-      root.dataset.statusInitialized = "true";
+    root.dataset.statusInitialized = "true";
+    if (!root.dataset.statusBound) {
+      root.dataset.statusBound = "true";
 
       root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
         input.addEventListener("input", () => markEdited(root));

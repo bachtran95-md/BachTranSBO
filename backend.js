@@ -399,6 +399,12 @@
         historySkipped: Boolean(row.history_skipped),
         physical: row.physical_exam || "",
         physicalSkipped: Boolean(row.physical_exam_skipped),
+        vitals:
+          row.vitals &&
+          typeof row.vitals === "object" &&
+          Number(row.vitals.version) === 1
+            ? row.vitals
+            : null,
         statusExplicitNormals: Array.isArray(row.status_explicit_normals)
           ? row.status_explicit_normals
           : [],

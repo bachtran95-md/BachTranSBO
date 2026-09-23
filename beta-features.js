@@ -995,11 +995,16 @@
       // activeUnknownPhrase while the request is in flight. The reliable
       // stale-result check is whether the requested phrase is still unresolved
       // in the CURRENT structured STATUS source.
-      const currentUnknowns = unknownSegments(structuredFindingSource());
       const requestedKey = normalizeLearningPhrase(requestedPhrase);
-      const stillUnresolved = currentUnknowns.some(
-        (phrase) => normalizeLearningPhrase(phrase) === requestedKey
-      );
+      let stillUnresolved = false;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const currentUnknowns = unknownSegments(structuredFindingSource());
+        stillUnresolved = currentUnknowns.some(
+          (phrase) => normalizeLearningPhrase(phrase) === requestedKey
+        );
+        if (stillUnresolved) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+      }
       if (!stillUnresolved) return;
 
       activeUnknownPhrase = requestedPhrase;

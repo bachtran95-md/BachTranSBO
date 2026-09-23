@@ -203,6 +203,16 @@ body.beta-build .beta-status-final-preview .status-derived{
   text-decoration:underline dotted;
   text-underline-offset:3px;
 }
+body.beta-build .beta-status-final-preview .status-unresolved{
+  color:#c2410c;
+  font-weight:800;
+  text-decoration:underline dotted;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+body.beta-build .beta-status-final-preview .status-unresolved:hover{
+  background:#fff7ed;
+}
 body.beta-build .beta-status-final-preview .status-prefix{
   color:#111827;
   font-weight:900;

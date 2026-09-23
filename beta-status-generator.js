@@ -847,10 +847,19 @@
     const n = fold(raw);
     const out = [];
     const side = sideOf(raw);
-    if (/vesetaj.*nem erzekeny|vesetajak.*nem erzekeny|giordano.*negativ|veseutes.*negativ/.test(n) ||
-        conceptIsNegated(n, "giordano.*pozitiv|veseutes.*pozitiv")) {
+    const renalPercussion =
+      "(?:vesetaj|vese)(?:ak)?(?:\\s+(?:utogetesre|utesre|kopogtatasra))?";
+
+    if (
+      new RegExp(renalPercussion + ".*nem\\s+erzekeny").test(n) ||
+      /giordano.*negativ|veseutes.*negativ/.test(n) ||
+      conceptIsNegated(n, "giordano.*pozitiv|veseutes.*pozitiv")
+    ) {
       addFinding(out, "E6", "renal_angle_tenderness", "none", {}, raw, true);
-    } else if (/vesetaj.*erzekeny|giordano.*pozitiv|veseutes.*pozitiv/.test(n)) {
+    } else if (
+      new RegExp(renalPercussion + ".*erzekeny").test(n) ||
+      /giordano.*pozitiv|veseutes.*pozitiv/.test(n)
+    ) {
       addFinding(out, "E6", "renal_angle_tenderness", "present", { side }, raw);
     }
     return out;

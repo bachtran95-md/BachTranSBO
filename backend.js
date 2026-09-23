@@ -939,6 +939,22 @@
     );
   }
 
+  async function listCorpusRevisions(status = "pending", page = 0, pageSize = 20) {
+    if (!["pending", "approved", "excluded"].includes(status)) {
+      throw new Error("Invalid corpus status.");
+    }
+    return invokeAuthedFunction(
+      "learning-admin",
+      {
+        action: "list_revisions",
+        status,
+        page: Math.max(0, Math.floor(Number(page) || 0)),
+        pageSize: Math.min(50, Math.max(1, Math.floor(Number(pageSize) || 20)))
+      },
+      "Corpus list"
+    );
+  }
+
   async function reviewCorpusRevision(revisionId, decision, note = "") {
     if (!revisionId) throw new Error("Missing corpus revision.");
     if (!["approved", "excluded"].includes(decision)) {
@@ -1040,6 +1056,7 @@
     updateNote,
     deleteNote,
     getLearningOverview,
+    listCorpusRevisions,
     reviewCorpusRevision,
     analyzeStyle,
     activateStyle,

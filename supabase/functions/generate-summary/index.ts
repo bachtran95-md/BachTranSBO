@@ -385,7 +385,7 @@ async function callOpenAI(prompt: string) {
     body: JSON.stringify({
       model,
       store: false,
-      prompt_cache_key: "bachtransbo-summary-v1",
+      prompt_cache_key: "bachtransbo-summary-v2",
       input: prompt,
     }),
   });
@@ -513,7 +513,13 @@ Deno.serve(async (req) => {
       "If a fact is absent or a result is still waiting, do not fabricate it.",
       "If arrival_to_sbo is present, include that arrival mode naturally in the Hungarian clinical narrative/anamnesis.",
       "For structured physical status, physical_examination contains ONLY physician-entered positive findings. Vital parameters and the generated full normal-status text are intentionally excluded.",
-      "Use every supplied positive physical finding when clinically relevant to the narrative, but integrate them concisely rather than copying them as a mechanical status list.",
+      "Write a moderately detailed, flowing Hungarian clinical narrative. Prefer enough context to make the presentation, key findings, investigations, treatment/response, clinical reasoning already documented in the source, and disposition understandable; do not over-compress the case into terse fragments, but do not add filler or repeat the same fact.",
+      "Physical examination is selective in the Summary: do NOT mechanically reproduce every supplied positive finding.",
+      "Prioritize physical findings in this order: (1) clinically significant findings whose omission could materially understate ABCDE severity, an important abnormality, or patient risk; (2) findings relevant to the presenting problem, documented differential/diagnosis, or management; (3) findings that help explain treatment, response, consultation, or disposition; (4) incidental low-value findings.",
+      "Retain groups (1)-(3) when supported by the CURRENT case. Group (4) may be omitted from the Summary.",
+      "A clinically significant finding must be retained even when it does not fit the documented diagnosis. Do not use the diagnosis as the sole filter for relevance.",
+      "Selection means mention versus omission only: never reinterpret a finding, strengthen or weaken it, convert it into a diagnosis, or infer a new diagnosis from it.",
+      "Integrate retained physical findings naturally into the narrative rather than copying them as a mechanical status list.",
       "If status_explicit_normal_findings is present, those are normal findings the physician explicitly entered in the Státusz generator because they are clinically worth emphasizing. Preserve them when relevant; do not generalize them into other normal findings.",
       "Do not infer omitted normal findings or numeric vital signs that are not present in the CURRENT case payload.",
       "Follow the SBO Documentation Skill instructions exactly.",

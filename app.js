@@ -4,6 +4,9 @@ let backendReady = false;
 let currentUser = null;
 let stateDirty = false;
 let currentView = "patients";
+let corpusReviewTab = "pending";
+let corpusReviewPage = 0;
+const CORPUS_REVIEW_PAGE_SIZE = 20;
 let appMode = null;
 let rawTransferWorkspace = { shift: null, cases: [] };
 let rawTransferSelectedCaseId = null;
@@ -63,7 +66,7 @@ const I18N = {
     diagnosesNote:"Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.",
     learningDesc:"Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.",
     finalizedCorpusReview:"Finalized corpus review",
-    corpusReviewDesc:"Approve or exclude finalized revisions from future AI learning. This never edits the clinical record or finalized text.",
+    corpusReviewDesc:"New finalized revisions stay Pending until you explicitly approve or exclude them from future AI learning. This never edits the clinical record or finalized text.",
     loading:"Loading…",
     refresh:"REFRESH", finalizedCorpus:"Finalized corpus", activeSkill:"Active Skill", activeStyle:"Active style",
     writingStyle:"Writing style", styleDesc:"Generated → Finalized pairs. Candidate requires explicit activation.",
@@ -127,7 +130,7 @@ const I18N = {
     diagnosesNote:"Csak az orvos által rögzített diagnózisok. Az összefoglaló nem állíthat fel új diagnózist a vizsgálati eredményekből.",
     learningDesc:"Orvos által jóváhagyott tanulás a véglegesített összefoglalókból. A rendszer nem módosítja automatikusan a fő Skill-t.",
     finalizedCorpusReview:"Véglegesített korpusz ellenőrzése",
-    corpusReviewDesc:"A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból. Ez nem módosítja a klinikai dokumentációt vagy a véglegesített szöveget.",
+    corpusReviewDesc:"Az új véglegesített revíziók Pending állapotban maradnak, amíg külön jóvá nem hagyja vagy ki nem zárja őket az AI-tanulásból. Ez nem módosítja a klinikai dokumentációt vagy a véglegesített szöveget.",
     loading:"Betöltés…",
     refresh:"FRISSÍTÉS", finalizedCorpus:"Véglegesített korpusz", activeSkill:"Aktív Skill", activeStyle:"Aktív stílus",
     writingStyle:"Írási stílus", styleDesc:"Generált → véglegesített párok. A jelölt csak külön jóváhagyással aktiválható.",
@@ -3033,48 +3036,154 @@ function learningMessage(message, isError = false) {
   el.style.color = isError ? "#991b1b" : "";
 }
 
-function renderCorpusRevisions(revisions) {
+async function renderCorpusRevisions(source) {
   const host = document.getElementById("corpusReviewList");
   if (!host) return;
 
-  if (!revisions.length) {
-    host.innerHTML = `<div class="subtle">${uiLang === "hu" ? "Még nincs véglegesített revízió." : "No finalized revisions yet."}</div>`;
-    return;
+  const isBeta = document.body.classList.contains("beta-build");
+  let revisions = Array.isArray(source) ? source : [];
+  let total = revisions.length;
+  let counts = null;
+
+  if (isBeta) {
+    counts = source && !Array.isArray(source) ? source : {};
+    host.innerHTML = `<div class="subtle">${uiLang === "hu" ? "Betöltés…" : "Loading…"}</div>`;
+
+    const pageResult = await window.BachSBOBackend.listCorpusRevisions(
+      corpusReviewTab,
+      corpusReviewPage,
+      CORPUS_REVIEW_PAGE_SIZE
+    );
+
+    revisions = pageResult?.revisions || [];
+    total = Number(pageResult?.total || 0);
+
+    // If the current page became empty after a review action, step back safely.
+    if (corpusReviewPage > 0 && total > 0 && revisions.length === 0) {
+      corpusReviewPage = Math.max(0, corpusReviewPage - 1);
+      return renderCorpusRevisions(counts);
+    }
   }
 
-  host.innerHTML = revisions.map((item) => {
-    const status = item.learning_status || "approved";
-    const reviewed = item.learning_reviewed_at
-      ? new Date(item.learning_reviewed_at).toLocaleString()
-      : "";
-    const finalized = item.finalized_at
-      ? new Date(item.finalized_at).toLocaleString()
-      : "";
-    return `
-      <div class="learning-item corpus-review-item">
-        <div class="learning-item-head">
-          <div>
-            <b>${uiLang === "hu" ? "Véglegesített revízió" : "Finalized revision"}</b>
-            <div class="subtle">${esc(finalized)}${item.model ? ` • ${esc(item.model)}` : ""}</div>
+  const statusClass = (status) =>
+    status === "approved" ? "done" :
+    status === "excluded" ? "rejected" :
+    "pending";
+
+  const cards = revisions.length
+    ? revisions.map((item) => {
+        const status = item.learning_status || (isBeta ? "pending" : "approved");
+        const reviewed = item.learning_reviewed_at
+          ? new Date(item.learning_reviewed_at).toLocaleString()
+          : "";
+        const finalized = item.finalized_at
+          ? new Date(item.finalized_at).toLocaleString()
+          : "";
+
+        let actions = "";
+        if (!isBeta || status === "pending") {
+          actions = `
+            <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
+              ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
+            </button>
+            <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
+              ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
+            </button>
+          `;
+        } else if (status === "approved") {
+          actions = `
+            <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
+              ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
+            </button>
+          `;
+        } else {
+          actions = `
+            <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
+              ${uiLang === "hu" ? "VISSZAÁLLÍTÁS / JÓVÁHAGYÁS" : "RESTORE / APPROVE"}
+            </button>
+          `;
+        }
+
+        return `
+          <div class="learning-item corpus-review-item">
+            <div class="learning-item-head">
+              <div>
+                <b>${uiLang === "hu" ? "Véglegesített revízió" : "Finalized revision"}</b>
+                <div class="subtle">${esc(finalized)}${item.model ? ` • ${esc(item.model)}` : ""}</div>
+              </div>
+              <span class="badge ${statusClass(status)}">
+                ${esc(status.toUpperCase())}
+              </span>
+            </div>
+            <div class="learning-text corpus-finalized-text">${esc(item.finalized_text || "")}</div>
+            ${item.learning_note ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrzési megjegyzés" : "Review note"}: ${esc(item.learning_note)}</div>` : ""}
+            ${reviewed ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrizve" : "Reviewed"}: ${esc(reviewed)}</div>` : ""}
+            <div class="learning-actions">${actions}</div>
           </div>
-          <span class="badge ${status === "approved" ? "done" : "rejected"}">
-            ${esc(status.toUpperCase())}
-          </span>
-        </div>
-        <div class="learning-text corpus-finalized-text">${esc(item.finalized_text || "")}</div>
-        ${item.learning_note ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrzési megjegyzés" : "Review note"}: ${esc(item.learning_note)}</div>` : ""}
-        ${reviewed ? `<div class="footer-note">${uiLang === "hu" ? "Ellenőrizve" : "Reviewed"}: ${esc(reviewed)}</div>` : ""}
-        <div class="learning-actions">
-          <button class="btn success small" data-corpus-review="${item.id}" data-decision="approved">
-            ${uiLang === "hu" ? "JÓVÁHAGYÁS" : "APPROVE"}
-          </button>
-          <button class="btn small" data-corpus-review="${item.id}" data-decision="excluded">
-            ${uiLang === "hu" ? "KIZÁRÁS" : "EXCLUDE"}
-          </button>
-        </div>
+        `;
+      }).join("")
+    : `<div class="subtle">${isBeta
+        ? (uiLang === "hu" ? "Ebben a kategóriában nincs revízió." : "No revisions in this category.")
+        : (uiLang === "hu" ? "Még nincs véglegesített revízió." : "No finalized revisions yet.")
+      }</div>`;
+
+  if (isBeta) {
+    const labels = ["pending", "approved", "excluded"];
+    const tabs = labels.map((status) => `
+      <button
+        class="btn small ${corpusReviewTab === status ? "primary" : ""}"
+        type="button"
+        data-corpus-tab="${status}">
+        ${status.toUpperCase()} (${Number(counts?.[status] || 0)})
+      </button>
+    `).join("");
+
+    const from = total ? corpusReviewPage * CORPUS_REVIEW_PAGE_SIZE + 1 : 0;
+    const to = Math.min(total, (corpusReviewPage + 1) * CORPUS_REVIEW_PAGE_SIZE);
+    const hasPrev = corpusReviewPage > 0;
+    const hasNext = to < total;
+
+    host.innerHTML = `
+      <div class="learning-actions" style="margin-bottom:14px">
+        ${tabs}
       </div>
+      <div class="subtle" style="margin-bottom:10px">
+        ${total ? `${from}–${to} / ${total}` : "0"}
+      </div>
+      ${cards}
+      ${total > CORPUS_REVIEW_PAGE_SIZE ? `
+        <div class="learning-actions" style="justify-content:space-between;margin-top:14px">
+          <button class="btn small" type="button" data-corpus-page="prev" ${hasPrev ? "" : "disabled"}>
+            ${uiLang === "hu" ? "ELŐZŐ" : "PREVIOUS"}
+          </button>
+          <button class="btn small" type="button" data-corpus-page="next" ${hasNext ? "" : "disabled"}>
+            ${uiLang === "hu" ? "KÖVETKEZŐ" : "NEXT"}
+          </button>
+        </div>
+      ` : ""}
     `;
-  }).join("");
+
+    host.querySelectorAll("[data-corpus-tab]").forEach((button) => {
+      button.onclick = () => {
+        corpusReviewTab = button.dataset.corpusTab || "pending";
+        corpusReviewPage = 0;
+        renderCorpusRevisions(counts).catch(handleBackendError);
+      };
+    });
+
+    host.querySelectorAll("[data-corpus-page]").forEach((button) => {
+      button.onclick = () => {
+        if (button.dataset.corpusPage === "prev") {
+          corpusReviewPage = Math.max(0, corpusReviewPage - 1);
+        } else {
+          corpusReviewPage += 1;
+        }
+        renderCorpusRevisions(counts).catch(handleBackendError);
+      };
+    });
+  } else {
+    host.innerHTML = cards;
+  }
 
   host.querySelectorAll("[data-corpus-review]").forEach((button) => {
     button.onclick = async () => {
@@ -3312,15 +3421,21 @@ async function renderLearningDashboard() {
   document.getElementById("learningActiveStyle").textContent =
     activeStyle ? `v${activeStyle.version}` : (uiLang === "hu" ? "Nincs" : "None");
 
-  renderCorpusRevisions(overview.corpusRevisions || []);
+  if (document.body.classList.contains("beta-build")) {
+    await renderCorpusRevisions(overview.corpusCounts || {});
+  } else {
+    await renderCorpusRevisions(overview.corpusRevisions || []);
+  }
+
   renderStyleProfiles(overview.styleProfiles || [], overview.styleCoachRuns || []);
   renderSkillSuggestions(overview.skillSuggestions || []);
 
   const styleButton = document.getElementById("generateStyleBtn");
   const skillButton = document.getElementById("generateSkillSuggestionBtn");
+  const approvedCount = Number(overview.corpusCounts?.approved || 0);
 
-  styleButton.disabled = (overview.finalizedCount || 0) < 5;
-  skillButton.disabled = (overview.finalizedCount || 0) < 10;
+  styleButton.disabled = approvedCount < 5;
+  skillButton.disabled = approvedCount < 10;
 }
 
 async function generateStyleCandidate() {

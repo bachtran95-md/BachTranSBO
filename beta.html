@@ -283,24 +283,11 @@
                     <textarea id="fHistory" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
                   </div>
 
-                  <div class="field narrative-field waiting" data-narrative-field="physical">
-                    <div class="narrative-head">
-                      <label data-i18n="physicalExam">Physical examination — main points / status</label>
-                      <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="physical">KÖTELEZŐ</span>
-                        <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
-                      </div>
-                    </div>
-                    <div class="beta-simple-status-hint">
-                      <span>Betegdokumentáció része • automatikusan mentve.</span>
-                      <span>A külön Státusz generátor nem írja felül ezt a mezőt.</span>
-                    </div>
-                    <textarea id="fPhysical" class="beta-simple-status-textarea" placeholder="Fizikális vizsgálat…"></textarea>
-                  </div>
                 </div>
 
                 <div class="section beta-status-generator-section">
                   <div class="section-title" data-i18n="sectionStatusBeta">2. Státusz</div>
+                  <textarea id="fPhysical" class="hidden" aria-hidden="true" tabindex="-1"></textarea>
                   <div id="betaStatusGenerator" class="beta-status-generator">
                     <div class="beta-status-parameters-card">
                       <div class="beta-status-generator-heading">PARAMÉTEREK</div>

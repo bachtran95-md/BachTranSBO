@@ -2116,7 +2116,8 @@ await betaFeatures.waitForFunction(() =>
   document.querySelectorAll("#betaFindingComposer .beta-finding-chip").length === 1 &&
   document.querySelectorAll("#betaUnknownChips .beta-unknown-chip").length === 1 &&
   (document.querySelector("#betaUnknownChips .beta-unknown-chip")?.textContent || "").includes("pleuralis dörzszörej") &&
-  document.querySelector("#betaCopyStatus")?.disabled
+  (document.querySelector("#betaStructuredStatusState")?.textContent || "").includes("Folyamatban") &&
+  document.querySelector("#betaStructuredStatusCopy")?.disabled
 );
 const directAiButtons = betaFeatures.locator("#betaUnknownChips [data-ai-unknown-phrase]");
 if (await directAiButtons.count() !== 1) {

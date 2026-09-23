@@ -2075,6 +2075,7 @@ await betaFeatures.waitForFunction(() =>
   document.querySelectorAll('[data-status-unknown-host="E5"] .beta-status-unknown').length === 1 &&
   Boolean(document.querySelector("#betaStatusCopyBtn")?.disabled)
 );
+await betaFeatures.locator('[data-status-section="E5"]').fill("");
 for (const forbidden of [
   "Stridor hallható.",
   "Dyspnoés.",

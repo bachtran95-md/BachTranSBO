@@ -13,6 +13,7 @@
   let activeShiftId = "";
   let activeState = null;
   let refreshTimer = null;
+  let clinicalAutosaveTimer = null;
 
   function esc(value) {
     return String(value ?? "")
@@ -985,6 +986,31 @@
     }
   }
 
+  function syncClinicalPhysical(model, { immediate = false } = {}) {
+    if (!activeState || !activeCaseId) return;
+    if (!activeState.touched && !activeState.copiedAt) return;
+
+    const text = model.unknowns.length ? "" : modelText(model);
+    window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(activeCaseId, text);
+    document.dispatchEvent(new CustomEvent("bachsbo:status-generator-updated", {
+      detail: {
+        caseId: activeCaseId,
+        complete: Boolean(text),
+        unresolved: model.unknowns.length
+      }
+    }));
+
+    clearTimeout(clinicalAutosaveTimer);
+    if (immediate) {
+      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
+      return;
+    }
+
+    clinicalAutosaveTimer = window.setTimeout(() => {
+      void window.BachSBOClinicalUi?.autosaveCurrentCase?.();
+    }, 700);
+  }
+
   function render() {
     const root = document.getElementById("betaStatusGenerator");
     if (!root || !activeState) return;
@@ -1004,6 +1030,7 @@
         : "";
     }
     if (copy) copy.disabled = model.unknowns.length > 0;
+    syncClinicalPhysical(model);
   }
 
   function populate() {
@@ -1099,6 +1126,7 @@
       activeState.copiedAt = new Date().toISOString();
       activeState.touched = true;
       saveState();
+      syncClinicalPhysical(model, { immediate: true });
 
       const button = event.currentTarget;
       const before = button.textContent;

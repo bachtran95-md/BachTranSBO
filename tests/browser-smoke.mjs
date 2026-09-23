@@ -2162,7 +2162,7 @@ const composerPersistenceCheck = await betaFeatures.evaluate(() => {
   };
 });
 if (
-  composerPersistenceCheck.physical !== "epig nyomérz, dyspnoe nincs, jobb basalis crepitatio" ||
+  composerPersistenceCheck.physical !== "B: dyspnoe nincs, jobb basalis crepitatio\nE5: epig nyomérz" ||
   composerPersistenceCheck.generatedLeaked
 ) {
   throw new Error("Generated beta status leaked into patient state: " + JSON.stringify(composerPersistenceCheck));

@@ -1242,6 +1242,23 @@
     }
 
     if (records.length) {
+      for (const record of records) {
+        const explicitNormals = (record.payload.explicit_normal_findings || []).map((item) => ({
+          section: item.section,
+          concept: item.concept,
+          value: item.value,
+          attributes: item.attributes || {}
+        }));
+        const updatedPatient = window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(
+          record.caseId,
+          record.payload.final_status,
+          explicitNormals
+        );
+        if (updatedPatient && window.BachSBOBackend?.savePatient) {
+          await window.BachSBOBackend.savePatient(shiftId, updatedPatient);
+        }
+      }
+
       if (!window.BachSBOBackend?.saveStatusGeneratorRecords) {
         throw new Error("A Státusz végleges mentési funkció nem érhető el.");
       }

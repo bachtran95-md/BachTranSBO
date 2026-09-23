@@ -570,7 +570,7 @@ function normalizePhysicalStatusData(value) {
   return base;
 }
 
-function physicalStatusPositiveText(value) {
+function usesSimplePhysicalStatus() {\n  return document.body.classList.contains("beta-simple-status");\n}\n\nfunction physicalStatusPositiveText(value) {
   if (!value || typeof value !== "object") return "";
   const status = normalizePhysicalStatusData(value);
   return PHYSICAL_STATUS_SECTION_KEYS
@@ -742,12 +742,12 @@ function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
   if (patient[config.skipProp]) return "none";
-  if (key === "physical" && document.body.classList.contains("beta-build")) {
+  if (key === "physical" && document.body.classList.contains("beta-build") && !usesSimplePhysicalStatus()) {
     return patient?.physicalStatus?.version === 1 && structuredPhysicalStatusComplete(patient)
       ? "result"
       : "waiting";
   }
-  if (key === "physical" && patient?.physicalStatus?.version === 1) {
+  if (key === "physical" && !usesSimplePhysicalStatus() && patient?.physicalStatus?.version === 1) {
     return structuredPhysicalStatusComplete(patient) ? "result" : "waiting";
   }
   if (String(patient[config.valueProp] || "").trim()) return "result";
@@ -901,7 +901,7 @@ function wireNarrativeFields(patient) {
       patient[config.valueProp] = input.value;
       if (
         key === "physical" &&
-        !document.body.classList.contains("beta-build") &&
+        (usesSimplePhysicalStatus() || !document.body.classList.contains("beta-build")) &&
         patient?.physicalStatus?.version === 1
       ) {
         patient.physicalStatus = null;
@@ -1863,9 +1863,10 @@ async function addPatient() {
     historySkipped: false,
     physical: "",
     physicalSkipped: false,
-    physicalStatus: document.body.classList.contains("beta-build")
-      ? defaultPhysicalStatusData()
-      : null,
+    physicalStatus:
+      document.body.classList.contains("beta-build") && !usesSimplePhysicalStatus()
+        ? defaultPhysicalStatusData()
+        : null,
     tests: {
       labs: [newEntry()],
       ekgs: [newEntry()],
@@ -2457,16 +2458,23 @@ function collectForm() {
   patient.history = document.getElementById("fHistory").value;
   patient.physical =
     document.body.classList.contains("beta-build") &&
+    !usesSimplePhysicalStatus() &&
     patient?.physicalStatus?.version === 1
       ? physicalStatusPositiveText(patient.physicalStatus)
       : document.getElementById("fPhysical").value;
+
+  if (usesSimplePhysicalStatus() && patient?.physicalStatus?.version === 1) {
+    patient.physicalStatus = null;
+  }
   patient.others = document.getElementById("fOthers").value;
   patient.therapy = document.getElementById("fTherapy").value;
   patient.course = document.getElementById("fCourse").value;
 
   if (patient.complaint.trim()) patient.complaintSkipped = false;
   if (patient.history.trim()) patient.historySkipped = false;
-  if (patient?.physicalStatus?.version === 1 || patient.physical.trim()) patient.physicalSkipped = false;
+  if ((!usesSimplePhysicalStatus() && patient?.physicalStatus?.version === 1) || patient.physical.trim()) {
+    patient.physicalSkipped = false;
+  }
   if (patient.therapy.trim()) patient.therapySkipped = false;
   if (patient.course.trim()) patient.courseSkipped = false;
 

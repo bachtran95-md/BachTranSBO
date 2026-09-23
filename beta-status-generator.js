@@ -456,12 +456,63 @@
     E6: parseE6
   };
 
+  function isFindingContinuation(section, text) {
+    const n = fold(text);
+    if (section === "C" && /^(axilla|nyak|carotis|hat|hati|bal axilla|jobb axilla).*(fele|iranyaba).*(vezet|sugar)/.test(n)) {
+      return true;
+    }
+    if (section === "C" && /^(punctum maximum|pm)\b/.test(n)) return true;
+    if (section === "D" && /^(e\d|v\d|m\d)\b/.test(n)) return true;
+    return false;
+  }
+
+  function splitRecognizedDelimited(section, chunk, separator, joiner) {
+    const parser = PARSERS[section];
+    const pieces = String(chunk || "").split(separator).map((part) => part.trim()).filter(Boolean);
+    if (pieces.length < 2) return [chunk];
+
+    const recognized = pieces.map((part) => parser(part).length > 0);
+    if (!recognized.some(Boolean)) return [chunk];
+
+    const grouped = [];
+    for (let i = 0; i < pieces.length; i += 1) {
+      const part = pieces[i];
+      if (!recognized[i] && isFindingContinuation(section, part) && grouped.length) {
+        grouped[grouped.length - 1] += joiner + part;
+      } else {
+        grouped.push(part);
+      }
+    }
+    return grouped;
+  }
+
+  function smartSplitInput(section, value) {
+    const hardChunks = splitInput(value);
+    const output = [];
+
+    for (const chunk of hardChunks) {
+      let pieces = splitRecognizedDelimited(section, chunk, /,\s*/, ", ");
+      const expanded = [];
+      for (const piece of pieces) {
+        expanded.push(...splitRecognizedDelimited(section, piece, /\s+és\s+/i, " és "));
+      }
+      pieces = expanded;
+
+      for (const piece of pieces) {
+        const plusParts = splitRecognizedDelimited(section, piece, /\s+\+\s+/, " + ");
+        output.push(...plusParts);
+      }
+    }
+
+    return output.map((part) => part.trim()).filter(Boolean);
+  }
+
   function parseAll() {
     const findings = [];
     const unknowns = [];
 
     for (const section of SECTIONS) {
-      for (const raw of splitInput(activeState?.inputs?.[section])) {
+      for (const raw of smartSplitInput(section, activeState?.inputs?.[section])) {
         const parsed = PARSERS[section](raw);
         if (parsed.length) {
           findings.push(...parsed);
@@ -580,20 +631,27 @@
     parts.push(segment(chestText + " ", chest && chest.value !== "normal" ? "modified" : chest?.explicitNormal ? "explicit" : "base", "B"));
     parts.push(segment("Rekeszek szimmetrikusan kitérnek. ", "base", "B"));
 
-    const breath = firstFinding(findings, "B", "breath_sound");
-    if (!breath || breath.value === "normal") {
-      parts.push(segment("Alaplégzés normális. Oldalkülönbség nincs. ", breath?.explicitNormal ? "explicit" : "base", "B"));
+    const breathSounds = findingsFor(findings, "B", "breath_sound");
+    const abnormalBreathSounds = breathSounds.filter((item) => item.value !== "normal");
+    if (!abnormalBreathSounds.length) {
+      const explicitNormalBreath = breathSounds.find((item) => item.explicitNormal);
+      parts.push(segment("Alaplégzés normális. Oldalkülönbség nincs. ", explicitNormalBreath ? "explicit" : "base", "B"));
     } else {
-      const s = sideText(breath.attributes.side);
-      const l = locationText(breath.attributes.location);
-      const typeText = {
-        diminished: "gyengült",
-        absent: "nem hallható",
-        harsh: "érdes",
-        bronchial: "bronchialis"
-      }[breath.value] || breath.value;
-      const prefix = [s, l].filter(Boolean).join(" ");
-      parts.push(segment((prefix ? prefix + " " : "") + typeText + " légzés hallható. ", "modified", "B"));
+      for (const breath of abnormalBreathSounds) {
+        const s = sideText(breath.attributes.side);
+        const l = locationText(breath.attributes.location);
+        const typeText = {
+          diminished: "gyengült",
+          absent: "nem hallható",
+          harsh: "érdes",
+          bronchial: "bronchialis"
+        }[breath.value] || breath.value;
+        const prefix = [s, l].filter(Boolean).join(" ");
+        const sentence = breath.value === "absent"
+          ? (prefix ? prefix + " " : "") + "légzés nem hallható. "
+          : (prefix ? prefix + " " : "") + typeText + " légzés hallható. ";
+        parts.push(segment(sentence, "modified", "B"));
+      }
     }
 
     for (const item of findingsFor(findings, "B", "adventitious_sound")) {
@@ -666,16 +724,20 @@
     if (rate?.value === "tachycardic") parts.push(segment("Tachycardia észlelhető. ", rate.source === "parameter" ? "derived" : "modified", "C", rate.source === "parameter" ? "Pulsus >100/min alapján" : ""));
     if (rate?.value === "bradycardic") parts.push(segment("Bradycardia észlelhető. ", rate.source === "parameter" ? "derived" : "modified", "C", rate.source === "parameter" ? "Pulsus <60/min alapján" : ""));
 
-    const murmur = firstFinding(findings, "C", "cardiac_murmur");
-    if (!murmur || murmur.value === "none") {
-      parts.push(segment("Zörej nem hallható. ", murmur?.explicitNormal ? "explicit" : "base", "C"));
+    const murmurs = findingsFor(findings, "C", "cardiac_murmur");
+    const abnormalMurmurs = murmurs.filter((item) => item.value !== "none");
+    if (!abnormalMurmurs.length) {
+      const explicitNoMurmur = murmurs.find((item) => item.explicitNormal);
+      parts.push(segment("Zörej nem hallható. ", explicitNoMurmur ? "explicit" : "base", "C"));
     } else {
-      let txt = "";
-      if (murmur.attributes.grade) txt += murmur.attributes.grade + " ";
-      txt += murmur.value === "diastolic" ? "diastolés zörej" : "systolés zörej";
-      if (murmur.attributes.maximum === "apex") txt += " az apex felett";
-      if (murmur.attributes.radiation === "axilla") txt += ", axilla felé vezetődik";
-      parts.push(segment(ensureSentence(txt) + " ", "modified", "C"));
+      for (const murmur of abnormalMurmurs) {
+        let txt = "";
+        if (murmur.attributes.grade) txt += murmur.attributes.grade + " ";
+        txt += murmur.value === "diastolic" ? "diastolés zörej" : "systolés zörej";
+        if (murmur.attributes.maximum === "apex") txt += " az apex felett";
+        if (murmur.attributes.radiation === "axilla") txt += ", axilla felé vezetődik";
+        parts.push(segment(ensureSentence(txt) + " ", "modified", "C"));
+      }
     }
 
     const jvp = firstFinding(findings, "C", "jvp");
@@ -708,15 +770,17 @@
     }
 
     const orientation = firstFinding(findings, "D", "orientation");
-    const mental = firstFinding(findings, "D", "mental_state");
+    const mentalStates = findingsFor(findings, "D", "mental_state");
     if (orientation?.value === "disoriented") parts.push(segment("Dezorientált. ", "modified", "D"));
     else parts.push(segment("Térben, időben és saját személyére orientált. ", orientation?.explicitNormal ? "explicit" : "base", "D"));
-    if (mental) {
+    for (const mental of mentalStates) {
       const txt = {
         known_dementia: "Ismert dementia.",
         confused: "Zavart.",
         agitated: "Agitált.",
-        somnolent: "Somnolens."
+        somnolent: "Somnolens.",
+        soporous: "Soporosus.",
+        comatose: "Comatosus."
       }[mental.value];
       if (txt) parts.push(segment(txt + " ", "modified", "D"));
     }
@@ -729,31 +793,46 @@
     }[aphasia?.value] || "Aphasia nincs.";
     parts.push(segment(aphasiaText + " ", aphasia && aphasia.value !== "none" ? "modified" : aphasia?.explicitNormal ? "explicit" : "base", "D"));
 
-    const paresis = firstFinding(findings, "D", "paresis");
-    if (!paresis || paresis.value === "none") {
-      parts.push(segment("Paresis nem észlelhető. ", paresis?.explicitNormal ? "explicit" : "base", "D"));
+    const pareses = findingsFor(findings, "D", "paresis");
+    const abnormalPareses = pareses.filter((item) => item.value !== "none");
+    if (!abnormalPareses.length) {
+      const explicitNoParesis = pareses.find((item) => item.explicitNormal);
+      parts.push(segment("Paresis nem észlelhető. ", explicitNoParesis ? "explicit" : "base", "D"));
     } else {
-      const s = sideText(paresis.attributes.side);
-      const txt = paresis.value === "latent" ? "latens paresis" : "végtagparesis";
-      parts.push(segment((s ? s + " oldali " : "") + txt + " észlelhető. ", "modified", "D"));
+      for (const paresis of abnormalPareses) {
+        const s = sideText(paresis.attributes.side);
+        const txt = {
+          latent: "latens paresis",
+          hemiparesis: "hemiparesis",
+          monoparesis: "monoparesis",
+          paraparesis: "paraparesis",
+          tetraparesis: "tetraparesis",
+          limb: "végtagparesis"
+        }[paresis.value] || "végtagparesis";
+        parts.push(segment((s ? s + " oldali " : "") + txt + " észlelhető. ", "modified", "D"));
+      }
     }
 
     const face = firstFinding(findings, "D", "facial_paresis");
     if (!face || face.value === "none") parts.push(segment("Facialis paresis nincs. ", face?.explicitNormal ? "explicit" : "base", "D"));
     else parts.push(segment((sideText(face.attributes.side) ? sideText(face.attributes.side) + " oldali " : "") + "facialis paresis észlelhető. ", "modified", "D"));
 
-    const pupil = firstFinding(findings, "D", "pupil");
-    if (!pupil || pupil.value === "normal") {
-      parts.push(segment("Pupillák kerekek, egyenlőek, fényre reagálnak. ", pupil?.explicitNormal ? "explicit" : "base", "D"));
+    const pupils = findingsFor(findings, "D", "pupil");
+    const abnormalPupils = pupils.filter((item) => item.value !== "normal");
+    if (!abnormalPupils.length) {
+      const explicitNormalPupil = pupils.find((item) => item.explicitNormal);
+      parts.push(segment("Pupillák kerekek, egyenlőek, fényre reagálnak. ", explicitNormalPupil ? "explicit" : "base", "D"));
     } else {
-      const s = sideText(pupil.attributes.side);
-      const txt = {
-        anisocoria: "Anisocoria észlelhető.",
-        miosis: (s ? s + " oldali " : "") + "myosis észlelhető.",
-        mydriasis: (s ? s + " oldali " : "") + "mydriasis észlelhető.",
-        nonreactive: (s ? s + " oldali " : "") + "pupilla fényre nem reagál."
-      }[pupil.value];
-      parts.push(segment(txt + " ", "modified", "D"));
+      for (const pupil of abnormalPupils) {
+        const s = sideText(pupil.attributes.side);
+        const txt = {
+          anisocoria: "Anisocoria észlelhető.",
+          miosis: (s ? s + " oldali " : "") + "myosis észlelhető.",
+          mydriasis: (s ? s + " oldali " : "") + "mydriasis észlelhető.",
+          nonreactive: (s ? s + " oldali " : "") + "pupilla fényre nem reagál."
+        }[pupil.value];
+        if (txt) parts.push(segment(txt + " ", "modified", "D"));
+      }
     }
 
     const nyst = firstFinding(findings, "D", "nystagmus");
@@ -818,9 +897,16 @@
     if (hydration?.value === "dehydrated") parts.push(segment("Exsiccosis jelei észlelhetők. ", "modified", "E2"));
     for (const item of findingsFor(findings, "E2", "custom")) parts.push(segment(ensureSentence(item.attributes.text) + " ", "modified", "E2"));
 
-    const injury = firstFinding(findings, "E3", "injury");
-    if (!injury || injury.value === "none") parts.push(segment("Külsérelmi nyom nincs. ", injury?.explicitNormal ? "explicit" : "base", "E3"));
-    else parts.push(segment(ensureSentence(injury.raw) + " ", "modified", "E3"));
+    const injuries = findingsFor(findings, "E3", "injury");
+    const abnormalInjuries = injuries.filter((item) => item.value !== "none");
+    if (!abnormalInjuries.length) {
+      const explicitNoInjury = injuries.find((item) => item.explicitNormal);
+      parts.push(segment("Külsérelmi nyom nincs. ", explicitNoInjury ? "explicit" : "base", "E3"));
+    } else {
+      for (const injury of abnormalInjuries) {
+        parts.push(segment(ensureSentence(injury.raw) + " ", "modified", "E3"));
+      }
+    }
     for (const item of findingsFor(findings, "E3", "custom")) parts.push(segment(ensureSentence(item.attributes.text) + " ", "modified", "E3"));
 
     const e4Abnormal = findings.filter((item) => item.section === "E4" && !item.explicitNormal && item.value !== "none");
@@ -860,11 +946,13 @@
       parts.push(segment((l ? l + " " : "") + (ch ? ch + " " : "") + "hasi fájdalmat jelez. ", "modified", "E5"));
     }
 
-    const tenderness = firstFinding(findings, "E5", "abdominal_tenderness");
-    if (tenderness?.value === "present") parts.push(segment((locationText(tenderness.attributes.location) ? locationText(tenderness.attributes.location) + " " : "") + "nyomásérzékenység észlelhető. ", "modified", "E5"));
+    for (const tenderness of findingsFor(findings, "E5", "abdominal_tenderness")) {
+      if (tenderness.value === "present") parts.push(segment((locationText(tenderness.attributes.location) ? locationText(tenderness.attributes.location) + " " : "") + "nyomásérzékenység észlelhető. ", "modified", "E5"));
+    }
 
-    const guarding = firstFinding(findings, "E5", "guarding");
-    if (guarding?.value === "present") parts.push(segment((locationText(guarding.attributes.location) ? locationText(guarding.attributes.location) + " " : "") + "defanz észlelhető. ", "modified", "E5"));
+    for (const guarding of findingsFor(findings, "E5", "guarding")) {
+      if (guarding.value === "present") parts.push(segment((locationText(guarding.attributes.location) ? locationText(guarding.attributes.location) + " " : "") + "defanz észlelhető. ", "modified", "E5"));
+    }
 
     const mass = firstFinding(findings, "E5", "abdominal_mass");
     parts.push(segment(
@@ -889,11 +977,16 @@
     parts.push(segment(bowelText + " ", bowel && bowel.value !== "normal" ? "modified" : bowel?.explicitNormal ? "explicit" : "base", "E5"));
     for (const item of findingsFor(findings, "E5", "custom")) parts.push(segment(ensureSentence(item.attributes.text) + " ", "modified", "E5"));
 
-    const renal = firstFinding(findings, "E6", "renal_angle_tenderness");
-    if (!renal || renal.value === "none") parts.push(segment("Vesetájak ütögetésre nem érzékenyek. ", renal?.explicitNormal ? "explicit" : "base", "E6"));
-    else {
-      const s = sideText(renal.attributes.side);
-      parts.push(segment((s ? s + " vesetáj" : "Vesetájak") + " ütögetésre érzékeny" + (renal.attributes.side === "bilateral" ? "ek" : "") + ". ", "modified", "E6"));
+    const renalFindings = findingsFor(findings, "E6", "renal_angle_tenderness");
+    const abnormalRenal = renalFindings.filter((item) => item.value !== "none");
+    if (!abnormalRenal.length) {
+      const explicitNormalRenal = renalFindings.find((item) => item.explicitNormal);
+      parts.push(segment("Vesetájak ütögetésre nem érzékenyek. ", explicitNormalRenal ? "explicit" : "base", "E6"));
+    } else {
+      for (const renal of abnormalRenal) {
+        const s = sideText(renal.attributes.side);
+        parts.push(segment((s ? s + " vesetáj" : "Vesetájak") + " ütögetésre érzékeny" + (renal.attributes.side === "bilateral" ? "ek" : "") + ". ", "modified", "E6"));
+      }
     }
     for (const item of findingsFor(findings, "E6", "custom")) parts.push(segment(ensureSentence(item.attributes.text) + " ", "modified", "E6"));
 

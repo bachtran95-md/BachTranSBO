@@ -143,6 +143,15 @@ body.beta-build .learning-section-tabs{
   flex-wrap:wrap;
   margin:0 0 18px;
 }
+body.beta-build .status-learning-disabled,
+body.beta-build .status-learning-disabled:disabled{
+  opacity:.46;
+  border-color:#d1d5db;
+  background:#f3f4f6;
+  color:#6b7280;
+  cursor:not-allowed;
+  box-shadow:none;
+}
 body.beta-build .status-learning-metrics{
   margin-top:2px;
 }

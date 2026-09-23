@@ -44,6 +44,7 @@
       version: 1,
       parameters: Object.fromEntries(PARAM_DEFS.map(([key]) => [key, ""])),
       sections: Object.fromEntries(SECTION_DEFS.map(([key]) => [key, ""])),
+      freeText: "",
       generatedAt: null
     };
   }
@@ -129,6 +130,7 @@
     next.version = 1;
     next.parameters ||= {};
     next.sections ||= {};
+    next.freeText = String(root.querySelector("#betaPhysicalFreeText")?.value || "").trim();
 
     root.querySelectorAll("[data-status-param]").forEach((input) => {
       next.parameters[input.dataset.statusParam] = String(input.value || "").trim();
@@ -162,6 +164,9 @@
   }
 
   function populateBuilder(root, data) {
+    const freeText = root.querySelector("#betaPhysicalFreeText");
+    if (freeText) freeText.value = data?.freeText || "";
+
     root.querySelectorAll("[data-status-param]").forEach((input) => {
       input.value = data?.parameters?.[input.dataset.statusParam] || "";
     });
@@ -183,6 +188,15 @@
       root.id = "betaStructuredStatus";
       root.className = "beta-structured-status";
       root.innerHTML = `
+        <div class="beta-status-free-text">
+          <label for="betaPhysicalFreeText">
+            <strong>Fizikális vizsgálat</strong>
+            <span>Szabad szöveg • mentődik • Summary AI megkapja</span>
+          </label>
+          <textarea id="betaPhysicalFreeText"
+            placeholder="Szabad szöveges fizikális vizsgálat…"></textarea>
+        </div>
+
         <div class="beta-status-block-head">
           <div>
             <strong>Paraméterek</strong>
@@ -242,7 +256,7 @@
       const composer = document.getElementById("betaFindingComposer");
       field.insertBefore(root, composer || physical.nextSibling);
 
-      root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
+      root.querySelectorAll("#betaPhysicalFreeText, [data-status-param], [data-status-section]").forEach((input) => {
         input.addEventListener("input", () => markEdited(root));
       });
 

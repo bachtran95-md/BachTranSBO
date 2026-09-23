@@ -868,12 +868,16 @@
 
   function prepareUnknownEditor(composer, phrase) {
     const nextPhrase = String(phrase || "").trim();
-    if (normalizeLearningPhrase(nextPhrase) !== normalizeLearningPhrase(activeUnknownPhrase)) {
+    const phraseChanged =
+      normalizeLearningPhrase(nextPhrase) !== normalizeLearningPhrase(activeUnknownPhrase);
+
+    if (phraseChanged) {
       activeAiSuggestion = null;
       activeExistingFindingKey = "";
       const search = composer?.querySelector("#betaExistingFindingSearch");
       if (search) search.value = "";
     }
+
     activeUnknownPhrase = nextPhrase;
     const editor = composer?.querySelector("#betaLearningEditor");
     if (!editor) return;
@@ -883,12 +887,32 @@
     fillLearningSelectors(composer);
     const phraseNode = editor.querySelector("#betaLearningPhrase");
     const label = editor.querySelector("#betaNewFindingLabel");
+    const target = editor.querySelector("#betaNewFindingTarget");
     const output = editor.querySelector("#betaNewFindingOutput");
     const conflict = editor.querySelector("#betaNewFindingConflict");
+
     if (phraseNode) phraseNode.textContent = activeUnknownPhrase;
-    if (label) label.value = activeUnknownPhrase;
-    if (output) output.value = ensureSentence(activeUnknownPhrase);
-    if (conflict) conflict.value = "";
+
+    const aiMatchesPhrase =
+      activeAiSuggestion &&
+      normalizeLearningPhrase(activeAiSuggestion.sourcePhrase) ===
+        normalizeLearningPhrase(activeUnknownPhrase);
+
+    if (aiMatchesPhrase) {
+      if (label) label.value = activeAiSuggestion.canonicalLabel || activeUnknownPhrase;
+      if (target && targetMeta(activeAiSuggestion.target)) {
+        target.value = activeAiSuggestion.target || "other";
+      }
+      if (output) {
+        output.value = activeAiSuggestion.outputText || ensureSentence(activeUnknownPhrase);
+      }
+      if (conflict) conflict.value = activeAiSuggestion.conflictText || "";
+    } else if (phraseChanged || !String(label?.value || "").trim()) {
+      if (label) label.value = activeUnknownPhrase;
+      if (output) output.value = ensureSentence(activeUnknownPhrase);
+      if (conflict) conflict.value = "";
+    }
+
     renderExistingFindingPicker(composer);
   }
 

@@ -3,13 +3,41 @@
   const fields = ["mainComplaint", "complaint", "history", "physical", "therapy", "course", "diagnoses", "others"];
   const targets = [...fields, "lab", "ekg", "gas", "radiology", "consultation"];
 
+  const physicalStatusParameterKeys = [
+    "bloodPressure", "pulse", "temperature", "respiratoryRate", "spo2", "oxygen"
+  ];
+  const physicalStatusSectionKeys = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
+
+  function clinicalPhysicalStatus(value) {
+    if (!value || typeof value !== "object") return null;
+
+    const parameters = value.parameters && typeof value.parameters === "object"
+      ? value.parameters
+      : {};
+    const sections = value.sections && typeof value.sections === "object"
+      ? value.sections
+      : {};
+
+    return {
+      version: Number(value.version) || 1,
+      parameters: Object.fromEntries(
+        physicalStatusParameterKeys.map((key) => [key, String(parameters[key] ?? "").trim()])
+      ),
+      sections: Object.fromEntries(
+        physicalStatusSectionKeys.map((key) => [key, String(sections[key] ?? "").trim()])
+      )
+    };
+  }
+
   function snapshot(p) {
     const out = {};
     for (const k of [
       ...fields,
-      "sex", "yob", "disposition", "recommendations", "hospital", "ward",
-      "admissionNote", "otherOutcome", "otherDetails", "arrivalMode", "arrivalOther", "tests"
+      "sex", "yob", "triageStatus", "disposition", "dischargeCondition",
+      "recommendations", "hospital", "ward", "admissionNote", "otherOutcome",
+      "otherDetails", "arrivalMode", "arrivalOther", "tests"
     ]) out[k] = p[k] ?? null;
+    out.physicalStatus = clinicalPhysicalStatus(p.physicalStatus);
     for (const k of fields) out[k + "Skipped"] = Boolean(p[k + "Skipped"]);
     return out;
   }

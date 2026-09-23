@@ -254,10 +254,10 @@
     if (/diffuz|diffuse/.test(n)) return "diffuse";
     if (/epigastr/.test(n)) return "epigastric";
     if (/periumbil/.test(n)) return "periumbilical";
-    if (/\b(jfq|jobb also|jobb alhas|right lower)\b/.test(n)) return "RLQ";
-    if (/\b(bfq|bal also|bal alhas|left lower)\b/.test(n)) return "LLQ";
-    if (/\b(jaq|jobb felso|right upper)\b/.test(n)) return "RUQ";
-    if (/\b(baq|bal felso|left upper)\b/.test(n)) return "LUQ";
+    if (/\b(?:jaq|j\s*\.?\s*a\s*\.?\s*q\.?|jobb also|jobb alhas|right lower)\b/.test(n)) return "RLQ";
+    if (/\b(?:baq|b\s*\.?\s*a\s*\.?\s*q\.?|bal also|bal alhas|left lower)\b/.test(n)) return "LLQ";
+    if (/\b(?:jfq|j\s*\.?\s*f\s*\.?\s*q\.?|jobb felso|right upper)\b/.test(n)) return "RUQ";
+    if (/\b(?:bfq|b\s*\.?\s*f\s*\.?\s*q\.?|bal felso|left upper)\b/.test(n)) return "LUQ";
     if (/\balhas\b/.test(n)) return "lower_abdomen";
     return "";
   }
@@ -909,10 +909,10 @@
       epigastric: "epigastrialis",
       periumbilical: "periumbilicalis",
       lower_abdomen: "alhasi",
-      RLQ: "jobb alhasi / JFQ",
-      LLQ: "bal alhasi / BFQ",
-      RUQ: "jobb felső hasi / JAQ",
-      LUQ: "bal felső hasi / BAQ"
+      RLQ: "jobb alhasi / JAQ",
+      LLQ: "bal alhasi / BAQ",
+      RUQ: "jobb felső hasi / JFQ",
+      LUQ: "bal felső hasi / BFQ"
     };
     return map[location] || "";
   }

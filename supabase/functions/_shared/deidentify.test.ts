@@ -91,6 +91,7 @@ Deno.test("clinical text inventory includes structured positive status findings 
         bloodPressure: "135/80",
         pulse: "88",
       },
+      freeText: "Név: Kovács János, cor regularis.",
       sections: {
         A: "",
         B: "Név: Kovács János, jobb basalis crepitatio",
@@ -108,6 +109,9 @@ Deno.test("clinical text inventory includes structured positive status findings 
   });
 
   const byKey = new Map(items.map((item) => [item.key, item.text]));
+  if (!byKey.has("physicalStatus.freeText")) {
+    throw new Error("Missing physical free text from clinical text inventory");
+  }
   if (!byKey.has("physicalStatus.sections.B")) {
     throw new Error("Missing structured B finding from clinical text inventory");
   }
@@ -117,6 +121,9 @@ Deno.test("clinical text inventory includes structured positive status findings 
   if ([...byKey.keys()].some((key) => key.startsWith("physicalStatus.parameters."))) {
     throw new Error("Structured status parameters must not enter AI text de-identification inventory");
   }
+
+  const freeTextScrubbed = ruleBasedDeidentify(byKey.get("physicalStatus.freeText"));
+  if (!freeTextScrubbed.text.includes("[PERSON]")) throw new Error(freeTextScrubbed.text);
 
   const scrubbed = ruleBasedDeidentify(byKey.get("physicalStatus.sections.B"));
   if (!scrubbed.text.includes("[PERSON]")) throw new Error(scrubbed.text);

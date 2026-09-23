@@ -229,7 +229,6 @@
           <div class="beta-structured-status-done-head">
             <strong>✓ Státusz elkészült</strong>
             <div>
-              <button type="button" class="btn small" id="betaStructuredStatusEdit">SZERKESZTÉS</button>
               <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
               <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
             </div>
@@ -276,11 +275,6 @@
             error.classList.remove("hidden");
           }
         }
-      });
-
-      root.querySelector("#betaStructuredStatusEdit")?.addEventListener("click", () => {
-        root.classList.remove("is-generated");
-        root.querySelector("[data-status-param]")?.focus();
       });
 
       root.querySelector("#betaStructuredStatusView")?.addEventListener("click", () => {

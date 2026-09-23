@@ -706,6 +706,39 @@
     );
   }
 
+  async function findingLearningList(status = "pending", page = 0, pageSize = 20) {
+    if (!["pending", "approved", "excluded"].includes(status)) {
+      throw new Error("Invalid finding learning status.");
+    }
+    return invokeAuthedFunction(
+      "finding-learning",
+      {
+        action: "list_learning",
+        status,
+        page: Math.max(0, Math.floor(Number(page) || 0)),
+        pageSize: Math.min(50, Math.max(1, Math.floor(Number(pageSize) || 20)))
+      },
+      "Finding learning list"
+    );
+  }
+
+  async function findingLearningReview(learningId, decision, note = "") {
+    if (!learningId) throw new Error("Missing learning record.");
+    if (!["pending", "approved", "excluded"].includes(decision)) {
+      throw new Error("Invalid finding learning decision.");
+    }
+    return invokeAuthedFunction(
+      "finding-learning",
+      {
+        action: "review_learning",
+        learningId: String(learningId),
+        decision,
+        note: String(note || "")
+      },
+      "Finding learning review"
+    );
+  }
+
   async function findingLearningUndo(learningId) {
     if (!learningId) throw new Error("Missing learning record.");
     return invokeAuthedFunction(
@@ -1043,6 +1076,8 @@
     findingLearningLoadRegistry,
     findingLearningSuggest,
     findingLearningConfirmMapping,
+    findingLearningList,
+    findingLearningReview,
     findingLearningUndo,
     findingLearningBuildCandidates,
     findingLearningCandidatePatch,

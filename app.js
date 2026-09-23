@@ -542,6 +542,7 @@ function defaultPhysicalStatusData() {
       oxygen: ""
     },
     sections: Object.fromEntries(PHYSICAL_STATUS_SECTION_KEYS.map((key) => [key, ""])),
+    legacyPhysical: "",
     generatedAt: null
   };
 }
@@ -564,6 +565,7 @@ function normalizePhysicalStatusData(value) {
     base.sections[key] = String(sections[key] ?? "").trim();
   }
 
+  base.legacyPhysical = String(value.legacyPhysical ?? "").trim();
   base.generatedAt = value.generatedAt ? String(value.generatedAt) : null;
   return base;
 }
@@ -740,6 +742,11 @@ function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
   if (patient[config.skipProp]) return "none";
+  if (key === "physical" && document.body.classList.contains("beta-build")) {
+    return patient?.physicalStatus?.version === 1 && structuredPhysicalStatusComplete(patient)
+      ? "result"
+      : "waiting";
+  }
   if (key === "physical" && patient?.physicalStatus?.version === 1) {
     return structuredPhysicalStatusComplete(patient) ? "result" : "waiting";
   }

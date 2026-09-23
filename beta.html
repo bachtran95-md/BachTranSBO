@@ -8,7 +8,7 @@
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center — Beta</title>
   <link rel="stylesheet" href="styles.css?v=stable-shift-triage-20260922-2" />
-  <link rel="stylesheet" href="beta-features.css?v=status-generator-v2-20260923-1" />
+  <link rel="stylesheet" href="beta-features.css?v=notes-crud-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=status-targeting-20260923-1" />
 </head>
 <body class="beta-build beta-simple-status">
@@ -634,81 +634,24 @@
       </section>
 
       <section id="notesView" class="hidden">
-        <div class="learning-head">
+        <div class="learning-head beta-notes-heading">
           <div>
             <h1 data-i18n="notesNav">Notes</h1>
-            <div class="subtle">Gyorsan másolható saját klinikai sablonok és fontos emlékeztetők.</div>
+            <div class="subtle">Saját jegyzetek és gyorsan másolható szövegek. Nem részei a betegadatnak és nem kerülnek az AI Summary-ba.</div>
           </div>
+          <button class="btn primary" id="betaAddNoteBtn" type="button">+ ÚJ JEGYZET</button>
         </div>
 
-        <div class="card beta-notes-card beta-important-note-card">
-          <div class="card-h">
-            <div>
-              <h3>Important note</h3>
-              <div class="subtle">Személyes gyorsjegyzet ezen a böngészőn. Nem része a betegadatnak és nem kerül az AI Summary-ba.</div>
-            </div>
-          </div>
+        <div id="betaNotesStatus" class="subtle beta-notes-status">Betöltés…</div>
+
+        <div id="betaNotesEmpty" class="card beta-notes-empty hidden">
           <div class="card-b">
-            <textarea id="betaImportantNote" class="beta-important-note" placeholder="Fontos emlékeztető / gyorsan másolható saját jegyzet…"></textarea>
-            <div class="beta-important-note-actions">
-              <span class="subtle" id="betaImportantNoteStatus">Helyileg mentve ezen a böngészőn.</span>
-              <div class="toolbar">
-                <button class="btn small" id="betaImportantNoteCopy" type="button">MÁSOLÁS</button>
-                <button class="btn small" id="betaImportantNoteClear" type="button">TÖRLÉS</button>
-              </div>
-            </div>
+            <strong>Még nincs jegyzet.</strong>
+            <div class="subtle">Az „+ ÚJ JEGYZET” gombbal hozz létre egyet.</div>
           </div>
         </div>
 
-        <div class="card beta-notes-card">
-          <div class="card-h">
-            <div>
-              <h3>Possible other statuses</h3>
-              <div class="subtle">Kiegészítő státusz- és vizsgálati minták. Nem részei a betegadatnak és nem kerülnek az AI Summary-ba.</div>
-            </div>
-          </div>
-          <div class="card-b beta-note-list">
-            <div class="beta-note-snippet" data-note-card>
-              <div class="beta-note-snippet-head">
-                <strong>EKG — részletes</strong>
-                <button class="btn small" type="button" data-copy-note>MÁSOLÁS</button>
-              </div>
-              <textarea readonly>EKG: SR, fr: /min, fiz. tengelyállás, PQ: ms, QRS: ms, QTc: ms, ie ST szakaszok, konkordáns T-k. Mellkasi átm: </textarea>
-            </div>
-
-            <div class="beta-note-snippet" data-note-card>
-              <div class="beta-note-snippet-head">
-                <strong>EKG — rövid</strong>
-                <button class="btn small" type="button" data-copy-note>MÁSOLÁS</button>
-              </div>
-              <textarea readonly>EKG: SR, fr: /min, fiz. tengelyállás, norm. átvezetési idők, ie ST szakaszok, konkordáns T-k. Mellkasi átm: </textarea>
-            </div>
-
-            <div class="beta-note-snippet" data-note-card>
-              <div class="beta-note-snippet-head">
-                <strong>RDV</strong>
-                <button class="btn small" type="button" data-copy-note>MÁSOLÁS</button>
-              </div>
-              <textarea readonly>RDV: Kp. tónusú sphincter. Az ampulla recti szabad, fala sima, környezete felé mobilis. Kesztyűujjon barna széklet nyom. Kóros váladék, vér nem látható.</textarea>
-            </div>
-
-            <div class="beta-note-snippet" data-note-card>
-              <div class="beta-note-snippet-head">
-                <strong>Astrup — arteriás</strong>
-                <button class="btn small" type="button" data-copy-note>MÁSOLÁS</button>
-              </div>
-              <textarea readonly>Astrup (arteriás): pH: 7.xx, pCO2: Hgmm, pO2: Hgmm, HgB: G/L, HCt: %, Na: mM, K: mM, cLac: mM, Glu: mM, BE: mM, HCO3: mM.</textarea>
-            </div>
-
-            <div class="beta-note-snippet" data-note-card>
-              <div class="beta-note-snippet-head">
-                <strong>Astrup — vénás</strong>
-                <button class="btn small" type="button" data-copy-note>MÁSOLÁS</button>
-              </div>
-              <textarea readonly>Astrup (vénás): pH: 7.xx, pCO2: Hgmm, pO2: Hgmm, HgB: G/L, HCt: %, Na: mM, K: mM, cLac: mM, Glu: mM, BE: mM, HCO3: mM.</textarea>
-            </div>
-          </div>
-        </div>
+        <div id="betaNotesList" class="beta-note-list"></div>
       </section>
 
       <section id="adminView" class="hidden">
@@ -825,12 +768,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?v=demographics-20260922-1"></script>
-  <script src="backend.js?v=status-unify-20260923-2"></script>
+  <script src="backend.js?v=notes-crud-20260923-1"></script>
   <script src="assistant-core.js?v=assistant-core-20260922-1"></script>
   <script src="app.js?v=status-unify-20260923-2"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit.js?v=status-unify-20260923-2"></script>
-  <script src="beta-features.js?v=status-generator-v2-20260923-1"></script>
+  <script src="beta-features.js?v=notes-crud-20260923-1"></script>
   <script src="beta-status-generator.js?v=status-negation-all-20260923-1"></script>
 </body>
 </html>

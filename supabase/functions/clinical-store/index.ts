@@ -743,6 +743,103 @@ async function appendRevision(db: any, ownerId: string, patientInput: any) {
 }
 
 
+function noteRow(row: any) {
+  return {
+    id: row.id,
+    title: row.title || "",
+    content: row.content || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function noteText(input: unknown, maxLength: number, label: string) {
+  const value = String(input ?? "");
+  if (value.length > maxLength) {
+    throw new Error(`${label} is too long.`);
+  }
+  return value;
+}
+
+function noteId(input: unknown) {
+  const id = String(input || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid note ID.");
+  return id;
+}
+
+async function listNotes(db: any, ownerId: string) {
+  const { data, error } = await db
+    .from("notes")
+    .select("id, title, content, created_at, updated_at")
+    .eq("owner_id", ownerId)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return { notes: (data || []).map(noteRow) };
+}
+
+async function createNote(db: any, ownerId: string, noteInput: any) {
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("notes")
+    .insert({
+      id: crypto.randomUUID(),
+      owner_id: ownerId,
+      title: noteText(noteInput?.title, 200, "Note title"),
+      content: noteText(noteInput?.content, 50000, "Note content"),
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id, title, content, created_at, updated_at")
+    .single();
+
+  if (error) throw error;
+  return { note: noteRow(data) };
+}
+
+async function updateNote(
+  db: any,
+  ownerId: string,
+  rawNoteId: unknown,
+  noteInput: any,
+) {
+  const id = noteId(rawNoteId);
+  const { data, error } = await db
+    .from("notes")
+    .update({
+      title: noteText(noteInput?.title, 200, "Note title"),
+      content: noteText(noteInput?.content, 50000, "Note content"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("owner_id", ownerId)
+    .select("id, title, content, created_at, updated_at")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("Note does not belong to authenticated user.");
+  return { note: noteRow(data) };
+}
+
+async function deleteNote(db: any, ownerId: string, rawNoteId: unknown) {
+  const id = noteId(rawNoteId);
+  const { count, error } = await db
+    .from("notes")
+    .delete({ count: "exact" })
+    .eq("id", id)
+    .eq("owner_id", ownerId);
+
+  if (error) throw error;
+  if (count !== 1) throw new Error("Note delete did not remove exactly one note.");
+
+  return {
+    noteId: id,
+    deleted: true,
+    deletedAt: new Date().toISOString(),
+  };
+}
+
+
 async function saveRawData(
   db: any,
   ownerId: string,
@@ -972,6 +1069,29 @@ Deno.serve(async (req) => {
 
     if (body?.action === "append_revision") {
       return json(await appendRevision(db, user.id, body.patient));
+    }
+
+    if (body?.action === "list_notes") {
+      return json(await listNotes(db, user.id));
+    }
+
+    if (body?.action === "create_note") {
+      return json(await createNote(db, user.id, body.note));
+    }
+
+    if (body?.action === "update_note") {
+      return json(
+        await updateNote(
+          db,
+          user.id,
+          body.noteId,
+          body.note,
+        ),
+      );
+    }
+
+    if (body?.action === "delete_note") {
+      return json(await deleteNote(db, user.id, body.noteId));
     }
 
     if (body?.action === "save_raw_data") {

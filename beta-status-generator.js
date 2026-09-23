@@ -999,6 +999,14 @@
         value: item.value,
         attributes: item.attributes || {}
       }));
+
+    const patient = patientSnapshot(activeCaseId);
+    const changed =
+      String(patient?.physical || "") !== text ||
+      JSON.stringify(patient?.statusExplicitNormals || []) !== JSON.stringify(explicitNormals);
+
+    if (!changed) return;
+
     window.BachSBOClinicalUi?.setStatusPhysicalDraft?.(
       activeCaseId,
       text,

@@ -26,6 +26,7 @@
   let activeCaseId = null;
   let localStatus = null;
   let ekgCaseId = null;
+  let statusAutosaveTimer = null;
 
   function clinicalUi() {
     return window.BachSBOClinicalUi || null;
@@ -139,26 +140,77 @@
     return next;
   }
 
-  function markEdited(root) {
-    localStatus = readBuilder(root);
-    localStatus.generatedAt = null;
-    writeBridge(localStatus);
-    updateGeneratedUi(root);
+  function hasStructuredInput(data) {
+    return [
+      ...Object.values(data?.parameters || {}),
+      ...Object.values(data?.sections || {})
+    ].some((value) => String(value || "").trim());
   }
 
-  function updateGeneratedUi(root) {
-    const ready = Boolean(localStatus?.generatedAt);
+  function scheduleStatusAutosave(root) {
+    clearTimeout(statusAutosaveTimer);
+    const caseId = currentPatient()?.id || "";
+    statusAutosaveTimer = window.setTimeout(async () => {
+      if (!caseId || currentPatient()?.id !== caseId) return;
+      try {
+        await clinicalUi()?.autosaveCurrentCase?.();
+      } catch (saveError) {
+        const error = root.querySelector("#betaStructuredStatusError");
+        if (error) {
+          error.textContent = `Automatikus mentési hiba: ${saveError?.message || saveError}`;
+          error.classList.remove("hidden");
+        }
+      }
+    }, 650);
+  }
+
+  function refreshRealtimeStatus(root, { autosave = true } = {}) {
+    localStatus = readBuilder(root);
+    const unknowns = unresolvedFindings(localStatus);
+    const hasInput = hasStructuredInput(localStatus);
+
+    localStatus.generatedAt = hasInput && unknowns.length === 0
+      ? new Date().toISOString()
+      : null;
+
+    writeBridge(localStatus);
+    updateGeneratedUi(root, unknowns);
+
+    if (autosave) scheduleStatusAutosave(root);
+  }
+
+  function markEdited(root) {
+    refreshRealtimeStatus(root);
+  }
+
+  function updateGeneratedUi(root, unknowns = unresolvedFindings(localStatus)) {
+    const hasInput = hasStructuredInput(localStatus);
+    const ready = Boolean(hasInput && localStatus?.generatedAt && unknowns.length === 0);
     const done = root.querySelector("#betaStructuredStatusDone");
     const preview = root.querySelector("#betaStructuredStatusPreview");
     const view = root.querySelector("#betaStructuredStatusView");
     const copy = root.querySelector("#betaStructuredStatusCopy");
+    const error = root.querySelector("#betaStructuredStatusError");
 
-    done?.classList.toggle("hidden", !ready);
     root.classList.toggle("is-generated", ready);
-    if (!ready) preview?.classList.add("hidden");
+    done?.classList.toggle("hidden", !ready);
+
+    if (preview) {
+      preview.value = generatedStatusText(localStatus);
+      if (!ready) preview.classList.add("hidden");
+    }
     if (view) view.disabled = !ready;
     if (copy) copy.disabled = !ready;
-    if (ready && preview) preview.value = generatedStatusText(localStatus);
+
+    if (error) {
+      if (unknowns.length) {
+        error.textContent = `${unknowns.length} nem felismert finding van. Tanítsa meg vagy rendelje meglévő findinghez; a STATUS ezután automatikusan frissül.`;
+        error.classList.remove("hidden");
+      } else {
+        error.textContent = "";
+        error.classList.add("hidden");
+      }
+    }
   }
 
   function populateBuilder(root, data) {
@@ -169,7 +221,12 @@
       input.value = data?.sections?.[input.dataset.statusSection] || "";
     });
     localStatus = normalizeStatus(data);
-    updateGeneratedUi(root);
+    const unknowns = unresolvedFindings(localStatus);
+    if (hasStructuredInput(localStatus) && unknowns.length === 0 && !localStatus.generatedAt) {
+      localStatus.generatedAt = new Date().toISOString();
+      writeBridge(localStatus);
+    }
+    updateGeneratedUi(root, unknowns);
     statusEngine()?.syncComposer?.();
   }
 
@@ -209,7 +266,7 @@
         <div class="beta-status-positive-head">
           <div>
             <strong>Pozitív fizikális eltérések</strong>
-            <span>Csak az eltérést írja be. Üres sor = generáláskor normál alapstátusz.</span>
+            <span>Csak az eltérést írja be. Üres sor = normál alapstátusz.</span>
           </div>
         </div>
         <div class="beta-status-positive-grid">
@@ -225,17 +282,14 @@
         </div>
 
         <div class="beta-structured-status-actions">
-          <button type="button" class="btn primary" id="betaGenerateStructuredStatus">
-            STATUS GENERÁLÁSA
-          </button>
-          <span class="subtle">A paraméterek és pozitív findingok mentődnek; a teljes generált szöveg nem.</span>
+          <span class="subtle">Automatikusan frissül és mentődik. A teljes generált szöveg csak másolási nézet.</span>
         </div>
 
         <div class="beta-structured-status-error hidden" id="betaStructuredStatusError"></div>
 
         <div class="beta-structured-status-done hidden" id="betaStructuredStatusDone">
           <div class="beta-structured-status-done-head">
-            <strong>✓ Státusz elkészült</strong>
+            <strong>✓ Státusz automatikusan frissítve</strong>
             <div>
               <button type="button" class="btn small" id="betaStructuredStatusView">MEGTEKINTÉS</button>
               <button type="button" class="btn small primary" id="betaStructuredStatusCopy">MÁSOLÁS</button>
@@ -253,38 +307,6 @@
 
       root.querySelectorAll("[data-status-param], [data-status-section]").forEach((input) => {
         input.addEventListener("input", () => markEdited(root));
-      });
-
-      root.querySelector("#betaGenerateStructuredStatus")?.addEventListener("click", async () => {
-        localStatus = readBuilder(root);
-        const unknowns = unresolvedFindings(localStatus);
-        const error = root.querySelector("#betaStructuredStatusError");
-
-        if (unknowns.length) {
-          if (error) {
-            error.textContent = `${unknowns.length} nem felismert finding van. Tanítsa meg lent a Finding Learning részben a generálás előtt.`;
-            error.classList.remove("hidden");
-          }
-          document.getElementById("betaUnknownBlock")?.scrollIntoView({
-            behavior: "smooth",
-            block: "center"
-          });
-          return;
-        }
-
-        error?.classList.add("hidden");
-        localStatus.generatedAt = new Date().toISOString();
-        writeBridge(localStatus);
-        updateGeneratedUi(root);
-
-        try {
-          await clinicalUi()?.autosaveCurrentCase?.();
-        } catch (saveError) {
-          if (error) {
-            error.textContent = `A státusz elkészült, de a mentés sikertelen: ${saveError?.message || saveError}`;
-            error.classList.remove("hidden");
-          }
-        }
       });
 
       root.querySelector("#betaStructuredStatusView")?.addEventListener("click", () => {
@@ -462,6 +484,12 @@
 
     ensureEkgBuilder();
   }
+
+  document.addEventListener("bachsbo:finding-learning-changed", () => {
+    const root = document.getElementById("betaStructuredStatus");
+    if (!root || !currentPatient()?.id) return;
+    refreshRealtimeStatus(root);
+  });
 
   document.addEventListener("bachsbo:ui-rendered", () => {
     window.setTimeout(refresh, 0);

@@ -90,6 +90,20 @@ function testStatus(row: any) {
 
 const PHYSICAL_STATUS_SECTION_KEYS = ["A", "B", "C", "D", "E1", "E2", "E3", "E4", "E5", "E6"];
 
+function stripLegacyVitalLines(value: unknown) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .filter((line) => {
+      const text = String(line || "").trim();
+      if (!text) return false;
+      // Legacy simple-Status clients stored the copyable vitals row in physical_exam.
+      // Vitals are canonical in cases.vitals and must not reach Summary/learning input.
+      return !/^(?:RR\s*:|P\s*:|T\s*:|Lsz\s*:|SpO[₂2]\s*:)/i.test(text);
+    })
+    .join("\n")
+    .trim();
+}
+
 function structuredPhysicalStatus(caseRow: any) {
   const value = caseRow?.physical_status_data;
   return value && typeof value === "object" && Number(value.version) === 1
@@ -99,7 +113,7 @@ function structuredPhysicalStatus(caseRow: any) {
 
 function positivePhysicalText(caseRow: any) {
   const status = structuredPhysicalStatus(caseRow);
-  if (!status) return String(caseRow?.physical_exam || "").trim();
+  if (!status) return stripLegacyVitalLines(caseRow?.physical_exam);
 
   const sections = status.sections && typeof status.sections === "object"
     ? status.sections

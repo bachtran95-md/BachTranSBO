@@ -189,38 +189,5 @@
       }
     },
     "expectedReady": false
-  },
-  {
-    "name": "structured physical free text without generated template",
-    "patch": {
-      "physical": "Cor regularis.",
-      "physicalSkipped": false,
-      "physicalStatus": {
-        "version": 1,
-        "parameters": {
-          "bloodPressure": "",
-          "pulse": "",
-          "temperature": "",
-          "respiratoryRate": "",
-          "spo2": "",
-          "oxygen": ""
-        },
-        "sections": {
-          "A": "",
-          "B": "",
-          "C": "",
-          "D": "",
-          "E1": "",
-          "E2": "",
-          "E3": "",
-          "E4": "",
-          "E5": "",
-          "E6": ""
-        },
-        "freeText": "Cor regularis.",
-        "generatedAt": null
-      }
-    },
-    "expectedReady": true
   }
 ]

@@ -2040,6 +2040,25 @@ const negationSweep = await betaFeatures.evaluate(() => ({
   preview: document.querySelector("#betaStatusFinalPreview")?.textContent || "",
   unknowns: document.querySelectorAll(".beta-status-unknown").length
 }));
+
+// Regression: common Hungarian bowel-sound intensity wording must not fall back
+// to the normal template.
+for (const [input, expected] of [
+  ["halkabb bélhangok", "Bélhangok renyhék."],
+  ["halk bélhangok", "Bélhangok renyhék."],
+  ["gyér bélhangok", "Bélhangok renyhék."],
+  ["élénkebb bélhangok", "Bélhangok élénkek."]
+]) {
+  await betaFeatures.locator('[data-status-section="E5"]').fill(input);
+  await betaFeatures.waitForFunction((needle) => {
+    const preview = document.querySelector("#betaStatusFinalPreview")?.textContent || "";
+    return preview.includes(needle);
+  }, expected);
+  const preview = await betaFeatures.locator("#betaStatusFinalPreview").textContent();
+  if (!preview.includes(expected) || preview.includes("Bélhangok normálisak.")) {
+    throw new Error("Bowel-sound wording regression for " + input + ": " + preview);
+  }
+}
 for (const forbidden of [
   "Stridor hallható.",
   "Dyspnoés.",

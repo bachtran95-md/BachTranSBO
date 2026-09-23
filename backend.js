@@ -304,21 +304,20 @@
   }
 
   async function saveStatusGeneratorRecords(records) {
-    const db = requireClient();
-    await getUser();
+    const list = Array.isArray(records)
+      ? records.filter((record) => record?.caseId && record?.shiftId && record?.payload)
+      : [];
 
-    const list = Array.isArray(records) ? records : [];
-    for (const record of list) {
-      if (!record?.caseId || !record?.shiftId || !record?.payload) continue;
-      const { error } = await db.rpc("save_status_generator_revision", {
-        p_case_id: record.caseId,
-        p_shift_id: record.shiftId,
-        p_payload: record.payload
-      });
-      assertOk(error, "Save finalized Státusz");
-    }
+    if (!list.length) return { saved: 0 };
 
-    return { saved: list.length };
+    return invokeAuthedFunction(
+      "clinical-store",
+      {
+        action: "save_status_generator_records",
+        records: list
+      },
+      "Save finalized Státusz"
+    );
   }
 
   async function loadState() {

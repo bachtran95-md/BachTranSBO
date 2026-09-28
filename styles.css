@@ -108,6 +108,7 @@ textarea{min-height:92px;resize:vertical}
 }
 .narrative-field.result{background:var(--ok-bg);border-color:var(--ok-line)}
 .narrative-field.none{background:var(--gray-bg);border-color:var(--gray-line)}
+.narrative-field.optional{background:#fff;border-color:var(--gray-line)}
 .narrative-field.result textarea{border-color:var(--ok-line);background:#f7fff9}
 .narrative-field.none textarea{background:#e5e7eb}
 .narrative-head{
@@ -121,6 +122,7 @@ textarea{min-height:92px;resize:vertical}
 .field-state.waiting{background:#ffedd5;color:var(--warn)}
 .field-state.result{background:#dcfce7;color:var(--ok)}
 .field-state.none{background:#e5e7eb;color:var(--gray)}
+.field-state.optional{background:#eef2f7;color:#667085}
 .none-toggle{background:#fff;border:1px solid var(--gray-line)}
 .none-toggle.active{background:#6b7280;color:#fff}
 .case-readonly{opacity:.94}

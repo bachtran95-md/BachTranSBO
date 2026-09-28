@@ -21,6 +21,7 @@ let normalRawSubscriptionStop = null;
 let normalRawCaseId = null;
 const APP_MODE_STORAGE_KEY = "bach_sbo_app_mode_v1";
 const patientSaveQueues = new Map();
+const summaryGenerationCaseIds = new Set();
 let caseCounterRefreshPromise = null;
 let caseCounterLastCheckedAt = 0;
 let passwordReauthTimer = null;
@@ -1111,6 +1112,7 @@ function refreshSummaryControls(patient) {
   const finalize = document.getElementById("finalizeSummaryBtn");
   const gate = document.getElementById("summaryGate");
   if (!generate || !finalize || !gate || !patient) return;
+  if (selectedPatientId && patient.id !== selectedPatientId) return;
 
   const blockers = workflowBlockers(patient);
   const blocked = blockers.length > 0;
@@ -1130,9 +1132,17 @@ function refreshSummaryControls(patient) {
   gate.textContent = message;
   gate.className = `summary-gate ${completed || !blocked ? "ready" : "blocked"}`;
 
-  if (generate.dataset.busy !== "true") {
-    generate.disabled = blocked || completed;
+  const generationBusy = summaryGenerationCaseIds.has(patient.id);
+  generate.dataset.busy = generationBusy ? "true" : "false";
+  generate.disabled = blocked || completed || generationBusy;
+
+  const generateLabel = document.getElementById("generateSummaryLabel");
+  if (generateLabel) {
+    generateLabel.textContent = generationBusy
+      ? (uiLang === "hu" ? "GENERÁLÁS…" : "GENERATING…")
+      : t("generateSummary");
   }
+
   if (finalize.dataset.busy !== "true") {
     finalize.disabled = blocked || completed;
   }
@@ -3045,6 +3055,9 @@ async function generateSummary() {
   const patient = collectForm();
   if (!patient) return;
 
+  const requestedCaseId = patient.id;
+  if (summaryGenerationCaseIds.has(requestedCaseId)) return;
+
   const blockers = workflowBlockers(patient);
   if (blockers.length) {
     refreshSummaryControls(patient);
@@ -3056,28 +3069,31 @@ async function generateSummary() {
   }
 
   commitFilledTestResults(patient);
-
-  const button = document.getElementById("generateSummaryBtn");
-  const buttonLabel = document.getElementById("generateSummaryLabel");
-  const oldLabel = buttonLabel?.textContent || "";
-  button.dataset.busy = "true";
-  button.disabled = true;
-  if (buttonLabel) buttonLabel.textContent = uiLang === "hu" ? "GENERÁLÁS…" : "GENERATING…";
+  summaryGenerationCaseIds.add(requestedCaseId);
+  if (selectedPatientId === requestedCaseId) refreshSummaryControls(patient);
 
   try {
-    // Persist first so the AI only sees the de-identified database copy.
+    // persistNow snapshots the selected case synchronously before its first await.
+    // The case ID below stays fixed even if the user switches to another patient
+    // while generation is running.
     await persistNow();
 
-    const result = await window.BachSBOBackend.generateSummary(patient.id);
+    const result = await window.BachSBOBackend.generateSummary(requestedCaseId);
+    const targetPatient = patientById(requestedCaseId);
+    if (!targetPatient) return;
 
-    patient.summary = result.summary || "";
-    patient.summaryGeneratedText = patient.summary;
-    patient.summaryGeneratedAt = result.generatedAt || nowIso();
-    patient.summaryModel = result.model || "";
-    patient.summarySkillVersion = result.skillVersion || "";
+    targetPatient.summary = result.summary || "";
+    targetPatient.summaryGeneratedText = targetPatient.summary;
+    targetPatient.summaryGeneratedAt = result.generatedAt || nowIso();
+    targetPatient.summaryModel = result.model || "";
+    targetPatient.summarySkillVersion = result.skillVersion || "";
 
-    document.getElementById("fSummary").value = patient.summary;
-    renderSummaryStatus(patient);
+    // Never write an async result into another patient's visible form.
+    if (selectedPatientId === requestedCaseId) {
+      const summaryField = document.getElementById("fSummary");
+      if (summaryField) summaryField.value = targetPatient.summary;
+      renderSummaryStatus(targetPatient);
+    }
 
     const skillSuffix = result.skillVersion
       ? ` • Skill v${result.skillVersion}`
@@ -3088,15 +3104,23 @@ async function generateSummary() {
     const retrievalSuffix = retrievalCount
       ? ` • ${retrievalCount} similar case(s)`
       : "";
+    const casePrefix = selectedPatientId === requestedCaseId
+      ? ""
+      : (uiLang === "hu"
+        ? `Eset ${targetPatient.localId}: `
+        : `Case ${targetPatient.localId}: `);
+
     flash(uiLang === "hu"
-      ? `Összefoglaló elkészült${skillSuffix}${retrievalSuffix}.`
-      : `Summary generated${skillSuffix}${retrievalSuffix}.`);
+      ? `${casePrefix}Összefoglaló elkészült${skillSuffix}${retrievalSuffix}.`
+      : `${casePrefix}Summary generated${skillSuffix}${retrievalSuffix}.`);
   } catch (error) {
     handleBackendError(error);
   } finally {
-    button.dataset.busy = "false";
-    if (buttonLabel) buttonLabel.textContent = oldLabel;
-    refreshSummaryControls(patient);
+    summaryGenerationCaseIds.delete(requestedCaseId);
+    const currentPatient = patientById(requestedCaseId);
+    if (currentPatient && selectedPatientId === requestedCaseId) {
+      refreshSummaryControls(currentPatient);
+    }
   }
 }
 
@@ -3137,8 +3161,10 @@ async function finalizeSummary() {
 
     if (revisionResult?.patient?.id === patient.id) {
       Object.assign(patient, revisionResult.patient);
-      document.getElementById("fSummary").value =
-        patient.summaryFinalizedText || patient.summary || "";
+      if (selectedPatientId === patient.id) {
+        document.getElementById("fSummary").value =
+          patient.summaryFinalizedText || patient.summary || "";
+      }
     }
 
     if (revisionResult?.removed > 0) {

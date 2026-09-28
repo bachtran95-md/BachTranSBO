@@ -448,17 +448,17 @@
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
-                  <div class="field narrative-field optional" id="diagnosesWrap" data-narrative-field="diagnoses">
+                  <div class="field narrative-field waiting" id="diagnosesWrap" data-narrative-field="diagnoses">
                     <div class="narrative-head">
                       <label data-i18n="diagnoses">Klinikai megfontolás</label>
                       <div class="narrative-actions">
-                        <span class="field-state optional" data-field-state="diagnoses">OPCIONÁLIS</span>
-                        <button class="btn small none-toggle hidden" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
+                        <span class="field-state waiting" data-field-state="diagnoses">KÖTELEZŐ</span>
+                        <button class="btn small none-toggle" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
                       </div>
                     </div>
-                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Klinikai benyomás, differenciáldiagnosztikai gondolat vagy fontos megfontolás az esetről (opcionális).</div>
+                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Adja meg a klinikai benyomást, differenciáldiagnosztikai gondolatot vagy fontos megfontolást, illetve jelölje NINCS állapotra.</div>
                     <textarea id="fDiagnoses" placeholder="Klinikai benyomás, differenciáldiagnózis, értelmezés vagy fontos gondolat az esetről…"></textarea>
-                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Opcionális, orvos által rögzített klinikai gondolat. Az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.</div>
+                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Orvos által rögzített klinikai gondolat. Adjon meg megfontolást vagy jelölje NINCS állapotra. Ha kitöltött, az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.</div>
                   </div>
                   <div class="field">
                     <label data-i18n="disposition">Disposition</label>
@@ -822,7 +822,7 @@
   <script src="case-ui.js?v=demographics-20260922-1"></script>
   <script src="backend.js?v=canonical-vitals-20260923-1"></script>
   <script src="assistant-core.js?v=canonical-vitals-20260923-1"></script>
-  <script src="app.js?v=clinical-consideration-20260928-1"></script>
+  <script src="app.js?v=clinical-consideration-required-20260928-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit.js?v=clinical-consideration-20260928-1"></script>
   <script src="beta-features.js?v=notes-crud-20260923-1"></script>

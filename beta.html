@@ -448,17 +448,17 @@
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
-                  <div class="field narrative-field waiting" id="diagnosesWrap" data-narrative-field="diagnoses">
+                  <div class="field narrative-field optional" id="diagnosesWrap" data-narrative-field="diagnoses">
                     <div class="narrative-head">
-                      <label data-i18n="diagnoses">Diagnoses</label>
+                      <label data-i18n="diagnoses">Klinikai megfontolás</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="diagnoses">KÖTELEZŐ</span>
-                        <button class="btn small none-toggle" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
+                        <span class="field-state optional" data-field-state="diagnoses">OPCIONÁLIS</span>
+                        <button class="btn small none-toggle hidden" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
                       </div>
                     </div>
-                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Panaszok hátterében mi állhat?</div>
-                    <textarea id="fDiagnoses" placeholder="Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia."></textarea>
-                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
+                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Klinikai benyomás, differenciáldiagnosztikai gondolat vagy fontos megfontolás az esetről (opcionális).</div>
+                    <textarea id="fDiagnoses" placeholder="Klinikai benyomás, differenciáldiagnózis, értelmezés vagy fontos gondolat az esetről…"></textarea>
+                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Opcionális, orvos által rögzített klinikai gondolat. Az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.</div>
                   </div>
                   <div class="field">
                     <label data-i18n="disposition">Disposition</label>

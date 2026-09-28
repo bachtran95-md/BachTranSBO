@@ -171,8 +171,8 @@ textarea{min-height:92px;resize:vertical}
 .test-name-wrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .test-name{font-weight:850}
 .lab-name-input{
-  width:min(210px,100%);
-  min-width:120px;
+  width:min(150px,100%);
+  min-width:90px;
   padding:5px 7px;
   font-size:12px;
 }
@@ -1800,10 +1800,18 @@ body.cockpit-ui .cockpit-test-row .test-name{
 }
 body.cockpit-ui .cockpit-test-row .test-name-wrap:has(.lab-name-input){
   flex-wrap:nowrap;
+  gap:6px;
+}
+body.cockpit-ui .cockpit-test-row .test-name-wrap:has(.lab-name-input) .test-name{
+  flex:0 0 auto;
+  overflow:visible;
+  text-overflow:clip;
 }
 body.cockpit-ui .cockpit-test-row .lab-name-input{
-  width:100%;
-  min-width:0;
+  flex:1 1 105px;
+  width:105px;
+  min-width:72px;
+  max-width:125px;
   padding:5px 6px;
   font-size:11px;
 }

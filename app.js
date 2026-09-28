@@ -2952,14 +2952,13 @@ function buildExternalEpicrisisPrompt(patient) {
     externalNarrativeValue(patient, "complaint", "complaintSkipped")
   ));
 
+  sections.push(externalPromptSection("Paraméterek", externalVitalsText(patient)));
+
   const statusContext = window.BachSBOStatusGenerator?.getSummaryContext?.(patient.id);
-  const fullStatus = String(statusContext?.finalStatusDraft || patient.physical || "").trim();
-  if (!statusContext?.finalStatusDraft) {
-    sections.push(externalPromptSection("Paraméterek", externalVitalsText(patient)));
-  }
+  const clinicianStatus = String(statusContext?.clinicianAuthoredStatusDraft || "").trim();
   sections.push(externalPromptSection(
     "Fizikális vizsgálat",
-    fullStatus || (patient.physicalSkipped ? "NINCS" : "")
+    clinicianStatus || (patient.physicalSkipped ? "NINCS" : "")
   ));
 
   sections.push(externalPromptSection(

@@ -170,6 +170,12 @@ textarea{min-height:92px;resize:vertical}
 .test-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
 .test-name-wrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .test-name{font-weight:850}
+.lab-name-input{
+  width:min(210px,100%);
+  min-width:120px;
+  padding:5px 7px;
+  font-size:12px;
+}
 .test-status{border-radius:999px;padding:5px 9px;font-size:11px;font-weight:850}
 .test-status.waiting{background:#ffedd5;color:var(--warn)}
 .test-status.result{background:#dcfce7;color:var(--ok)}
@@ -1791,6 +1797,15 @@ body.cockpit-ui .cockpit-test-row .test-name{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+}
+body.cockpit-ui .cockpit-test-row .test-name-wrap:has(.lab-name-input){
+  flex-wrap:nowrap;
+}
+body.cockpit-ui .cockpit-test-row .lab-name-input{
+  width:100%;
+  min-width:0;
+  padding:5px 6px;
+  font-size:11px;
 }
 body.cockpit-ui .cockpit-test-row .gas-type{display:none}
 body.cockpit-ui .cockpit-test-row .card-head-actions{

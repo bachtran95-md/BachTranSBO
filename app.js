@@ -58,7 +58,7 @@ const I18N = {
     consultations:"Consultations", addConsultation:"+ ADD CONSULTATION", others:"Others",
     sectionCourse:"3. Treatment and course", therapy:"Therapy",
     clinicalCourse:"Clinical course / case status change",
-    diagnoses:"Clinical considerations", diagnosesPrompt:"Your clinical impression, differential, or important thought about this case (optional).", disposition:"Disposition",
+    diagnoses:"Clinical considerations", diagnosesPrompt:"Enter your clinical impression, differential, or important thought about this case, or mark NONE.", disposition:"Disposition",
     finalDecision:"4. Final decision / disposition",
     finalDecisionInfo:"Disposition records the clinical decision. The case closes only after the Summary is finalized.",
     homePlan:"Recommendation and plan at home", addRecommendation:"+ Add recommendation",
@@ -68,7 +68,7 @@ const I18N = {
     summaryInfo:"Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.",
     generateSummary:"GENERATE SUMMARY", summaryEditable:"Summary — editable",
     finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE", autosaveHint:"Autosave active",
-    diagnosesNote:"Optional clinician-authored context. It is integrated near the end of the Summary with uncertainty preserved; it is not a diagnosis list.",
+    diagnosesNote:"Clinician-authored reasoning. Enter a consideration or mark NONE. If entered, it is integrated near the end of the Summary with uncertainty preserved; it is not a diagnosis list.",
     learningDesc:"Doctor-reviewed learning from finalized summaries and Státusz feedback. Nothing here auto-edits active rules.",
     finalizedCorpusReview:"Finalized corpus review",
     corpusReviewDesc:"New finalized revisions stay Pending until you explicitly approve or exclude them from future AI learning. This never edits the clinical record or finalized text.",
@@ -122,7 +122,7 @@ const I18N = {
     consultations:"Konzíliumok", addConsultation:"+ KONZÍLIUM HOZZÁADÁSA", others:"Egyéb",
     sectionCourse:"3. Terápia és kórlefolyás", therapy:"Terápia",
     clinicalCourse:"Kórlefolyás / állapotváltozás",
-    diagnoses:"Klinikai megfontolás", diagnosesPrompt:"Klinikai benyomás, differenciáldiagnosztikai gondolat vagy fontos megfontolás az esetről (opcionális).", disposition:"Diszpozíció",
+    diagnoses:"Klinikai megfontolás", diagnosesPrompt:"Adja meg a klinikai benyomást, differenciáldiagnosztikai gondolatot vagy fontos megfontolást, illetve jelölje NINCS állapotra.", disposition:"Diszpozíció",
     finalDecision:"4. Döntés",
     finalDecisionInfo:"A diszpozíció a végső ellátási döntést rögzíti. Az eset csak az összefoglaló véglegesítésekor zárul le.",
     homePlan:"Otthoni javaslat és további terv", addRecommendation:"+ Javaslat hozzáadása",
@@ -132,7 +132,7 @@ const I18N = {
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
     generateSummary:"ÖSSZEFOGLALÓ GENERÁLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
     finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE", autosaveHint:"Automatikus mentés aktív",
-    diagnosesNote:"Opcionális, orvos által rögzített klinikai gondolat. Az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.",
+    diagnosesNote:"Orvos által rögzített klinikai gondolat. Adjon meg megfontolást vagy jelölje NINCS állapotra. Ha kitöltött, az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.",
     learningDesc:"Orvos által ellenőrzött tanulás a véglegesített összefoglalókból és a Státusz feedbackből. A rendszer nem módosít automatikusan aktív szabályt.",
     finalizedCorpusReview:"Véglegesített korpusz ellenőrzése",
     corpusReviewDesc:"Az új véglegesített revíziók Pending állapotban maradnak, amíg külön jóvá nem hagyja vagy ki nem zárja őket az AI-tanulásból. Ez nem módosítja a klinikai dokumentációt vagy a véglegesített szöveget.",
@@ -781,15 +781,14 @@ const NARRATIVE_FIELDS = {
     inputId: "fDiagnoses",
     valueProp: "diagnoses",
     skipProp: "diagnosesSkipped",
-    labelKey: "diagnoses",
-    optional: true
+    labelKey: "diagnoses"
   }
 };
 
 function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
-  if (!config.optional && patient[config.skipProp]) return "none";
+  if (patient[config.skipProp]) return "none";
   if (key === "physical" && document.body.classList.contains("beta-build") && usesSimplePhysicalStatus()) {
     return simplePhysicalStatusHasInput(patient) ? "result" : "waiting";
   }
@@ -857,6 +856,9 @@ function workflowStatus(patient) {
   }
 
   const dispositionBlockers = [];
+  if (narrativeStatus(patient, "diagnoses") === "waiting") {
+    dispositionBlockers.push(t(NARRATIVE_FIELDS.diagnoses.labelKey));
+  }
 
   const disposition = normalizeDisposition(patient.disposition);
   if (!disposition) {
@@ -932,22 +934,19 @@ function refreshNarrativeField(patient, key) {
   if (!wrapper || !input || !stateEl || !noneButton) return;
 
   const status = narrativeStatus(patient, key);
-  const displayStatus = config.optional && status === "waiting" ? "optional" : status;
   wrapper.classList.remove("waiting", "result", "none", "optional");
-  wrapper.classList.add(displayStatus);
+  wrapper.classList.add(status);
 
-  stateEl.className = `field-state ${displayStatus}`;
+  stateEl.className = `field-state ${status}`;
   stateEl.textContent = status === "result"
     ? t("complete")
-    : config.optional
-    ? (uiLang === "hu" ? "OPCIONÁLIS" : "OPTIONAL")
     : status === "none"
     ? t("none")
     : t("required");
 
-  noneButton.classList.toggle("hidden", Boolean(config.optional));
+  noneButton.classList.remove("hidden");
   noneButton.classList.toggle("active", status === "none");
-  input.disabled = (!config.optional && status === "none") || isCompleted(patient);
+  input.disabled = status === "none" || isCompleted(patient);
   noneButton.disabled = isCompleted(patient);
 }
 

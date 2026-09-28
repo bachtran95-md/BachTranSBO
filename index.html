@@ -8,11 +8,13 @@
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center</title>
   <link rel="stylesheet" href="styles.css?v=triage-selected-no-arrow-20260923-1" />
+  <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
+  <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
 </head>
-<body>
+<body class="beta-build beta-simple-status">
   <header class="topbar">
     <div>
-      <div class="brand">ER COMMAND CENTER</div>
+      <div class="brand">ER COMMAND CENTER <span class="beta-build-badge">BETA</span></div>
       <div class="shift-meta" id="shiftMeta"></div>
     </div>
     <div class="toolbar topbar-tools">
@@ -27,6 +29,7 @@
   <nav class="workspace-nav" aria-label="Workspace">
     <div class="workspace-nav-main">
       <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
+      <button class="nav-item" id="notesNav"><span data-i18n="notesNav">Notes</span></button>
       <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
       <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
     </div>
@@ -279,23 +282,111 @@
                     </div>
                     <textarea id="fHistory" placeholder="Kézi bevitel vagy szöveg beillesztése…"></textarea>
                   </div>
+
+                </div>
+
+                <div class="section beta-status-generator-section">
+                  <div class="section-title" data-i18n="sectionStatusBeta">2. Státusz</div>
+                  <textarea id="fPhysical" class="hidden" aria-hidden="true" tabindex="-1"></textarea>
+                  <div id="betaStatusGenerator" class="beta-status-generator">
+                    <div class="beta-status-parameters-card">
+                      <div class="beta-status-generator-heading">PARAMÉTEREK</div>
+                      <div class="beta-status-parameter-grid">
+                        <label><span>Vérnyomás</span><input type="text" inputmode="text" data-status-param="bloodPressure" placeholder="135/80" autocomplete="off" /></label>
+                        <label><span>Pulsus</span><input type="text" inputmode="decimal" data-status-param="pulse" placeholder="88" autocomplete="off" /></label>
+                        <label><span>Testhőmérséklet</span><input type="text" inputmode="decimal" data-status-param="temperature" placeholder="36,7" autocomplete="off" /></label>
+                        <label><span>Légzésszám</span><input type="text" inputmode="decimal" data-status-param="respiratoryRate" placeholder="18" autocomplete="off" /></label>
+                        <label><span>SpO₂</span><input type="text" inputmode="decimal" data-status-param="spo2" placeholder="97" autocomplete="off" /></label>
+                        <label><span>Oxigén</span><input type="text" data-status-param="oxygen" placeholder="szobalevegő / 2 l/perc O₂" autocomplete="off" /></label>
+                      </div>
+                    </div>
+
+                    <div class="beta-status-clinical-note-card">
+                      <div class="beta-status-generator-heading">KLINIKAI MEGJEGYZÉS</div>
+                      <textarea
+                        id="fOthers"
+                        data-status-clinical-note
+                        placeholder="Szabad szöveg…"
+                        aria-label="Klinikai megjegyzés"></textarea>
+                    </div>
+
+                    <div class="beta-status-generator-columns">
+                      <div class="beta-status-generator-column">
+                        <div class="beta-status-input-block">
+                          <label>A – Légút</label>
+                          <textarea data-status-section="A" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="A"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>B – Légzés / Mellkas / Pulmo</label>
+                          <textarea data-status-section="B" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="B"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>C – Keringés / Szív</label>
+                          <textarea data-status-section="C" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="C"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>D – Neurológia</label>
+                          <textarea data-status-section="D" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="D"></div>
+                        </div>
+                      </div>
+
+                      <div class="beta-status-generator-column">
+                        <div class="beta-status-generator-heading beta-status-exposure-heading">E – Exposure</div>
+                        <div class="beta-status-input-block">
+                          <label>E1 – Általános állapot</label>
+                          <textarea data-status-section="E1" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E1"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>E2 – Bőr / nyálkahártyák</label>
+                          <textarea data-status-section="E2" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E2"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>E3 – Sérülés</label>
+                          <textarea data-status-section="E3" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E3"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>E4 – Végtagok / oedema / MVT</label>
+                          <textarea data-status-section="E4" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E4"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>E5 – Has</label>
+                          <textarea data-status-section="E5" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E5"></div>
+                        </div>
+                        <div class="beta-status-input-block">
+                          <label>E6 – Vese / urogenitalis</label>
+                          <textarea data-status-section="E6" placeholder="csak pozitív eltérés"></textarea>
+                          <div class="beta-status-unknown-host" data-status-unknown-host="E6"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="beta-status-final-card">
+                      <div class="beta-status-final-head">
+                        <div>
+                          <div class="beta-status-generator-heading">VÉGLEGES STÁTUSZ</div>
+                          <div class="subtle">A módosított / pozitív részek kiemelve jelennek meg. Másoláskor sima szöveg kerül a vágólapra.</div>
+                        </div>
+                        <button class="btn primary" id="betaStatusCopyBtn" type="button">STÁTUSZ MÁSOLÁSA</button>
+                      </div>
+                      <div id="betaStatusGeneratorAlert" class="beta-status-generator-alert hidden"></div>
+                      <div id="betaStatusFinalPreview" class="beta-status-final-preview" tabindex="0"></div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="section">
-                  <div class="section-title" data-i18n="sectionTests">2. Tests and examination</div>
+                  <div class="section-title" data-i18n="sectionTestsBeta">3. Vizsgálatok</div>
                   <div class="info-bar" data-i18n="testLegend">
                     Orange = unresolved. Enter a result to turn green, or mark Not ordered to turn grey.
-                  </div>
-
-                  <div class="field narrative-field waiting" data-narrative-field="physical">
-                    <div class="narrative-head">
-                      <label data-i18n="physicalExam">Physical examination — main points / status</label>
-                      <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="physical">KÖTELEZŐ</span>
-                        <button class="btn small none-toggle" type="button" data-none-toggle="physical" data-i18n="markNone">NONE</button>
-                      </div>
-                    </div>
-                    <textarea id="fPhysical"></textarea>
                   </div>
 
                   <div class="test-group-toolbar">
@@ -326,14 +417,10 @@
                   </div>
                   <div id="consultCards"></div>
 
-                  <div class="field">
-                    <label data-i18n="others">Others</label>
-                    <textarea id="fOthers"></textarea>
-                  </div>
                 </div>
 
                 <div class="section">
-                  <div class="section-title" data-i18n="sectionCourse">3. Treatment and course</div>
+                  <div class="section-title" data-i18n="sectionCourseBeta">4. Terápia és kórlefolyás</div>
                   <div class="field narrative-field waiting" data-narrative-field="therapy">
                     <div class="narrative-head">
                       <label data-i18n="therapy">Therapy</label>
@@ -357,7 +444,7 @@
                 </div>
 
                 <div class="section">
-                  <div class="section-title" data-i18n="finalDecision">4. Final decision / disposition</div>
+                  <div class="section-title" data-i18n="finalDecisionBeta">5. Döntés</div>
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
@@ -434,7 +521,7 @@
                 </div>
 
                 <div class="section">
-                  <div class="section-title" data-i18n="caseSummary">5. Case summary</div>
+                  <div class="section-title" data-i18n="caseSummaryBeta">6. Összefoglaló</div>
                   <div class="info-bar" data-i18n="summaryInfo">
                     Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.
                   </div>
@@ -484,7 +571,7 @@
         <div class="learning-head">
           <div>
             <h1 data-i18n="aiLearningNav">AI Learning</h1>
-            <div class="subtle" data-i18n="learningDesc">Doctor-approved learning from finalized summaries. Nothing here auto-edits the master Skill.</div>
+            <div class="subtle" data-i18n="learningDesc">Doctor-reviewed learning from finalized summaries and Státusz feedback. Nothing here auto-edits active rules.</div>
           </div>
           <button class="btn" id="refreshLearningBtn" type="button" data-i18n="refresh">REFRESH</button>
         </div>
@@ -506,49 +593,117 @@
 
         <div id="learningMessage" class="info-bar hidden"></div>
 
-        <div class="card learning-corpus-card">
-          <div class="card-h">
-            <div>
-              <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
-              <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
-            </div>
-          </div>
-          <div class="card-b" id="corpusReviewList">
-            <div class="subtle" data-i18n="loading">Betöltés…</div>
-          </div>
+        <div class="learning-section-tabs" id="learningSectionTabs">
+          <button class="btn small primary" type="button" data-learning-section="summary">ÖSSZEFOGLALÓ</button>
+          <button
+            class="btn small status-learning-disabled"
+            type="button"
+            data-learning-section="status"
+            disabled
+            title="Elkészült, de ideiglenesen nincs használatban.">
+            STÁTUSZ · KIKAPCSOLVA
+          </button>
         </div>
 
-        <div class="learning-grid">
-          <div class="card">
+        <div id="learningSummaryPane">
+          <div class="card learning-corpus-card">
             <div class="card-h">
               <div>
-                <h3 data-i18n="writingStyle">Writing style</h3>
-                <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
+                <h3 data-i18n="finalizedCorpusReview">Véglegesített korpusz ellenőrzése</h3>
+                <div class="subtle" data-i18n="corpusReviewDesc">A véglegesített revíziók jóváhagyhatók vagy kizárhatók a jövőbeli AI-tanulásból.</div>
               </div>
-              <button class="btn primary small" id="generateStyleBtn" type="button">
-                <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
-              </button>
             </div>
-            <div class="card-b" id="styleProfilesList">
-              <div class="subtle">Loading…</div>
+            <div class="card-b" id="corpusReviewList">
+              <div class="subtle" data-i18n="loading">Betöltés…</div>
             </div>
           </div>
 
-          <div class="card">
-            <div class="card-h">
-              <div>
-                <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
-                <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+          <div class="learning-grid">
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="writingStyle">Writing style</h3>
+                  <div class="subtle" data-i18n="styleDesc">Generated → Finalized pairs. Candidate requires explicit activation.</div>
+                </div>
+                <button class="btn primary small" id="generateStyleBtn" type="button">
+                  <span data-i18n="generateCandidate">GENERATE CANDIDATE</span>
+                </button>
               </div>
-              <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
-                <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
-              </button>
+              <div class="card-b" id="styleProfilesList">
+                <div class="subtle">Loading…</div>
+              </div>
             </div>
-            <div class="card-b" id="skillSuggestionsList">
-              <div class="subtle">Loading…</div>
+
+            <div class="card">
+              <div class="card-h">
+                <div>
+                  <h3 data-i18n="skillSuggestions">Skill improvement suggestions</h3>
+                  <div class="subtle" data-i18n="skillSuggestionsDesc">Advisory only. Accepting never modifies Skill versions automatically.</div>
+                </div>
+                <button class="btn primary small" id="generateSkillSuggestionBtn" type="button">
+                  <span data-i18n="analyzeEdits">ANALYZE EDITS</span>
+                </button>
+              </div>
+              <div class="card-b" id="skillSuggestionsList">
+                <div class="subtle">Loading…</div>
+              </div>
             </div>
           </div>
         </div>
+
+        <div id="learningStatusPane" class="hidden">
+          <div class="learning-metrics status-learning-metrics">
+            <div class="card learning-metric">
+              <div class="subtle">Pending</div>
+              <div class="learning-number" id="statusLearningPendingCount">0</div>
+            </div>
+            <div class="card learning-metric">
+              <div class="subtle">Approved</div>
+              <div class="learning-number" id="statusLearningApprovedCount">0</div>
+            </div>
+            <div class="card learning-metric">
+              <div class="subtle">Excluded</div>
+              <div class="learning-number" id="statusLearningExcludedCount">0</div>
+            </div>
+          </div>
+
+          <div class="card learning-corpus-card">
+            <div class="card-h">
+              <div>
+                <h3>Státusz learning review</h3>
+                <div class="subtle">
+                  A Státusz modulban manuálisan megerősített findingok Pending állapotban maradnak,
+                  amíg külön jóvá nem hagyod vagy ki nem zárod őket. A 20-as oldalméret csak lapozás,
+                  régebbi elem nem tűnik el automatikusan.
+                </div>
+              </div>
+            </div>
+            <div class="card-b" id="statusLearningList">
+              <div class="subtle">Betöltés…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="notesView" class="hidden">
+        <div class="learning-head beta-notes-heading">
+          <div>
+            <h1 data-i18n="notesNav">Notes</h1>
+            <div class="subtle">Saját jegyzetek és gyorsan másolható szövegek. Nem részei a betegadatnak és nem kerülnek az AI Summary-ba.</div>
+          </div>
+          <button class="btn primary" id="betaAddNoteBtn" type="button">+ ÚJ JEGYZET</button>
+        </div>
+
+        <div id="betaNotesStatus" class="subtle beta-notes-status">Betöltés…</div>
+
+        <div id="betaNotesEmpty" class="card beta-notes-empty hidden">
+          <div class="card-b">
+            <strong>Még nincs jegyzet.</strong>
+            <div class="subtle">Az „+ ÚJ JEGYZET” gombbal hozz létre egyet.</div>
+          </div>
+        </div>
+
+        <div id="betaNotesList" class="beta-note-list"></div>
       </section>
 
       <section id="adminView" class="hidden">
@@ -665,10 +820,13 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?v=demographics-20260922-1"></script>
-  <script src="backend.js?v=case-triage-20260922-1"></script>
-  <script src="assistant-core.js?v=assistant-core-20260922-1"></script>
-  <script src="app.js?v=stable-shift-triage-20260922-1"></script>
+  <script src="backend.js?v=canonical-vitals-20260923-1"></script>
+  <script src="assistant-core.js?v=canonical-vitals-20260923-1"></script>
+  <script src="app.js?v=case-finalization-integrity-20260923-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
-  <script src="cockpit.js?v=case-selection-ward-order-20260923-1"></script>
+  <script src="cockpit.js?v=case-selection-ward-order-20260923-2"></script>
+  <script src="beta-features.js?v=notes-crud-20260923-1"></script>
+  <script src="status-vocabulary.js?v=renal-percussion-20260923-1"></script>
+  <script src="beta-status-generator.js?v=case-finalization-integrity-20260923-2"></script>
 </body>
 </html>

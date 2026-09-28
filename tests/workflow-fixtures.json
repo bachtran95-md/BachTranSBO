@@ -5,9 +5,17 @@
     "expectedReady": true
   },
   {
-    "name": "blank clinical consideration is optional",
+    "name": "blank clinical consideration requires resolution",
     "patch": {
       "diagnoses": "",
+      "diagnosesSkipped": false
+    },
+    "expectedReady": false
+  },
+  {
+    "name": "clinical consideration text resolves field",
+    "patch": {
+      "diagnoses": "ACS kevéssé valószínű.",
       "diagnosesSkipped": false
     },
     "expectedReady": true

@@ -1045,10 +1045,14 @@ function investigationItems(patient) {
   };
 
   return [
-    ...(tests.labs || []).map((entry, index) => ({
-      name: `Lab ${index + 1}`,
-      status: entryStatus(entry)
-    })),
+    ...(tests.labs || []).map((entry, index) => {
+      const customName = String(entry?.name || "").trim();
+      const base = uiLang === "hu" ? "Labor" : "Lab";
+      return {
+        name: customName ? `${base} · ${customName}` : `${base} ${index + 1}`,
+        status: entryStatus(entry)
+      };
+    }),
     ...(tests.ekgs || []).map((entry, index) => ({
       name: `EKG ${index + 1}`,
       status: entryStatus(entry)
@@ -2229,6 +2233,7 @@ function makeSimpleCard(label, entry, key, isGas = false) {
     <div class="test-head">
       <div class="test-name-wrap">
         <span class="test-name">${label}</span>
+        ${prefix === "lab" ? `<input class="lab-name-input" data-lab-name value="${attr(entry.name || "")}" placeholder="${uiLang === "hu" ? "Név, pl. Kontroll troponin" : "Name, e.g. repeat troponin"}" aria-label="${uiLang === "hu" ? "Labor neve" : "Lab name"}" />` : ""}
         ${isGas ? `<span class="gas-type">${label}</span>` : ""}
       </div>
       <div class="card-head-actions">
@@ -2249,6 +2254,16 @@ function makeSimpleCard(label, entry, key, isGas = false) {
   `;
 
   applyTestCardUiHook(card, { kind: "simple", key, entry });
+
+  const labNameInput = card.querySelector("[data-lab-name]");
+  if (labNameInput) {
+    labNameInput.oninput = () => {
+      entry.name = labNameInput.value;
+      const patient = patientById(selectedPatientId);
+      touchPatient(patient);
+      updateStatusCell(patient);
+    };
+  }
 
   const deleteButton = card.querySelector("[data-delete-test]");
   if (deleteButton) {

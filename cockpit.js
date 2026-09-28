@@ -858,7 +858,7 @@
       physical: label("Physical examination", "Fizikális vizsgálat"),
       therapy: label("Therapy", "Terápia"),
       course: label("Clinical course", "Kórlefolyás"),
-      diagnoses: label("Diagnoses", "Diagnózisok"),
+      diagnoses: label("Clinical considerations", "Klinikai megfontolás"),
       others: label("Other", "Egyéb"),
       lab: label("Laboratory", "Labor"),
       ekg: "EKG",

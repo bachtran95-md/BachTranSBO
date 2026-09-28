@@ -7,7 +7,7 @@
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center</title>
-  <link rel="stylesheet" href="styles.css?v=lab-name-main-20260928-2" />
+  <link rel="stylesheet" href="styles.css?v=clinical-consideration-20260928-1" />
   <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
 </head>
@@ -448,17 +448,17 @@
                   <div class="info-bar" data-i18n="finalDecisionInfo">
                     Disposition records the clinical decision. The case closes only after the Summary is finalized.
                   </div>
-                  <div class="field narrative-field waiting" id="diagnosesWrap" data-narrative-field="diagnoses">
+                  <div class="field narrative-field optional" id="diagnosesWrap" data-narrative-field="diagnoses">
                     <div class="narrative-head">
-                      <label data-i18n="diagnoses">Diagnoses</label>
+                      <label data-i18n="diagnoses">Klinikai megfontolás</label>
                       <div class="narrative-actions">
-                        <span class="field-state waiting" data-field-state="diagnoses">KÖTELEZŐ</span>
-                        <button class="btn small none-toggle" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
+                        <span class="field-state optional" data-field-state="diagnoses">OPCIONÁLIS</span>
+                        <button class="btn small none-toggle hidden" type="button" data-none-toggle="diagnoses" data-i18n="markNone">NINCS</button>
                       </div>
                     </div>
-                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Panaszok hátterében mi állhat?</div>
-                    <textarea id="fDiagnoses" placeholder="Diagnózisonként egy sor, vagy pontosvesszővel elválasztva. Magyar vagy latin terminológia."></textarea>
-                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Doctor-entered diagnoses only. Summary generation must not infer new diagnoses from test results.</div>
+                    <div class="subtle diagnoses-prompt" data-i18n="diagnosesPrompt">Klinikai benyomás, differenciáldiagnosztikai gondolat vagy fontos megfontolás az esetről (opcionális).</div>
+                    <textarea id="fDiagnoses" placeholder="Klinikai benyomás, differenciáldiagnózis, értelmezés vagy fontos gondolat az esetről…"></textarea>
+                    <div class="subtle diagnoses-note" data-i18n="diagnosesNote">Opcionális, orvos által rögzített klinikai gondolat. Az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.</div>
                   </div>
                   <div class="field">
                     <label data-i18n="disposition">Disposition</label>
@@ -822,7 +822,7 @@
   <script src="case-ui.js?v=demographics-20260922-1"></script>
   <script src="backend.js?v=canonical-vitals-20260923-1"></script>
   <script src="assistant-core.js?v=canonical-vitals-20260923-1"></script>
-  <script src="app.js?v=lab-name-main-20260928-2"></script>
+  <script src="app.js?v=clinical-consideration-20260928-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
   <script src="cockpit.js?v=case-selection-ward-order-20260923-2"></script>
   <script src="beta-features.js?v=main-badge-20260928-1"></script>

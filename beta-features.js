@@ -7,6 +7,8 @@
   let notesLoading = false;
 
   function addBetaBadge() {
+    const isBetaPage = /(?:^|\/)beta\.html$/i.test(window.location.pathname || "");
+    if (!isBetaPage) return;
     const brand = document.querySelector(".brand");
     if (!brand || brand.querySelector(".beta-build-badge")) return;
     const badge = document.createElement("span");

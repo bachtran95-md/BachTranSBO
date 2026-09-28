@@ -108,6 +108,17 @@ function sanitizeExampleSnapshot(value: unknown) {
   const snapshot = value && typeof value === "object"
     ? structuredClone(value as Record<string, unknown>)
     : {};
+  // Legacy approved examples may still store the clinician-authored reasoning
+  // under the historical "diagnoses" key. Present it to the model with the
+  // new semantics so examples cannot encourage a separate diagnosis list.
+  if (
+    !("clinical_consideration" in snapshot) &&
+    String((snapshot as any).diagnoses || "").trim()
+  ) {
+    (snapshot as any).clinical_consideration = String((snapshot as any).diagnoses || "").trim();
+  }
+  delete (snapshot as any).diagnoses;
+  delete (snapshot as any).diagnoses_status;
   delete (snapshot as any).vitals;
   delete (snapshot as any).parameters;
   if ("physical_examination" in snapshot) {
@@ -193,7 +204,6 @@ function workflowBlockers(caseRow: any, tests: any[]) {
     ["Complaint", caseRow.complaint, caseRow.complaint_skipped, false],
     ["Patient history", caseRow.history, caseRow.history_skipped, false],
     ["Physical examination", caseRow.physical_exam, caseRow.physical_exam_skipped, physicalStructuredComplete],
-    ["Diagnoses", caseRow.diagnoses, caseRow.diagnoses_skipped, false],
     ["Therapy", caseRow.therapy, caseRow.therapy_skipped, false],
     ["Clinical course", caseRow.clinical_course, caseRow.clinical_course_skipped, false],
   ];
@@ -274,8 +284,7 @@ function casePayload(caseRow: any, tests: any[]) {
     status_explicit_normal_findings: Array.isArray(caseRow.status_explicit_normals)
       ? caseRow.status_explicit_normals
       : [],
-    diagnoses: caseRow.diagnoses || "",
-    diagnoses_status: caseRow.diagnoses_skipped ? "none" : "provided",
+    clinical_consideration: caseRow.diagnoses || "",
     tests: tests.map((row) => ({
       category: row.category,
       type: row.subtype || null,
@@ -510,19 +519,23 @@ Deno.serve(async (req) => {
       "You are generating the final clinical documentation draft for BachTranSBO.",
       "Use ONLY the de-identified clinical facts supplied below.",
       "Never invent a diagnosis, result, treatment, consultation, disposition, or chronology.",
+      "Do NOT create a separate diagnosis/diagnoses heading, section, coded list, or Latin diagnosis list in the final documentation.",
       "If a fact is absent or a result is still waiting, do not fabricate it.",
       "If arrival_to_sbo is present, include that arrival mode naturally in the Hungarian clinical narrative/anamnesis.",
       "For structured physical status, physical_examination contains ONLY physician-entered positive findings. Vital parameters and the generated full normal-status text are intentionally excluded.",
       "Write a moderately detailed, flowing Hungarian clinical narrative. Prefer enough context to make the presentation, key findings, investigations, treatment/response, clinical reasoning already documented in the source, and disposition understandable; do not over-compress the case into terse fragments, but do not add filler or repeat the same fact.",
       "Physical examination is selective in the Summary: do NOT mechanically reproduce every supplied positive finding.",
-      "Prioritize physical findings in this order: (1) clinically significant findings whose omission could materially understate ABCDE severity, an important abnormality, or patient risk; (2) findings relevant to the presenting problem, documented differential/diagnosis, or management; (3) findings that help explain treatment, response, consultation, or disposition; (4) incidental low-value findings.",
+      "Prioritize physical findings in this order: (1) clinically significant findings whose omission could materially understate ABCDE severity, an important abnormality, or patient risk; (2) findings relevant to the presenting problem, clinician-documented differential/clinical consideration, or management; (3) findings that help explain treatment, response, consultation, or disposition; (4) incidental low-value findings.",
       "Retain groups (1)-(3) when supported by the CURRENT case. Group (4) may be omitted from the Summary.",
-      "A clinically significant finding must be retained even when it does not fit the documented diagnosis. Do not use the diagnosis as the sole filter for relevance.",
+      "A clinically significant finding must be retained even when it does not fit the clinician's documented clinical consideration. Do not use the clinical consideration as the sole filter for relevance.",
       "Selection means mention versus omission only: never reinterpret a finding, strengthen or weaken it, convert it into a diagnosis, or infer a new diagnosis from it.",
+      "clinical_consideration is optional clinician-authored reasoning. If it is non-empty, integrate it naturally near the END of the editable Summary, after the main investigations/treatment/course narrative and immediately before the final disposition/recommendations.",
+      "Preserve the clinician's exact level of certainty in clinical_consideration (for example suspected, possible, less likely, excluded). Never upgrade a differential or impression into a definitive diagnosis.",
+      "Do not reproduce clinical_consideration as a diagnosis list. Write it as flowing clinical reasoning. If it is empty, do not invent an assessment or differential.",
       "Integrate retained physical findings naturally into the narrative rather than copying them as a mechanical status list.",
       "If status_explicit_normal_findings is present, those are normal findings the physician explicitly entered in the Státusz generator because they are clinically worth emphasizing. Preserve them when relevant; do not generalize them into other normal findings.",
       "Do not infer omitted normal findings or numeric vital signs that are not present in the CURRENT case payload.",
-      "Follow the SBO Documentation Skill instructions exactly.",
+      "Follow the SBO Documentation Skill instructions except where they conflict with these hard rules. In particular, any Skill instruction requesting a separate diagnosis list is overridden: no separate diagnosis list may be added.",
       "Return ONLY the documentation text, without commentary, markdown fences, or explanations.",
       "",
       "=== SBO DOCUMENTATION SKILL ===",

@@ -206,6 +206,7 @@ function workflowBlockers(caseRow: any, tests: any[]) {
     ["Physical examination", caseRow.physical_exam, caseRow.physical_exam_skipped, physicalStructuredComplete],
     ["Therapy", caseRow.therapy, caseRow.therapy_skipped, false],
     ["Clinical course", caseRow.clinical_course, caseRow.clinical_course_skipped, false],
+    ["Clinical consideration", caseRow.diagnoses, caseRow.diagnoses_skipped, false],
   ];
 
   for (const [label, value, skipped, structuredComplete] of requiredNarrative) {
@@ -285,6 +286,7 @@ function casePayload(caseRow: any, tests: any[]) {
       ? caseRow.status_explicit_normals
       : [],
     clinical_consideration: caseRow.diagnoses || "",
+    clinical_consideration_status: caseRow.diagnoses_skipped ? "none" : "provided",
     tests: tests.map((row) => ({
       category: row.category,
       type: row.subtype || null,
@@ -529,9 +531,11 @@ Deno.serve(async (req) => {
       "Retain groups (1)-(3) when supported by the CURRENT case. Group (4) may be omitted from the Summary.",
       "A clinically significant finding must be retained even when it does not fit the clinician's documented clinical consideration. Do not use the clinical consideration as the sole filter for relevance.",
       "Selection means mention versus omission only: never reinterpret a finding, strengthen or weaken it, convert it into a diagnosis, or infer a new diagnosis from it.",
-      "clinical_consideration is optional clinician-authored reasoning. If it is non-empty, integrate it naturally near the END of the editable Summary, after the main investigations/treatment/course narrative and immediately before the final disposition/recommendations.",
+      "clinical_consideration is clinician-authored reasoning. The workflow requires either text or an explicit NONE state.",
+      "If clinical_consideration_status is 'provided', integrate clinical_consideration naturally near the END of the editable Summary, after the main investigations/treatment/course narrative and immediately before the final disposition/recommendations.",
+      "If clinical_consideration_status is 'none', do not add any assessment, differential, diagnostic impression, or clinical consideration that is not otherwise explicitly documented in the CURRENT case.",
       "Preserve the clinician's exact level of certainty in clinical_consideration (for example suspected, possible, less likely, excluded). Never upgrade a differential or impression into a definitive diagnosis.",
-      "Do not reproduce clinical_consideration as a diagnosis list. Write it as flowing clinical reasoning. If it is empty, do not invent an assessment or differential.",
+      "Do not reproduce clinical_consideration as a diagnosis list. Write it as flowing clinical reasoning.",
       "Integrate retained physical findings naturally into the narrative rather than copying them as a mechanical status list.",
       "If status_explicit_normal_findings is present, those are normal findings the physician explicitly entered in the Státusz generator because they are clinically worth emphasizing. Preserve them when relevant; do not generalize them into other normal findings.",
       "Do not infer omitted normal findings or numeric vital signs that are not present in the CURRENT case payload.",

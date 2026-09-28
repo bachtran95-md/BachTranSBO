@@ -1046,10 +1046,10 @@ function investigationItems(patient) {
 
   return [
     ...(tests.labs || []).map((entry, index) => {
-      const customName = String(entry?.name || "").trim();
+      const customName = index > 0 ? String(entry?.name || "").trim() : "";
       const base = uiLang === "hu" ? "Labor" : "Lab";
       return {
-        name: customName ? `${base} · ${customName}` : `${base} ${index + 1}`,
+        name: customName ? `${base} ${index + 1} · ${customName}` : `${base} ${index + 1}`,
         status: entryStatus(entry)
       };
     }),
@@ -2233,7 +2233,7 @@ function makeSimpleCard(label, entry, key, isGas = false) {
     <div class="test-head">
       <div class="test-name-wrap">
         <span class="test-name">${label}</span>
-        ${prefix === "lab" ? `<input class="lab-name-input" data-lab-name value="${attr(entry.name || "")}" placeholder="${uiLang === "hu" ? "Név, pl. Kontroll troponin" : "Name, e.g. repeat troponin"}" aria-label="${uiLang === "hu" ? "Labor neve" : "Lab name"}" />` : ""}
+        ${prefix === "lab" && Number(String(key).split("-")[1] || 0) > 0 ? `<input class="lab-name-input" data-lab-name value="${attr(entry.name || "")}" placeholder="${uiLang === "hu" ? "Név, pl. kontroll troponin" : "Name, e.g. repeat troponin"}" aria-label="${uiLang === "hu" ? "Labor neve" : "Lab name"}" />` : ""}
         ${isGas ? `<span class="gas-type">${label}</span>` : ""}
       </div>
       <div class="card-head-actions">

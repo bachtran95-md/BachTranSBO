@@ -2915,8 +2915,9 @@ function buildExternalEpicrisisPrompt(patient) {
 
   const sections = [];
   const age = ageFromYob(patient.yob);
-  const sex = patientSexLabel(patient.sex);
-  const demographic = [age ? `${age} éves` : "", sex && sex !== "—" ? sex.toLowerCase() : ""]
+  const sex = normalizeSex(patient.sex);
+  const sexHu = sex === "M" ? "férfi" : sex === "F" ? "nő" : sex === "O" ? "egyéb" : "";
+  const demographic = [age ? `${age} éves` : "", sexHu]
     .filter(Boolean)
     .join(" ");
   if (demographic) sections.push(externalPromptSection("Beteg", demographic));
@@ -2941,10 +2942,11 @@ function buildExternalEpicrisisPrompt(patient) {
     externalNarrativeValue(patient, "complaint", "complaintSkipped")
   ));
 
-  sections.push(externalPromptSection("Paraméterek", externalVitalsText(patient)));
-
   const statusContext = window.BachSBOStatusGenerator?.getSummaryContext?.(patient.id);
   const fullStatus = String(statusContext?.finalStatusDraft || patient.physical || "").trim();
+  if (!statusContext?.finalStatusDraft) {
+    sections.push(externalPromptSection("Paraméterek", externalVitalsText(patient)));
+  }
   sections.push(externalPromptSection(
     "Fizikális vizsgálat",
     fullStatus || (patient.physicalSkipped ? "NINCS" : "")

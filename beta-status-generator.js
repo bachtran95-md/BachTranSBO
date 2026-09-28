@@ -2165,6 +2165,19 @@
     }
   }
 
+  function clinicianAuthoredStatusText(state, clinicalNote = "") {
+    const lines = [];
+    const note = String(clinicalNote || "").trim();
+    if (note) lines.push(`Klinikai megjegyzés: ${note}`);
+
+    for (const section of SECTIONS) {
+      const text = String(state?.inputs?.[section] || "").trim();
+      if (text) lines.push(`${section}: ${text}`);
+    }
+
+    return lines.join("\n");
+  }
+
   function getSummaryContext(caseId) {
     const patient = patientSnapshot(caseId);
     const shiftId = patient?.shiftId || "";
@@ -2181,6 +2194,7 @@
         value: item.value,
         attributes: item.attributes || {}
       })),
+      clinicianAuthoredStatusDraft: clinicianAuthoredStatusText(state, patient?.others || ""),
       finalStatusDraft: record.payload.final_status,
       unresolved: record.unresolved
     };

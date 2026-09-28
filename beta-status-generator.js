@@ -1617,7 +1617,7 @@
     if (p.pulse.trim()) parts.push("P: " + withUnit(p.pulse, "/min"));
     if (p.temperature.trim()) parts.push("T: " + withUnit(p.temperature, "°C"));
     if (p.respiratoryRate.trim()) parts.push("Lsz: " + withUnit(p.respiratoryRate, "/min"));
-    if (p.spo2.trim()) parts.push("SpO₂: " + withUnit(p.spo2, "%"));
+    if (p.spo2.trim()) parts.push("SpO2: " + withUnit(p.spo2, "%"));
     if (p.oxygen.trim()) parts.push(String(p.oxygen).trim());
     return parts.length ? parts.join(", ") + "." : "";
   }

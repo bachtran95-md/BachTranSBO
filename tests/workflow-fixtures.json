@@ -5,6 +5,14 @@
     "expectedReady": true
   },
   {
+    "name": "blank clinical consideration is optional",
+    "patch": {
+      "diagnoses": "",
+      "diagnosesSkipped": false
+    },
+    "expectedReady": true
+  },
+  {
     "name": "missing sex",
     "patch": {
       "sex": ""

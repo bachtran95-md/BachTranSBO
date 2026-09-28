@@ -51,7 +51,6 @@ export function patientWorkflowBlockers(patient: any) {
     ["Physical examination", patient?.physical, patient?.physicalSkipped, physicalStructuredComplete],
     ["Therapy", patient?.therapy, patient?.therapySkipped, false],
     ["Clinical course", patient?.course, patient?.courseSkipped, false],
-    ["Diagnoses", patient?.diagnoses, patient?.diagnosesSkipped, false],
   ];
 
   for (const [label, value, skipped, structuredComplete] of requiredNarrative) {

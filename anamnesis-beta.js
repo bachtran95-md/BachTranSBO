@@ -745,7 +745,7 @@
       }
       [...node.attributes].forEach((attr) => node.removeAttribute(attr.name));
     });
-    return container.innerHTML;
+    return '<div style="text-align:justify;text-justify:inter-word">' + container.innerHTML + '</div>';
   }
 
   function finalClipboardPayload() {

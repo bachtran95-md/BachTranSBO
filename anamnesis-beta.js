@@ -22,6 +22,7 @@
     return {
       label: "",
       complaint: "",
+      mode: "balanced",
       sources: [],
       events: [],
       final: {
@@ -92,6 +93,41 @@
     return e.doctor ? date + " — " + e.doctor + ", " + place + " —" : date + " — " + place + " —";
   }
 
+  function highlightedText(text, highlights) {
+    const raw = String(text || "");
+    const terms = [...new Set((Array.isArray(highlights) ? highlights : [])
+      .map((x) => String(x || "").trim())
+      .filter((x) => x && raw.includes(x)))]
+      .sort((a,b) => b.length - a.length);
+    if (!terms.length) return esc(raw);
+
+    const ranges = [];
+    for (const term of terms) {
+      let start = 0;
+      while (start < raw.length) {
+        const index = raw.indexOf(term, start);
+        if (index < 0) break;
+        const end = index + term.length;
+        if (!ranges.some((r) => index < r.end && end > r.start)) {
+          ranges.push({start:index, end});
+        }
+        start = end;
+      }
+    }
+    ranges.sort((a,b) => a.start - b.start);
+    if (!ranges.length) return esc(raw);
+
+    let html = "";
+    let cursor = 0;
+    for (const range of ranges) {
+      html += esc(raw.slice(cursor, range.start));
+      html += '<strong class="an-clinical-anchor">' + esc(raw.slice(range.start, range.end)) + '</strong>';
+      cursor = range.end;
+    }
+    html += esc(raw.slice(cursor));
+    return html;
+  }
+
   function renderShell() {
     const root = $("anamnesisView");
     if (!root) return;
@@ -127,6 +163,24 @@
             </div>
             <div class="an-panel-b">
               <div class="an-hint">Ha egy feltöltött PDF-ben az anamnézis már nagyon jó, jelöld azon a dokumentumon a <b>MEGŐRZÉS / MIN. VÁLTOZTATÁS</b> módot. Egyszerre egy referenciaforrás aktív.</div>
+              <div class="an-mode-box">
+                <label class="an-caption" for="anamnesisMode">Anamnézis részletessége</label>
+                <select id="anamnesisMode">
+                  <option value="relevant" ${state.mode === "relevant" ? "selected" : ""}>Aktuális panaszhoz releváns</option>
+                  <option value="concise" ${state.mode === "concise" ? "selected" : ""}>Rövid</option>
+                  <option value="balanced" ${state.mode === "balanced" ? "selected" : ""}>Standard</option>
+                  <option value="detailed" ${state.mode === "detailed" ? "selected" : ""}>Részletes</option>
+                </select>
+                <div class="an-subtle" id="anamnesisModeHint">
+                  ${state.mode === "relevant"
+                    ? "Az aktuális panaszhoz kapcsolódó előzményeket priorizálja; a fontos biztonsági háttér megmarad."
+                    : state.mode === "concise"
+                    ? "Tömör anamnézis, de a nagy beavatkozások és objektív klinikai kulcsadatok megmaradnak."
+                    : state.mode === "detailed"
+                    ? "Több klinikailag hasznos kontextus, vizsgálat, terápia és kimenetel."
+                    : "Kiegyensúlyozott belgyógyászati részletesség."}
+                </div>
+              </div>
               <div class="an-source-actions">
                 <button class="btn small" id="anamnesisUploadBtn" type="button">+ PDF / KÉP</button>
                 <button class="btn small" id="anamnesisTextSourceBtn" type="button">+ SZÖVEG</button>
@@ -254,6 +308,9 @@
           </div>
           <div class="an-card-b">
             <textarea data-an-event-text>${esc(e.text || "")}</textarea>
+            ${Array.isArray(e.highlights) && e.highlights.length
+              ? '<div class="an-highlight-preview" data-an-highlight-preview>' + highlightedText(e.text, e.highlights) + '</div>'
+              : '<div class="an-highlight-preview hidden" data-an-highlight-preview></div>'}
             <div class="an-segmented">
               ${modes.map(([key,label]) => '<button class="an-seg '+(e.detail===key?"active":"")+'" type="button" data-an-detail="'+key+'">'+label+'</button>').join("")}
             </div>
@@ -327,7 +384,7 @@
   function finalHistoryHtml(events) {
     return (events || []).map((e) => {
       const heading = eventHeading(e);
-      return '<span class="an-history-line"><strong>' + esc(heading) + '</strong> ' + esc(e.text || "") + '</span>';
+      return '<span class="an-history-line"><strong>' + esc(heading) + '</strong> ' + highlightedText(e.text || "", e.highlights || []) + '</span>';
     }).join("");
   }
 
@@ -346,6 +403,7 @@
       const result = await api({
         action: "extract",
         complaint: state.complaint || "",
+        mode: state.mode || "balanced",
         sources: usable.map((s) => ({
           id: s.id,
           kind: s.kind || "",
@@ -372,7 +430,8 @@
           preserve,
           detail: ["minimal","shorter","longer","detailed"].includes(e.detail) ? e.detail : (preserve ? "longer" : "shorter"),
           instruction: "",
-          text: String(e.text || "")
+          text: String(e.text || ""),
+          highlights: Array.isArray(e.highlights) ? e.highlights.map((x) => String(x || "")).filter(Boolean) : []
         };
       }).sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
 
@@ -436,10 +495,12 @@
           text:ev.text || "",
           preserve:Boolean(ev.preserve),
           detail:ev.detail || "shorter",
-          instruction:ev.instruction || ""
+          instruction:ev.instruction || "",
+          highlights:Array.isArray(ev.highlights) ? ev.highlights : []
         }
       });
       ev.text = String(result?.text || ev.text || "");
+      ev.highlights = Array.isArray(result?.highlights) ? result.highlights.map((x) => String(x || "")).filter(Boolean) : [];
       renderEvents();
       saveState();
       toast("Esemény AI-átírás elkészült.");
@@ -464,6 +525,21 @@
 
   function bindStaticControls() {
     $("anamnesisLabel")?.addEventListener("input", (e) => { state.label = e.target.value; saveState(); });
+    $("anamnesisMode")?.addEventListener("change", (e) => {
+      state.mode = e.target.value;
+      const hint = $("anamnesisModeHint");
+      if (hint) {
+        hint.textContent =
+          state.mode === "relevant"
+            ? "Az aktuális panaszhoz kapcsolódó előzményeket priorizálja; a fontos biztonsági háttér megmarad."
+            : state.mode === "concise"
+            ? "Tömör anamnézis, de a nagy beavatkozások és objektív klinikai kulcsadatok megmaradnak."
+            : state.mode === "detailed"
+            ? "Több klinikailag hasznos kontextus, vizsgálat, terápia és kimenetel."
+            : "Kiegyensúlyozott belgyógyászati részletesség.";
+      }
+      saveState();
+    });
     $("anamnesisComplaint")?.addEventListener("input", (e) => {
       state.complaint = e.target.value;
       if (!state.final.complaint) $("anamnesisFinalComplaint").value = e.target.value;
@@ -545,7 +621,15 @@
       if (eventCard) {
         const ev = state.events.find((x) => x.id === eventCard.dataset.anEvent);
         if (!ev) return;
-        if (e.target.matches("[data-an-event-text]")) ev.text = e.target.value;
+        if (e.target.matches("[data-an-event-text]")) {
+          ev.text = e.target.value;
+          ev.highlights = (Array.isArray(ev.highlights) ? ev.highlights : []).filter((x) => ev.text.includes(x));
+          const preview = eventCard.querySelector("[data-an-highlight-preview]");
+          if (preview) {
+            preview.innerHTML = highlightedText(ev.text, ev.highlights);
+            preview.classList.toggle("hidden", !ev.highlights.length);
+          }
+        }
         if (e.target.matches("[data-an-instruction]")) ev.instruction = e.target.value;
         saveState();
         return;

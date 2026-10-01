@@ -97,7 +97,7 @@
 .anamnesis-module .an-highlight-preview{
   margin-top:6px;padding:0;
   border:0;background:transparent;border-radius:0;
-  font-size:10px;line-height:1.45;color:#344054
+  font-size:10px;line-height:1.45;color:#344054;text-align:justify;text-justify:inter-word
 }
 .anamnesis-module .an-highlight-preview::before{
   content:"Fontos adatok előnézet";display:block;margin-bottom:4px;font-size:8px;font-weight:900;
@@ -117,12 +117,12 @@
 .anamnesis-module .an-history-editor{
   border:1px solid #cfd5dd;border-radius:7px;padding:8px;min-height:145px;
   font-size:10px;line-height:1.5;outline:none;white-space:pre-wrap;
-  text-align:left
+  text-align:justify;text-justify:inter-word
 }
 .anamnesis-module .an-history-line{
-  display:block;margin:0 0 6px 0;padding:0;text-align:left;text-indent:0
+  display:block;margin:0 0 6px 0;padding:0;text-align:justify;text-justify:inter-word;text-indent:0
 }
-.anamnesis-module .an-history-line strong{display:inline;text-align:left}
+.anamnesis-module .an-history-line strong{display:inline}
 .anamnesis-module .an-med-list{display:flex;flex-direction:column;gap:5px}
 .anamnesis-module .an-med-row{display:grid;grid-template-columns:minmax(140px,1fr) 115px 26px;gap:5px;align-items:center}
 .anamnesis-module .an-conflict{border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:7px;padding:7px;font-size:9px;line-height:1.35}

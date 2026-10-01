@@ -35,6 +35,10 @@
 .anamnesis-module .an-chip.blue{background:#dbeafe;color:#1d4ed8}
 .anamnesis-module .an-chip.purple{background:#ede9fe;color:#6d28d9}
 .anamnesis-module .an-chip.green{background:#dcfce7;color:#166534}
+.anamnesis-module .an-mode-box{
+  border:1px solid #dbe5f0;background:#f8fafc;border-radius:9px;padding:8px 9px;margin-bottom:8px
+}
+.anamnesis-module .an-mode-box select{margin-bottom:5px}
 .anamnesis-module .an-source-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .anamnesis-module .an-source-list,.anamnesis-module .an-event-list{display:flex;flex-direction:column;gap:7px}
 .anamnesis-module .an-card{border:1px solid var(--an-line);border-radius:10px;overflow:hidden;background:#fff}
@@ -68,6 +72,17 @@
 .anamnesis-module .an-ai:hover{transform:translateY(-1px);filter:saturate(1.08) brightness(1.03);box-shadow:0 7px 17px rgba(79,70,229,.28),inset 0 1px 0 rgba(255,255,255,.18)}
 .anamnesis-module .an-ai svg{width:15px;height:15px;flex:0 0 auto}
 .anamnesis-module .an-ai-row{margin-top:8px;padding-top:8px;border-top:1px solid var(--an-line);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.anamnesis-module .an-highlight-preview{
+  margin-top:6px;padding:7px 8px;border:1px solid #dbeafe;background:#f8fbff;border-radius:7px;
+  font-size:10px;line-height:1.45;color:#344054
+}
+.anamnesis-module .an-highlight-preview::before{
+  content:"Kiemelés előnézet";display:block;margin-bottom:4px;font-size:8px;font-weight:900;
+  text-transform:uppercase;letter-spacing:.05em;color:#667085
+}
+.anamnesis-module .an-clinical-anchor{
+  font-weight:900;color:#111827;background:#fef3c7;border-radius:3px;padding:0 2px
+}
 .anamnesis-module .an-segmented{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:6px 0}
 .anamnesis-module .an-seg{border:1px solid #d0d5dd;background:#fff;color:#475467;border-radius:6px;padding:5px 2px;font-size:8px;font-weight:850}
 .anamnesis-module .an-seg.active{background:#eef4ff;border-color:#84adff;color:#1849a9}

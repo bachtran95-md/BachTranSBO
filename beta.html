@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=clinical-consideration-20260928-1" />
   <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
+  <link rel="stylesheet" href="anamnesis-beta.css?v=anamnesis-ui-20261001-1" />
 </head>
 <body class="beta-build beta-simple-status">
   <header class="topbar">
@@ -29,6 +30,7 @@
   <nav class="workspace-nav" aria-label="Workspace">
     <div class="workspace-nav-main">
       <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
+      <button class="nav-item" id="anamnesisNav"><span>Anamnézis</span><span class="beta-build-badge">BETA</span></button>
       <button class="nav-item" id="notesNav"><span data-i18n="notesNav">Notes</span></button>
       <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
       <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
@@ -570,6 +572,8 @@
         </div>
       </section>
 
+      <section id="anamnesisView" class="hidden"></section>
+
       <section id="aiLearningView" class="hidden">
         <div class="learning-head">
           <div>
@@ -831,5 +835,6 @@
   <script src="beta-features.js?v=main-badge-20260928-1"></script>
   <script src="status-vocabulary.js?v=renal-percussion-20260923-1"></script>
   <script src="beta-status-generator.js?v=gemini-authored-status-20260928-1"></script>
+  <script src="anamnesis-beta.js?v=anamnesis-ui-20261001-1"></script>
 </body>
 </html>

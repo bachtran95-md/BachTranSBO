@@ -348,7 +348,8 @@
                 <textarea id="anamnesisDiscrepancies" placeholder="Pl. eltérő EF, gyógyszerlista, dátum..."></textarea>
               </div>
               <div class="an-final-actions">
-                <button class="btn" id="anamnesisCopyBtn" type="button">MÁSOLÁS</button>
+                <span class="an-subtle">A Step 3 jelenlegi, kézzel szerkesztett tartalmát másolja.</span>
+                <button class="btn" id="anamnesisCopyBtn" type="button" title="A jelenlegi Step 3 tartalom másolása formázással">MÁSOLÁS</button>
               </div>
             </div>
           </section>
@@ -710,20 +711,95 @@
     });
   }
 
-  function clipboardText() {
-    const historyText = [...state.events]
-      .sort((a,b) => String(a.date || "").localeCompare(String(b.date || "")))
-      .map((e) => eventHeading(e) + " " + String(activeEventVersion(e).text || "").trim())
-      .join("\n");
-    const meds = state.meds.filter((m) => String(m.name || "").trim()).map((m) => (m.name || "").trim() + ((m.dose || "").trim() ? " " + m.dose.trim() : "")).join(", ");
-    return [
-      "Aktuális panasz / felvétel oka", state.final.complaint || state.complaint || "", "",
-      "Ismert betegségek", state.final.diseases || "", "",
+  function currentMedicationText() {
+    const rows = [...document.querySelectorAll("#anamnesisMedList [data-an-med]")];
+    if (rows.length) {
+      return rows.map((row) => {
+        const name = String(row.querySelector("[data-an-med-name]")?.value || "").trim();
+        const dose = String(row.querySelector("[data-an-med-dose]")?.value || "").trim();
+        return name ? name + (dose ? " " + dose : "") : "";
+      }).filter(Boolean).join(", ");
+    }
+    return state.meds
+      .filter((m) => String(m.name || "").trim())
+      .map((m) => String(m.name || "").trim() + (String(m.dose || "").trim() ? " " + String(m.dose).trim() : ""))
+      .join(", ");
+  }
+
+  function clipboardSafeHistoryHtml() {
+    const editor = $("anamnesisHistoryEditor");
+    const container = document.createElement("div");
+    container.innerHTML = editor?.innerHTML || state.final.historyHtml || "";
+
+    container.querySelectorAll(".an-history-line").forEach((node) => {
+      const block = document.createElement("div");
+      block.innerHTML = node.innerHTML;
+      node.replaceWith(block);
+    });
+
+    const allowed = new Set(["STRONG","B","BR","DIV","P","SPAN"]);
+    [...container.querySelectorAll("*")].forEach((node) => {
+      if (!allowed.has(node.tagName)) {
+        node.replaceWith(document.createTextNode(node.textContent || ""));
+        return;
+      }
+      [...node.attributes].forEach((attr) => node.removeAttribute(attr.name));
+    });
+    return container.innerHTML;
+  }
+
+  function finalClipboardPayload() {
+    const complaint = String($("anamnesisFinalComplaint")?.value || state.final.complaint || state.complaint || "").trim();
+    const diseases = String($("anamnesisDiseases")?.value || state.final.diseases || "").trim();
+    const historyEditor = $("anamnesisHistoryEditor");
+    const historyText = String(historyEditor?.innerText || "").trim();
+    const historyHtml = clipboardSafeHistoryHtml();
+    const meds = currentMedicationText();
+    const allergies = String($("anamnesisAllergies")?.value || state.final.allergies || "").trim();
+    const discrepancies = String($("anamnesisDiscrepancies")?.value || state.final.discrepancies || "").trim();
+
+    const text = [
+      "Aktuális panasz / felvétel oka", complaint, "",
+      "Ismert betegségek", diseases, "",
       "Anamnézis", historyText, "",
       "Gyógyszerelés", meds || "—", "",
-      "Allergiák / CAVE", state.final.allergies || "", "",
-      state.final.discrepancies ? "Ellenőrizendő eltérések\n" + state.final.discrepancies : ""
+      "Allergiák / CAVE", allergies, "",
+      discrepancies ? "Ellenőrizendő eltérések\n" + discrepancies : ""
     ].filter((x,idx,arr) => !(x === "" && arr[idx-1] === "")).join("\n");
+
+    const textHtml = (value) => esc(value).replace(/\n/g, "<br>");
+    const section = (title, bodyHtml) =>
+      '<div><strong>' + esc(title) + '</strong><br>' + (bodyHtml || "—") + '</div>';
+
+    const html = [
+      section("Aktuális panasz / felvétel oka", textHtml(complaint)),
+      section("Ismert betegségek", textHtml(diseases)),
+      section("Anamnézis", historyHtml || "—"),
+      section("Gyógyszerelés", textHtml(meds || "—")),
+      section("Allergiák / CAVE", textHtml(allergies)),
+      discrepancies ? section("Ellenőrizendő eltérések", textHtml(discrepancies)) : ""
+    ].filter(Boolean).join("<br>");
+
+    return { text, html };
+  }
+
+  async function copyFinalStep3() {
+    const payload = finalClipboardPayload();
+    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/plain": new Blob([payload.text], { type:"text/plain" }),
+            "text/html": new Blob([payload.html], { type:"text/html" })
+          })
+        ]);
+        return "rich";
+      } catch (error) {
+        console.warn("Rich clipboard copy failed, using plain text fallback:", error);
+      }
+    }
+    await navigator.clipboard.writeText(payload.text);
+    return "plain";
   }
 
   function readImageAsDataUrl(file) {
@@ -953,8 +1029,14 @@
     });
 
     $("anamnesisCopyBtn")?.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(clipboardText()); toast("Anamnézis a vágólapra másolva."); }
-      catch { toast("A böngésző nem engedte a vágólap írását."); }
+      try {
+        const mode = await copyFinalStep3();
+        toast(mode === "rich"
+          ? "A Step 3 aktuális változata formázással a vágólapra másolva."
+          : "A Step 3 aktuális változata másolva; ez a böngésző csak egyszerű szöveget engedett.");
+      } catch {
+        toast("A böngésző nem engedte a vágólap írását.");
+      }
     });
 
     ["anamnesisFinalComplaint","anamnesisDiseases","anamnesisAllergies","anamnesisDiscrepancies"].forEach((id) => {

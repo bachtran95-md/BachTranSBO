@@ -37,7 +37,6 @@
   }
 
   let state = loadState();
-  const screenshotPreviewUrls = new Map();
 
   function loadState() {
     try {
@@ -61,6 +60,7 @@
     const persisted = structuredClone(state);
     persisted.sources = (persisted.sources || []).map((source) => {
       delete source.previewUrl;
+      delete source.imageDataUrl;
       return source;
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
@@ -170,7 +170,7 @@
         <div class="an-grid">
           <section class="an-panel">
             <div class="an-panel-h">
-              <div><div class="an-step">1. LÉPÉS</div><div class="an-title">Források</div><div class="an-subtle">PDF / dokumentum / beillesztett szöveg</div></div>
+              <div><div class="an-step">1. LÉPÉS</div><div class="an-title">Források</div><div class="an-subtle">PDF / szöveg / képernyőkép, akár vágólapról</div></div>
               <span class="an-chip blue" id="anamnesisSourceCount"></span>
             </div>
             <div class="an-panel-b">
@@ -204,7 +204,7 @@
               <div class="an-source-list" id="anamnesisSourceList"></div>
               <div class="an-ai-row">
                 <button class="an-ai" id="anamnesisExtractBtn" type="button">${aiIcon}<span>AI KINYERÉS</span></button>
-                <span class="an-subtle">Valódi API-hívás. Jelenleg a forráskártyába beírt / beillesztett szöveget dolgozza fel.</span>
+                <span class="an-subtle">Valódi API-hívás: szöveg + azonosítómentesnek jelölt képernyőképek. Screenshot beillesztés: Ctrl+V / ⌘V.</span>
               </div>
             </div>
           </section>
@@ -298,16 +298,19 @@
             <input data-an-source-place value="${esc(s.place || "")}" placeholder="Intézmény / osztály" />
           </div>
           ${s.kind === "Képernyőkép"
-            ? (s.previewUrl
-              ? '<img class="an-screenshot-preview" src="' + esc(s.previewUrl) + '" alt="Képernyőkép előnézet" />'
-              : '<div class="an-screenshot-missing">Képernyőkép-metaadat megmaradt, de a helyi kép előnézet frissítés után nem tárolódik. Töltsd fel újra, ha szükséges.</div>')
+            ? ((s.previewUrl || s.imageDataUrl)
+              ? '<img class="an-screenshot-preview" src="' + esc(s.previewUrl || s.imageDataUrl) + '" alt="Képernyőkép előnézet" />'
+              : '<div class="an-screenshot-missing">A képernyőkép képi tartalma frissítés után nem marad helyben. Illeszd vagy töltsd fel újra az AI feldolgozáshoz.</div>')
+            : ""}
+          ${s.kind === "Képernyőkép"
+            ? '<label class="an-image-confirm"><input type="checkbox" data-an-image-confirm ' + (s.imageConfirmed ? 'checked' : '') + ' /> <span>Nincs betegazonosító / személyes adat ezen a képen — AI-ba küldhető</span></label>'
             : ""}
           <textarea data-an-source-text placeholder="${s.kind === "PDF"
             ? "PDF feltöltve. Ebben a Beta-körben illeszd ide a PDF releváns szövegét / epikrízisét; a közvetlen PDF-text extraction külön bekötés alatt."
             : s.kind === "Képernyőkép"
-            ? "A screenshot képe V1-ben még nem megy AI-ba. Ide írd / illeszd a klinikailag releváns szöveget."
+            ? "Opcionális megjegyzés a screenshothoz."
             : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
-          ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A képernyőkép csak forrás-előnézet. A nyers kép jelenleg nem kerül AI/API feldolgozásra.</div>' : ""}
+          ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A screenshot csak az AI KINYERÉS megnyomásakor kerül a szerveroldali OpenAI Responses API-hoz, és csak a fenti jelölés után.</div>' : ""}
           ${s.preserve ? '<div class="an-preserve-note"><b>Referencia anamnézis.</b> A későbbi AI-feldolgozás ennek jó megfogalmazását, kronológiáját és relatív részletességét tartja meg; főként formátumot egységesít és szükséges tényekkel egészít ki.</div>' : ""}
         </div>
       </div>
@@ -413,12 +416,26 @@
   }
 
   async function extractWithAi(button) {
-    const usable = state.sources.filter((s) => String(s.text || "").trim());
+    const unconfirmedImages = state.sources.filter(
+      (s) => s.kind === "Képernyőkép" && s.imageDataUrl && !s.imageConfirmed
+    );
+    if (unconfirmedImages.length) {
+      toast("Jelöld a screenshoton, hogy nincs rajta betegazonosító / személyes adat.");
+      return;
+    }
+
+    const usable = state.sources.filter((s) =>
+      String(s.text || "").trim() ||
+      (s.kind === "Képernyőkép" && Boolean(s.imageDataUrl) && Boolean(s.imageConfirmed))
+    );
     if (!usable.length) {
       const hasPdf = state.sources.some((s) => s.kind === "PDF");
-      toast(hasPdf
+      const hasScreenshot = state.sources.some((s) => s.kind === "Képernyőkép");
+      toast(hasScreenshot
+        ? "A screenshot képi tartalma hiányzik vagy nincs AI-küldésre jóváhagyva."
+        : hasPdf
         ? "A PDF-kártyába még nincs forrásszöveg beillesztve."
-        : "Nincs feldolgozható forrásszöveg.");
+        : "Nincs feldolgozható forrás.");
       return;
     }
 
@@ -435,7 +452,9 @@
           date: s.date || "",
           place: s.place || "",
           preserve: Boolean(s.preserve),
-          text: s.text || ""
+          text: s.text || "",
+          imageDataUrl: s.kind === "Képernyőkép" ? (s.imageDataUrl || "") : "",
+          imageConfirmedNoIdentifiers: s.kind === "Képernyőkép" ? Boolean(s.imageConfirmed) : false
         }))
       });
 
@@ -547,6 +566,45 @@
     ].filter((x,idx,arr) => !(x === "" && arr[idx-1] === "")).join("\n");
   }
 
+  function readImageAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\/(png|jpeg|webp)$/i.test(file.type || "")) {
+        reject(new Error("Csak PNG, JPEG vagy WebP képernyőkép támogatott."));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        reject(new Error("A képernyőkép túl nagy. Maximum 5 MB."));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("A képernyőkép nem olvasható."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function addScreenshotFile(file, sourceLabel = "Képernyőkép") {
+    const imageDataUrl = await readImageAsDataUrl(file);
+    const id = uid("source");
+    state.sources.unshift({
+      id,
+      kind: "Képernyőkép",
+      name: sourceLabel,
+      fileName: file.name || "",
+      date: "",
+      place: "",
+      doctor: "",
+      preserve: false,
+      text: "",
+      previewUrl: imageDataUrl,
+      imageDataUrl,
+      imageConfirmed: false
+    });
+    renderSources();
+    saveState();
+    toast("Képernyőkép hozzáadva. Jelöld az azonosítómentességet, majd AI KINYERÉS.");
+  }
+
   function hasPatientContent() {
     return Boolean(
       String(state.label || "").trim() ||
@@ -559,15 +617,7 @@
     );
   }
 
-  function revokeScreenshotUrls() {
-    for (const url of screenshotPreviewUrls.values()) {
-      try { URL.revokeObjectURL(url); } catch {}
-    }
-    screenshotPreviewUrls.clear();
-  }
-
   function resetPatientWorkspace(message = "Új beteg munkalap indítva.") {
-    revokeScreenshotUrls();
     state = emptyState();
     localStorage.removeItem(STORAGE_KEY);
     renderShell();
@@ -633,30 +683,34 @@
     });
 
     $("anamnesisScreenshotBtn")?.addEventListener("click", () => $("anamnesisScreenshotInput")?.click());
-    $("anamnesisScreenshotInput")?.addEventListener("change", (e) => {
-      [...(e.target.files || [])].forEach((file) => {
-        if (!file.type.startsWith("image/")) return;
-        const id = uid("source");
-        const previewUrl = URL.createObjectURL(file);
-        screenshotPreviewUrls.set(id, previewUrl);
-        state.sources.unshift({
-          id,
-          kind: "Képernyőkép",
-          name: file.name || "Képernyőkép",
-          fileName: file.name || "",
-          date: "",
-          place: "",
-          doctor: "",
-          preserve: false,
-          text: "",
-          previewUrl
-        });
-      });
+    $("anamnesisScreenshotInput")?.addEventListener("change", async (e) => {
+      const files = [...(e.target.files || [])];
       e.target.value = "";
-      renderSources();
-      saveState();
-      toast("Képernyőkép hozzáadva. A kép maga nem kerül AI/API feldolgozásra.");
+      for (const file of files) {
+        try {
+          await addScreenshotFile(file, file.name || "Képernyőkép");
+        } catch (error) {
+          toast(error?.message || "Képernyőkép hozzáadási hiba.");
+        }
+      }
     });
+
+    const moduleRoot = $("anamnesisView");
+    if (moduleRoot) {
+      moduleRoot.onpaste = async (event) => {
+        const items = [...(event.clipboardData?.items || [])];
+        const imageItem = items.find((item) => /^image\/(png|jpeg|webp)$/i.test(item.type || ""));
+        if (!imageItem) return;
+        const file = imageItem.getAsFile();
+        if (!file) return;
+        event.preventDefault();
+        try {
+          await addScreenshotFile(file, "Vágólapról beillesztett képernyőkép");
+        } catch (error) {
+          toast(error?.message || "A vágólap képe nem adható hozzá.");
+        }
+      };
+    }
 
     $("anamnesisTextSourceBtn")?.addEventListener("click", () => {
       state.sources.unshift({id:uid("source"),kind:"Szöveg",name:"Új szöveges forrás",date:"",place:"",doctor:"",preserve:false,text:""});
@@ -706,6 +760,7 @@
         if (e.target.matches("[data-an-source-date]")) s.date = e.target.value;
         if (e.target.matches("[data-an-source-place]")) s.place = e.target.value;
         if (e.target.matches("[data-an-source-text]")) s.text = e.target.value;
+        if (e.target.matches("[data-an-image-confirm]")) s.imageConfirmed = Boolean(e.target.checked);
         saveState();
         return;
       }
@@ -752,11 +807,6 @@
       }
       if (sourceCard && e.target.closest("[data-an-delete-source]")) {
         const id = sourceCard.dataset.anSource;
-        const previewUrl = screenshotPreviewUrls.get(id);
-        if (previewUrl) {
-          try { URL.revokeObjectURL(previewUrl); } catch {}
-          screenshotPreviewUrls.delete(id);
-        }
         state.sources = state.sources.filter((x) => x.id !== id);
         state.events = state.events.filter((x) => x.sourceId !== id);
         renderSources(); renderEvents(); saveState(); return;

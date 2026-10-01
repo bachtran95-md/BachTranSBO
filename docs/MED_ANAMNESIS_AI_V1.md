@@ -38,11 +38,22 @@ Include an ambulatory encounter only when it adds clinically meaningful new info
 
 Routine repetitive or administrative outpatient visits may be omitted.
 
-## Zárójelentés processing — Epicrisis first
-For discharge summaries (zárójelentés):
-1. Use the epicrisis / összefoglalás as the primary narrative source.
-2. Do not summarize every section equally.
-3. Scan the rest of the document as a safety layer for:
+## Zárójelentés processing — Anamnézis + Epikrízis have different jobs
+For discharge summaries (zárójelentés), do not treat the epicrisis as a replacement for a good existing anamnesis.
+
+1. Identify the document's **Anamnézis / Előzmények / Kórelőzmény** section when present.
+   - Use it as evidence for the patient's prior longitudinal history.
+   - If it contains a coherent dated history, retain those prior admissions, diagnoses, procedures and important objective anchors.
+   - Preserve its clinically useful chronology and relative detail, especially when the source is marked MEGŐRZÉS / MIN. VÁLTOZTATÁS.
+2. Use the **Epikrízis / Összefoglalás** primarily as the narrative source for the **current hospitalization**:
+   - presentation;
+   - investigations;
+   - treatment;
+   - procedures;
+   - complications;
+   - outcome.
+3. The epicrisis may supplement or verify prior-history facts, but must not silently erase or replace a useful longitudinal anamnesis block.
+4. Scan the remaining document as a safety layer for:
    - discharge diagnoses;
    - procedures/interventions;
    - discharge medication;
@@ -50,10 +61,10 @@ For discharge summaries (zárójelentés):
    - important imaging, echocardiography, EF, pathology or microbiology;
    - major complications;
    - unresolved clinically important issues;
-   - facts that materially add to or contradict the epicrisis.
-4. Deprioritize routine normal examination, long routine laboratory tables, boilerplate, and copied previous history unless clinically important.
+   - facts that materially add to or contradict either the existing anamnesis or epicrisis.
+5. Deprioritize routine normal examination, long routine laboratory tables and boilerplate.
 
-Principle: the epicrisis defines the story; the rest of the discharge summary is a safety net, not a second story.
+Principle: **Anamnézis tells the prior story; Epikrízis tells the current admission story.** Reconstruct both into one longitudinal history without duplication.
 
 ## Preservation mode
 When a source is marked as a high-quality existing anamnesis, preserve its clinical content and relative level of detail as much as possible while normalizing it to the BachTranSBO format.

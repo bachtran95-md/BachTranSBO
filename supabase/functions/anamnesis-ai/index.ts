@@ -135,6 +135,20 @@ async function modelJson(
 
 const stringSchema = { type: "string" };
 
+const eventVersionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["text", "highlights"],
+  properties: {
+    text: stringSchema,
+    highlights: {
+      type: "array",
+      maxItems: 16,
+      items: stringSchema,
+    },
+  },
+};
+
 const extractionSchema = {
   type: "object",
   additionalProperties: false,
@@ -157,9 +171,7 @@ const extractionSchema = {
           "date",
           "place",
           "doctor",
-          "text",
-          "detail",
-          "highlights",
+          "versions",
         ],
         properties: {
           source_ids: {
@@ -171,15 +183,15 @@ const extractionSchema = {
           date: stringSchema,
           place: stringSchema,
           doctor: stringSchema,
-          text: stringSchema,
-          detail: {
-            type: "string",
-            enum: ["minimal", "shorter", "longer", "detailed"],
-          },
-          highlights: {
-            type: "array",
-            maxItems: 16,
-            items: stringSchema,
+          versions: {
+            type: "object",
+            additionalProperties: false,
+            required: ["short", "normal", "detailed"],
+            properties: {
+              short: eventVersionSchema,
+              normal: eventVersionSchema,
+              detailed: eventVersionSchema,
+            },
           },
         },
       },
@@ -384,7 +396,12 @@ Task: reconstruct clinically meaningful events and structured history facts from
 The source_ids field must contain only IDs from the supplied sources.
 Do not invent a precise date or place when the document does not support one.
 For preserve=true sources, preserve good existing historical wording and its relative event detail.
-Return clinically useful event text without Markdown heading syntax; date/place/doctor are separate structured fields.
+For EACH event, create three ready-to-use wording versions from the SAME supported facts:
+- versions.short: compact, usually 1 concise sentence; retain diagnoses, major procedure/outcome and decision-driving anchor values.
+- versions.normal: standard clinical wording, usually 1-3 sentences; balanced context.
+- versions.detailed: fuller clinically useful account with important investigations, treatment changes and outcome, but no routine boilerplate.
+The three versions are alternatives for the same event, not separate events. Do not introduce a fact into one version unless the source supports it.
+Return no Markdown heading syntax inside version text; date/place/doctor are separate structured fields.
 For medications, return only medication name and documented dose when available. Do not claim current use unless the sources establish it.
 
 Apply anamnesis_mode:
@@ -393,17 +410,42 @@ Apply anamnesis_mode:
 - balanced: standard internal-medicine detail; concise but sufficiently contextual. This is the default.
 - detailed: preserve more clinically useful context, important investigations, treatment changes and outcomes while still excluding routine boilerplate.
 
-For every event, highlights must list exact substrings from event.text that deserve visual emphasis. Prefer objective/decision-driving anchors such as EF/LVEF, PTCA/PCI/CABG, eGFR/creatinine/dialysis, Hb/Hgb, hepatic-function values, HbA1c, insulin regimens, major anticoagulation/antiplatelet therapy, major imaging/pathology/microbiology, or equivalent high-impact facts when present. Do not highlight routine low-value data.
+For every event version, highlights must list exact substrings from that version's text that deserve visual emphasis. Prefer objective/decision-driving anchors such as EF/LVEF, PTCA/PCI/CABG, eGFR/creatinine/dialysis, Hb/Hgb, hepatic-function values, HbA1c, insulin regimens, major anticoagulation/antiplatelet therapy, major imaging/pathology/microbiology, or equivalent high-impact facts when present. Do not highlight routine low-value data.
 
 Screenshot sources have been explicitly marked by the physician as containing no patient-identifying/personal information. Read the visible clinical content directly from the screenshot and associate extracted facts/events with that screenshot's source ID. Do not infer or reconstruct any patient identity from the image.
 `;
 
   const result = await modelJson("anamnesis_extract", extractionSchema, instructions, input, 12000);
   if (Array.isArray(result.data?.events)) {
-    result.data.events = result.data.events.map((event: any) => ({
-      ...event,
-      highlights: normalizedHighlights(String(event?.text || ""), event?.highlights),
-    }));
+    result.data.events = result.data.events.map((event: any) => {
+      const versions = event?.versions || {};
+      return {
+        ...event,
+        versions: {
+          short: {
+            text: String(versions?.short?.text || ""),
+            highlights: normalizedHighlights(
+              String(versions?.short?.text || ""),
+              versions?.short?.highlights,
+            ),
+          },
+          normal: {
+            text: String(versions?.normal?.text || ""),
+            highlights: normalizedHighlights(
+              String(versions?.normal?.text || ""),
+              versions?.normal?.highlights,
+            ),
+          },
+          detailed: {
+            text: String(versions?.detailed?.text || ""),
+            highlights: normalizedHighlights(
+              String(versions?.detailed?.text || ""),
+              versions?.detailed?.highlights,
+            ),
+          },
+        },
+      };
+    });
   }
   return result;
 }
@@ -416,7 +458,9 @@ async function handleRewrite(body: any) {
     doctor: String(event?.doctor || "").slice(0, 240),
     text: String(event?.text || "").slice(0, 16000),
     preserve: Boolean(event?.preserve),
-    detail: String(event?.detail || "shorter"),
+    detail: ["short", "normal", "detailed"].includes(String(event?.detail || ""))
+      ? String(event.detail)
+      : "normal",
     instruction: String(event?.instruction || "").slice(0, 1200),
     highlights: Array.isArray(event?.highlights) ? event.highlights.slice(0, 16) : [],
   }));
@@ -424,12 +468,11 @@ async function handleRewrite(body: any) {
   const instructions = `${baseInstructions}
 
 Task: rewrite exactly one event.
-Respect the selected detail level:
-- minimal: one very short sentence where possible
-- shorter: usually 1-2 concise sentences
-- longer: additional relevant context, major investigations/treatment/outcome
-- detailed: fuller clinically useful account without routine boilerplate
-Apply the custom instruction only to this event.
+Respect the selected base version:
+- short: compact version
+- normal: standard balanced version
+- detailed: fuller clinically useful version
+The custom instruction is the reason this rewrite API is being called. Apply it only to this one selected event version.
 If preserve=true, make minimal changes unless the explicit custom instruction asks otherwise.
 Return the rewritten event text and a highlights array. Each highlight must be an exact substring of the rewritten text and should mark only clinically important anchor facts; do not over-highlight.
 `;

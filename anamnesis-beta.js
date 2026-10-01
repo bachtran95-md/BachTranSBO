@@ -304,7 +304,7 @@
               <span class="an-chip green" id="anamnesisEventCount"></span>
             </div>
             <div class="an-panel-b">
-              <div class="an-hint">A 2. lépés a jóváhagyási munkanézet. Az esemény szövege kézzel szerkeszthető, AI-val külön átírható vagy teljesen törölhető. A végleges Anamnézis innen készül, <b>AI nélkül</b>.</div>
+              <div class="an-hint">Az AI KINYERÉS minden eseményhez előre elkészít egy <b>RÖVID / NORMÁL / RÉSZLETES</b> változatot. Itt a hosszváltás és a végleges összeállítás már <b>JavaScript, új AI-hívás nélkül</b>. AI ÁTÍRÁS csak saját utasítás esetén szükséges.</div>
               <div class="an-event-list" id="anamnesisEventList"></div>
               <div class="an-ai-row">
                 <button class="btn" id="anamnesisCompileBtn" type="button">ÖSSZEÁLLÍTÁS →</button>
@@ -416,6 +416,34 @@
     `).join("");
   }
 
+  function eventVersionKey(event) {
+    if (["short", "normal", "detailed"].includes(event?.selectedVersion)) return event.selectedVersion;
+    if (event?.detail === "minimal" || event?.detail === "shorter") return "short";
+    if (event?.detail === "detailed") return "detailed";
+    return "normal";
+  }
+
+  function ensureEventVersions(event) {
+    const fallbackText = String(event?.text || "");
+    const fallbackHighlights = Array.isArray(event?.highlights) ? event.highlights : [];
+    if (!event.versions || typeof event.versions !== "object") event.versions = {};
+    for (const key of ["short", "normal", "detailed"]) {
+      const version = event.versions[key];
+      if (!version || typeof version !== "object") {
+        event.versions[key] = { text: fallbackText, highlights: [...fallbackHighlights] };
+      } else {
+        version.text = String(version.text || fallbackText);
+        version.highlights = Array.isArray(version.highlights) ? version.highlights : [...fallbackHighlights];
+      }
+    }
+    event.selectedVersion = eventVersionKey(event);
+    return event.versions[event.selectedVersion];
+  }
+
+  function activeEventVersion(event) {
+    return ensureEventVersions(event);
+  }
+
   function renderEvents() {
     const list = $("anamnesisEventList");
     if (!list) return;
@@ -425,26 +453,28 @@
       return;
     }
     list.innerHTML = state.events.map((e) => {
-      const modes = [["minimal","MINIMÁL"],["shorter","RÖVIDEBB"],["longer","HOSSZABB"],["detailed","RÉSZLETES"]];
+      const modes = [["short","RÖVID"],["normal","NORMÁL"],["detailed","RÉSZLETES"]];
+      const active = activeEventVersion(e);
       return `
         <div class="an-card ${e.preserve ? "reference" : ""}" data-an-event="${esc(e.id)}">
           <div class="an-card-h">
-            <div><div class="an-card-title">${esc(eventHeading(e))}</div><div class="an-card-meta">${e.preserve ? "Referenciaforrásból" : "Normál esemény"}</div></div>
+            <div><div class="an-card-title">${esc(eventHeading(e))}</div><div class="an-card-meta">${e.preserve ? "Referenciaforrásból" : "Normál esemény"} · 3 előre generált hossz</div></div>
             <div class="an-card-actions">${e.preserve ? '<span class="an-chip purple">MEGŐRZÉS</span>' : '<span class="an-chip">ESEMÉNY</span>'}<button class="an-delete" type="button" data-an-delete-event title="Esemény törlése">×</button></div>
           </div>
           <div class="an-card-b">
-            <textarea data-an-event-text>${esc(e.text || "")}</textarea>
-            ${Array.isArray(e.highlights) && e.highlights.length
-              ? '<div class="an-highlight-preview" data-an-highlight-preview>' + highlightedText(e.text, e.highlights) + '</div>'
+            <textarea data-an-event-text>${esc(active.text || "")}</textarea>
+            ${Array.isArray(active.highlights) && active.highlights.length
+              ? '<div class="an-highlight-preview" data-an-highlight-preview>' + highlightedText(active.text, active.highlights) + '</div>'
               : '<div class="an-highlight-preview hidden" data-an-highlight-preview></div>'}
             <div class="an-segmented">
-              ${modes.map(([key,label]) => '<button class="an-seg '+(e.detail===key?"active":"")+'" type="button" data-an-detail="'+key+'">'+label+'</button>').join("")}
+              ${modes.map(([key,label]) => '<button class="an-seg '+(e.selectedVersion===key?"active":"")+'" type="button" data-an-detail="'+key+'">'+label+'</button>').join("")}
             </div>
+            <div class="an-subtle" style="margin:5px 0 8px">A RÖVID / NORMÁL / RÉSZLETES váltás csak JavaScript: nincs új API-hívás.</div>
             <label class="an-caption">Saját utasítás · csak ehhez az eseményhez</label>
-            <input data-an-instruction value="${esc(e.instruction || "")}" placeholder="Pl. Ezt rövidítsd 2 mondatra." />
+            <input data-an-instruction value="${esc(e.instruction || "")}" placeholder="Pl. Emeld ki jobban a kardiológiai előzményt." />
             <div class="an-inline-actions">
-              <span class="an-subtle">Nincs automatikus API-hívás.</span>
-              <button class="an-ai" type="button" data-an-rewrite>${aiIcon}<span>AI ÁTÍRÁS</span></button>
+              <span class="an-subtle">AI csak akkor szükséges, ha saját utasítást adsz.</span>
+              <button class="an-ai" type="button" data-an-rewrite ${String(e.instruction || "").trim() ? "" : "disabled"}>${aiIcon}<span>AI ÁTÍRÁS</span></button>
             </div>
           </div>
         </div>`;
@@ -510,7 +540,8 @@
   function finalHistoryHtml(events) {
     return (events || []).map((e) => {
       const heading = eventHeading(e);
-      return '<span class="an-history-line"><strong>' + esc(heading) + '</strong> ' + highlightedText(e.text || "", e.highlights || []) + '</span>';
+      const version = activeEventVersion(e);
+      return '<span class="an-history-line"><strong>' + esc(heading) + '</strong> ' + highlightedText(version.text || "", version.highlights || []) + '</span>';
     }).join("");
   }
 
@@ -570,6 +601,17 @@
         const sourceIds = Array.isArray(e.source_ids) ? e.source_ids : [];
         const sourceId = sourceIds[0] || "";
         const preserve = sourceIds.some((id) => Boolean(sourceById.get(id)?.preserve));
+        const versions = e?.versions || {};
+        const cleanVersion = (key) => ({
+          text: String(versions?.[key]?.text || ""),
+          highlights: Array.isArray(versions?.[key]?.highlights)
+            ? versions[key].highlights.map((x) => String(x || "")).filter(Boolean)
+            : []
+        });
+        const selectedVersion =
+          state.mode === "concise" ? "short" :
+          state.mode === "detailed" ? "detailed" :
+          "normal";
         return {
           id: uid("event"),
           sourceId,
@@ -578,10 +620,13 @@
           place: String(e.place || ""),
           doctor: String(e.doctor || ""),
           preserve,
-          detail: ["minimal","shorter","longer","detailed"].includes(e.detail) ? e.detail : (preserve ? "longer" : "shorter"),
+          selectedVersion,
           instruction: "",
-          text: String(e.text || ""),
-          highlights: Array.isArray(e.highlights) ? e.highlights.map((x) => String(x || "")).filter(Boolean) : []
+          versions: {
+            short: cleanVersion("short"),
+            normal: cleanVersion("normal"),
+            detailed: cleanVersion("detailed")
+          }
         };
       }).sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
 
@@ -633,6 +678,11 @@
   async function rewriteEventWithAi(eventCard, button) {
     const ev = state.events.find((x) => x.id === eventCard?.dataset?.anEvent);
     if (!ev) return;
+    if (!String(ev.instruction || "").trim()) {
+      toast("AI átíráshoz írj saját utasítást.");
+      return;
+    }
+    const version = activeEventVersion(ev);
 
     await runAiButton(button, "ÁTÍRÁS…", async () => {
       const api = requireAnamnesisBackend();
@@ -642,25 +692,27 @@
           date:ev.date || "",
           place:ev.place || "",
           doctor:ev.doctor || "",
-          text:ev.text || "",
+          text:version.text || "",
           preserve:Boolean(ev.preserve),
-          detail:ev.detail || "shorter",
+          detail:ev.selectedVersion || "normal",
           instruction:ev.instruction || "",
-          highlights:Array.isArray(ev.highlights) ? ev.highlights : []
+          highlights:Array.isArray(version.highlights) ? version.highlights : []
         }
       });
-      ev.text = String(result?.text || ev.text || "");
-      ev.highlights = Array.isArray(result?.highlights) ? result.highlights.map((x) => String(x || "")).filter(Boolean) : [];
+      version.text = String(result?.text || version.text || "");
+      version.highlights = Array.isArray(result?.highlights)
+        ? result.highlights.map((x) => String(x || "")).filter(Boolean)
+        : [];
       renderEvents();
       saveState();
-      toast("Esemény AI-átírás elkészült.");
+      toast("A kiválasztott verzió AI-átírása elkészült.");
     });
   }
 
   function clipboardText() {
     const historyText = [...state.events]
       .sort((a,b) => String(a.date || "").localeCompare(String(b.date || "")))
-      .map((e) => eventHeading(e) + " " + String(e.text || "").trim())
+      .map((e) => eventHeading(e) + " " + String(activeEventVersion(e).text || "").trim())
       .join("\n");
     const meds = state.meds.filter((m) => String(m.name || "").trim()).map((m) => (m.name || "").trim() + ((m.dose || "").trim() ? " " + m.dose.trim() : "")).join(", ");
     return [
@@ -906,15 +958,20 @@
         const ev = state.events.find((x) => x.id === eventCard.dataset.anEvent);
         if (!ev) return;
         if (e.target.matches("[data-an-event-text]")) {
-          ev.text = e.target.value;
-          ev.highlights = (Array.isArray(ev.highlights) ? ev.highlights : []).filter((x) => ev.text.includes(x));
+          const version = activeEventVersion(ev);
+          version.text = e.target.value;
+          version.highlights = (Array.isArray(version.highlights) ? version.highlights : []).filter((x) => version.text.includes(x));
           const preview = eventCard.querySelector("[data-an-highlight-preview]");
           if (preview) {
-            preview.innerHTML = highlightedText(ev.text, ev.highlights);
-            preview.classList.toggle("hidden", !ev.highlights.length);
+            preview.innerHTML = highlightedText(version.text, version.highlights);
+            preview.classList.toggle("hidden", !version.highlights.length);
           }
         }
-        if (e.target.matches("[data-an-instruction]")) ev.instruction = e.target.value;
+        if (e.target.matches("[data-an-instruction]")) {
+          ev.instruction = e.target.value;
+          const rewrite = eventCard.querySelector("[data-an-rewrite]");
+          if (rewrite) rewrite.disabled = !String(ev.instruction || "").trim();
+        }
         saveState();
         return;
       }
@@ -953,9 +1010,10 @@
       if (eventCard && e.target.closest("[data-an-detail]")) {
         const ev = state.events.find((x) => x.id === eventCard.dataset.anEvent);
         if (!ev) return;
-        ev.detail = e.target.closest("[data-an-detail]").dataset.anDetail;
+        ev.selectedVersion = e.target.closest("[data-an-detail]").dataset.anDetail;
+        ensureEventVersions(ev);
         renderEvents(); saveState();
-        toast("Részletesség beállítva. Nincs API-hívás.");
+        toast("Verzió váltva JavaScripttel — nincs API-hívás.");
         return;
       }
       if (eventCard && e.target.closest("[data-an-delete-event]")) {

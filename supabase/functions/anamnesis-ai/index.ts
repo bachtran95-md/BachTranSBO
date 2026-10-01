@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 import { openAiApiKey } from "../_shared/openai.ts";
-import { deidentifyAssistantText } from "../_shared/deidentify.ts";
+import { deidentifyAnamnesisText } from "../_shared/deidentify.ts";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") || "*";
 const corsHeaders = {
@@ -307,7 +307,7 @@ async function sanitizeSources(rawSources: any[]) {
       if (totalChars > 320000) {
         throw new Error("The combined source text is too long. Analyze fewer documents at once.");
       }
-      sanitizedText = await deidentifyAssistantText(text);
+      sanitizedText = await deidentifyAnamnesisText(text);
     }
 
     let safeImageDataUrl = "";
@@ -352,7 +352,7 @@ async function sanitizeSources(rawSources: any[]) {
 async function handleExtract(body: any) {
   const sources = await sanitizeSources(body?.sources || []);
   const complaintRaw = String(body?.complaint || "").slice(0, 4000).trim();
-  const complaint = complaintRaw ? await deidentifyAssistantText(complaintRaw) : "";
+  const complaint = complaintRaw ? await deidentifyAnamnesisText(complaintRaw) : "";
   const mode = ["relevant", "concise", "balanced", "detailed"].includes(String(body?.mode || ""))
     ? String(body.mode)
     : "balanced";

@@ -307,10 +307,10 @@
             <div class="an-panel-b">
               <div class="an-hint">Az AI KINYERÉS minden eseményhez előre elkészít egy <b>RÖVID / NORMÁL / RÉSZLETES</b> változatot. Itt a hosszváltás és a végleges összeállítás már <b>JavaScript, új AI-hívás nélkül</b>. AI ÁTÍRÁS csak saját utasítás esetén szükséges.</div>
               <div class="an-event-list" id="anamnesisEventList"></div>
-              <div class="an-ai-row">
-                <button class="btn" id="anamnesisCompileBtn" type="button">ÖSSZEÁLLÍTÁS →</button>
-                <span class="an-subtle">Csak rendezés + formázás JavaScripttel, nincs API-hívás.</span>
-              </div>
+            </div>
+            <div class="an-panel-footer an-compile-footer">
+              <button class="btn" id="anamnesisCompileBtn" type="button">ÖSSZEÁLLÍTÁS →</button>
+              <span class="an-subtle">Csak rendezés + formázás JavaScripttel, nincs API-hívás.</span>
             </div>
           </section>
 
@@ -347,10 +347,10 @@
                 <div class="an-final-title">Ellenőrizendő eltérések</div>
                 <textarea id="anamnesisDiscrepancies" placeholder="Pl. eltérő EF, gyógyszerlista, dátum..."></textarea>
               </div>
-              <div class="an-final-actions">
-                <span class="an-subtle">A Step 3 jelenlegi, kézzel szerkesztett tartalmát másolja.</span>
-                <button class="btn" id="anamnesisCopyBtn" type="button" title="A jelenlegi Step 3 tartalom másolása formázással">MÁSOLÁS</button>
-              </div>
+            </div>
+            <div class="an-panel-footer an-final-actions">
+              <span class="an-subtle">A Step 3 jelenlegi, kézzel szerkesztett tartalmát másolja.</span>
+              <button class="btn" id="anamnesisCopyBtn" type="button" title="A jelenlegi Step 3 tartalom másolása formázással">MÁSOLÁS</button>
             </div>
           </section>
         </div>
@@ -361,6 +361,21 @@
     renderSources();
     renderEvents();
     renderFinal();
+    requestAnimationFrame(updateAnamnesisPanelHeight);
+  }
+
+  function updateAnamnesisPanelHeight() {
+    const grid = document.querySelector("#anamnesisView .an-grid");
+    if (!grid) return;
+
+    if (window.matchMedia("(max-width: 1280px)").matches) {
+      grid.style.removeProperty("--an-grid-height");
+      return;
+    }
+
+    const rect = grid.getBoundingClientRect();
+    const available = Math.max(420, Math.floor(window.innerHeight - rect.top - 12));
+    grid.style.setProperty("--an-grid-height", available + "px");
   }
 
   function renderSources() {
@@ -1169,10 +1184,14 @@
 
   function init() {
     document.addEventListener("paste", handleGlobalScreenshotPaste);
+    window.addEventListener("resize", updateAnamnesisPanelHeight, { passive: true });
     if ($("anamnesisView")) renderShell();
     document.addEventListener("bachsbo:ui-rendered", (event) => {
       if (event?.detail?.view === "anamnesis" && $("anamnesisView") && !$("anamnesisView").innerHTML.trim()) {
         renderShell();
+      }
+      if (event?.detail?.view === "anamnesis") {
+        requestAnimationFrame(updateAnamnesisPanelHeight);
       }
     });
   }

@@ -27,16 +27,24 @@ Do not summarize each source independently. Reconstruct one longitudinal medical
 - Later documents may add new facts to an older event, but should not create duplicate events.
 
 ### Outpatient / ambulatory notes
-Include an ambulatory encounter only when it adds clinically meaningful new information, such as:
-- new diagnosis;
-- important investigation or imaging;
-- treatment or medication change;
-- clinically important specialist assessment;
+Every distinct documented ambulatory/outpatient encounter with real clinical content must remain represented as its own event.
+
+Clinical content includes, for example:
+- symptoms / reason for review;
+- examination;
+- investigation or imaging result;
+- diagnosis;
+- treatment or medication decision;
+- specialist assessment;
 - worsening or improvement of an important disease;
 - procedural decision;
-- finding relevant to future care.
+- follow-up conclusion relevant to future care.
 
-Routine repetitive or administrative outpatient visits may be omitted.
+Do not silently omit a real ambulatory visit merely because a discharge summary is also present.
+
+An ambulatory encounter may be omitted only when it is clearly administrative-only, contains no clinical information beyond scheduling/referral logistics, or is an obvious duplicate/copy-forward of an already represented encounter.
+
+If a single PDF contains multiple dated documents or encounters, reconstruct them as separate Step 2 events where they represent distinct clinical encounters.
 
 ## Zárójelentés processing — Anamnézis + Epikrízis have different jobs
 For discharge summaries (zárójelentés), do not treat the epicrisis as a replacement for a good existing anamnesis.
@@ -256,6 +264,17 @@ V1 rules:
 - Link facts/events extracted from a screenshot to that screenshot source ID.
 - If image text is unclear or unreadable, preserve uncertainty rather than guessing.
 - Screenshot image content is session-local in the current Beta implementation and may need to be pasted/uploaded again after page reload.
+
+## Source coverage check
+
+Before returning Step 2 events:
+- inspect every supplied source;
+- inspect each clearly dated clinical encounter within multi-document PDFs;
+- ensure every genuine inpatient admission and every genuine ambulatory/outpatient encounter with clinical content maps to at least one event;
+- never let an epikrízis absorb or hide a separate ambuláns megjelenés;
+- only omit administrative-only or obvious duplicate encounters.
+
+Global mode controls how much detail each retained event contains, not whether a genuine clinical encounter disappears.
 
 ## Source traceability
 Whenever technically available, keep extracted facts linked to source IDs and retain concise supporting evidence snippets for physician verification.

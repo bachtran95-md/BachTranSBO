@@ -1,6 +1,7 @@
 import {
   clinicalTextItems,
   ruleBasedDeidentify,
+  splitTextForAnamnesisPrivacy,
 } from "./deidentify.ts";
 
 Deno.test("redacts labelled TAJ", () => {
@@ -120,4 +121,28 @@ Deno.test("clinical text inventory includes structured positive status findings 
 
   const scrubbed = ruleBasedDeidentify(byKey.get("physicalStatus.sections.B"));
   if (!scrubbed.text.includes("[PERSON]")) throw new Error(scrubbed.text);
+});
+
+
+Deno.test("anamnesis privacy splitter preserves exact long text", () => {
+  const paragraph = "2026.01.01. Klinikai esemény, kezelés és kontroll.\n\n";
+  const input = paragraph.repeat(320);
+  const chunks = splitTextForAnamnesisPrivacy(input, 1200);
+
+  if (chunks.length < 2) throw new Error("Expected multiple privacy chunks");
+  if (chunks.join("") !== input) throw new Error("Privacy chunking changed source text");
+  if (chunks.some((chunk) => chunk.length > 1360)) {
+    throw new Error("Privacy chunk exceeded expected boundary allowance");
+  }
+});
+
+Deno.test("anamnesis privacy splitter does not split clinician protection token", () => {
+  const token = "[[ANAMNESIS_CLINICIAN_42]]";
+  const input = "A".repeat(96) + token + "B".repeat(140);
+  const chunks = splitTextForAnamnesisPrivacy(input, 110);
+
+  if (chunks.join("") !== input) throw new Error("Privacy chunking changed token text");
+  if (!chunks.some((chunk) => chunk.includes(token))) {
+    throw new Error("Protected clinician token was split across chunks");
+  }
 });

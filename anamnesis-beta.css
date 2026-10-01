@@ -59,6 +59,14 @@
   border:1px dashed #d0d5dd;background:#fafafa;color:#667085;border-radius:8px;
   padding:8px;margin-bottom:7px;font-size:9px;line-height:1.4
 }
+.anamnesis-module .an-image-confirm{
+  display:flex;align-items:flex-start;gap:7px;margin:0 0 7px;padding:7px 8px;
+  border:1px solid #f3d6a0;background:#fffbeb;color:#7c4a03;border-radius:8px;
+  font-size:9px;font-weight:800;line-height:1.35
+}
+.anamnesis-module .an-image-confirm input{
+  width:auto;margin:1px 0 0;flex:0 0 auto
+}
 .anamnesis-module input,.anamnesis-module textarea,.anamnesis-module select{
   width:100%;border:1px solid #cfd5dd;border-radius:7px;padding:7px 8px;background:#fff;color:var(--an-text);font-size:10px
 }

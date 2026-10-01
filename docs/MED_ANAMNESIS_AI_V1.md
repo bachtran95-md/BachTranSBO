@@ -231,6 +231,20 @@ Examples:
 - dyspnoea: HF, EF, valve disease, COPD, PE history, pulmonary hypertension, thoracic imaging, diuretics, renal dysfunction;
 - abdominal pain: abdominal surgery, malignancy, gallstones, pancreatitis, GI disease, imaging, anticoagulation.
 
+## Screenshot sources
+
+The physician may add a screenshot as a Step 1 source, including by pasting an image from the clipboard.
+
+V1 rules:
+- A screenshot is not sent to AI automatically when pasted or uploaded.
+- It is sent only when the physician explicitly presses `AI KINYERÉS`.
+- Before AI processing, the screenshot must be explicitly confirmed as containing no patient-identifying or other personal information.
+- The AI may read visible clinical content directly from an approved screenshot and use it like another source document.
+- Do not infer or reconstruct patient identity from a screenshot.
+- Link facts/events extracted from a screenshot to that screenshot source ID.
+- If image text is unclear or unreadable, preserve uncertainty rather than guessing.
+- Screenshot image content is session-local in the current Beta implementation and may need to be pasted/uploaded again after page reload.
+
 ## Source traceability
 Whenever technically available, keep extracted facts linked to source IDs and retain concise supporting evidence snippets for physician verification.
 

@@ -263,8 +263,9 @@ Core rules:
 - Every identified inpatient admission must remain represented.
 - Collapse copied-forward duplicates of the same historical event.
 - Include ambulatory encounters only when they add clinically meaningful new information.
-- For discharge summaries, use the epicrisis/summary as the main narrative and the rest as a safety layer.
-- When a source has preserve=true, retain its good anamnesis wording, chronology and relative detail as much as possible; normalize formatting and remove obvious duplication, but do not aggressively compress it.
+- For discharge summaries, distinguish the document's existing Anamnézis/Előzmények section from its Epikrízis/Összefoglalás. The existing Anamnézis/Előzmények is evidence for PRIOR longitudinal history; the Epikrízis/Összefoglalás is the primary narrative for the CURRENT admission. Never let the epicrisis replace or erase a clinically useful longitudinal anamnesis section.
+- When a discharge summary contains a coherent, clinically useful Anamnézis/Előzmények block, extract its dated prior admissions, procedures, diagnoses and important objective anchors even if preserve=false. Use the epicrisis to supplement/verify those prior events and to describe the current hospitalization.
+- When a source has preserve=true, treat its good Anamnézis/Előzmények wording, chronology and relative detail as the reference history as much as possible; normalize formatting and remove obvious duplication, but do not aggressively compress it.
 - Final history chronology is oldest to newest.
 - Event display semantics are: DATE — PLACE — text; if an ambulatory physician is documented, preserve the physician in the heading data.
 - Medication evidence is time-stamped. Never merge different historical medication lists into an assumed current regimen.
@@ -395,7 +396,13 @@ async function handleExtract(body: any) {
 Task: reconstruct clinically meaningful events and structured history facts from the supplied sources.
 The source_ids field must contain only IDs from the supplied sources.
 Do not invent a precise date or place when the document does not support one.
-For preserve=true sources, preserve good existing historical wording and its relative event detail.
+
+For each discharge summary / zárójelentés, first identify document sections when possible:
+1. Anamnézis / Előzmények / Kórelőzmény: use this to reconstruct prior longitudinal events. If it already contains a good dated history, preserve that chronology and clinically useful detail rather than replacing it with a shorter epicrisis-derived summary.
+2. Epikrízis / Összefoglalás: use this primarily for the current admission's presentation, investigations, treatment, procedures, complications and outcome, and secondarily to add or verify prior-history facts.
+3. Diagnoses / procedures / medication / CAVE / key investigations elsewhere in the document: use as a safety layer for omissions or contradictions.
+Do not summarize every section equally, but never discard a clinically useful Anamnézis/Előzmények block merely because an epicrisis is present.
+For preserve=true sources, the existing Anamnézis/Előzmények should be treated as the reference history and its good wording and relative event detail should be retained wherever compatible with the supported evidence.
 For EACH event, create three ready-to-use wording versions from the SAME supported facts:
 - versions.short: compact, usually 1 concise sentence; retain diagnoses, major procedure/outcome and decision-driving anchor values.
 - versions.normal: standard clinical wording, usually 1-3 sentences; balanced context.

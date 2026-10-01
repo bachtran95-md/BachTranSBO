@@ -117,23 +117,24 @@ Highlighting rules:
 - Never invent, calculate or reinterpret a value just to create a highlight.
 - If the same parameter changes over time, preserve the dated values in their separate chronological events rather than silently reconciling them.
 
-## Event detail levels
-Each event may be rewritten at one of four levels. Apply the chosen level only to that event.
+## Event length variants
+During Step 1 extraction, create **three ready-to-use wording variants for every event** from the same supported source facts:
 
-### MINIMAL
-- One very short sentence where possible.
-- Keep only the essential diagnosis/event and major intervention/outcome.
+### RÖVID / SHORT
+- Compact, usually one concise sentence.
+- Keep the essential event/diagnosis, major intervention/outcome, and decision-driving anchor values.
 
-### SHORTER
-- Usually 1–2 concise sentences.
-- Keep clinically useful context and important procedures/results.
+### NORMÁL / NORMAL
+- Standard balanced clinical wording.
+- Usually 1–3 sentences with enough context for a useful longitudinal history.
 
-### LONGER
-- Include additional relevant clinical context, major investigations, treatment changes, and outcome.
+### RÉSZLETES / DETAILED
+- Fuller clinically useful account.
+- Preserve important investigations, treatment changes and outcome while still omitting routine boilerplate.
 
-### DETAILED
-- Preserve a fuller clinically useful account when the event is important.
-- Still avoid routine low-value detail and document boilerplate.
+The three variants are alternatives for the **same event**, not separate events. A fact must not appear in one variant unless it is supported by the source.
+
+After extraction, switching RÖVID / NORMÁL / RÉSZLETES is a local JavaScript operation and must not trigger a new AI request. Each variant remains separately editable by the physician.
 
 Never delete underlying structured facts merely because the displayed narrative is shortened.
 
@@ -143,7 +144,7 @@ A physician may provide a free-text instruction for one event, for example:
 - "Ezt rövidítsd 2 mondatra."
 - "Tartsd meg az eredeti részletességet."
 
-Treat this as an explicit rewrite instruction for that event only. Do not apply it to unrelated events.
+A new event-level AI call is needed **only when the physician provides such a custom instruction and explicitly presses AI ÁTÍRÁS**. Apply the instruction only to the currently selected RÖVID / NORMÁL / RÉSZLETES variant of that event. Do not rewrite the other two variants and do not apply it to unrelated events.
 
 ## Final output order and format
 The right-panel final history must use this section order:
@@ -277,13 +278,15 @@ Optimize for a trustworthy, editable final patient history for an internal-medic
 ## V1 workflow boundary
 
 - AI is used in Step 1 to extract longitudinal events and structured fields such as known diseases, medication name + dose, allergy/CAVE and discrepancies.
+- Step 1 AI extraction creates three ready-to-use versions of every event: RÖVID, NORMÁL and RÉSZLETES.
 - In Step 2, every extracted event is physician-editable. The physician may:
-  - edit the event text manually,
-  - request an explicit AI rewrite for that event only,
-  - change the event detail level,
+  - switch among RÖVID / NORMÁL / RÉSZLETES using JavaScript only,
+  - manually edit the selected version,
+  - provide a custom instruction and explicitly request AI ÁTÍRÁS for the selected version only,
   - or delete the event entirely if it should not appear in the final anamnesis.
+- Switching event length must never itself call the AI.
 - Step 2 is the source of truth for the final Anamnézis section.
-- Step 2 → Step 3 uses deterministic JavaScript only: approved events are ordered oldest → newest and formatted into the final history. No AI call is made for this assembly.
+- Step 2 → Step 3 uses deterministic JavaScript only: each event's currently selected version is ordered oldest → newest and formatted into the final history. No AI call is made for this assembly.
 - Known diseases and medication name + dose are carried forward from Step 1 and remain manually editable; they are not regenerated in Step 3.
 - V1 has no global “AI refresh” action in the final panel. A later version may add physician-controlled reconciliation with explicit diff/accept behavior.
 

@@ -425,6 +425,193 @@ export function reportTotal(report: PiiReport): number {
 }
 
 
+
+const ANAMNESIS_PRIVACY_CHUNK_CHARS = 10_000;
+const ANAMNESIS_PRIVACY_MIN_SPLIT_CHARS = 2_000;
+const ANAMNESIS_PRIVACY_CONCURRENCY = 4;
+
+function protectAnamnesisClinicianNames(text: string): {
+  text: string;
+  protectedNames: Record<string, string>;
+} {
+  const protectedNames: Record<string, string> = {};
+  let index = 0;
+
+  const protect = (match: string) => {
+    const token = `[[ANAMNESIS_CLINICIAN_${index}]]`;
+    protectedNames[token] = match;
+    index += 1;
+    return token;
+  };
+
+  // Explicit clinician-labelled spans are safe provenance. Protect the whole
+  // span before deterministic rules so a generic "név:" sub-pattern cannot
+  // consume the clinician token.
+  let protectedText = text.replace(
+    /\b(?:kezel[oő]orvos|vizsg[aá]lta|vizsg[aá]l[oó]\s+orvos|orvos|physician|doctor)\s*[:#-]\s*(?:[Dd]r\.?\s+)?[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+){0,3}/gu,
+    protect,
+  );
+
+  // Preserve ordinary Dr.-prefixed clinician references in narrative text.
+  // If they occur after a patient-name label such as "Beteg neve:", the
+  // deterministic labelled-name rule still removes the entire labelled span.
+  protectedText = protectedText.replace(
+    /\b[Dd]r\.?\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\p{L}.'-]+){0,3}/gu,
+    protect,
+  );
+
+  return { text: protectedText, protectedNames };
+}
+
+export function splitTextForAnamnesisPrivacy(
+  input: string,
+  maxChars = ANAMNESIS_PRIVACY_CHUNK_CHARS,
+): string[] {
+  const text = String(input ?? "");
+  if (!text) return [];
+  if (text.length <= maxChars) return [text];
+
+  const chunks: string[] = [];
+  let offset = 0;
+
+  while (offset < text.length) {
+    const remaining = text.length - offset;
+    if (remaining <= maxChars) {
+      chunks.push(text.slice(offset));
+      break;
+    }
+
+    const windowEnd = offset + maxChars;
+    const windowText = text.slice(offset, windowEnd);
+    const minimumUsefulCut = Math.floor(maxChars * 0.55);
+    const boundaries = [
+      { index: windowText.lastIndexOf("\n\n"), width: 2 },
+      { index: windowText.lastIndexOf("\n"), width: 1 },
+      { index: windowText.lastIndexOf(". "), width: 2 },
+      { index: windowText.lastIndexOf("; "), width: 2 },
+    ].filter((x) => x.index >= minimumUsefulCut);
+
+    let cut = boundaries.length
+      ? Math.max(...boundaries.map((x) => x.index + x.width))
+      : maxChars;
+
+    // Never split a protected clinician token if a hard cut lands inside it.
+    const candidate = text.slice(offset, offset + cut);
+    const openToken = candidate.lastIndexOf("[[ANAMNESIS_CLINICIAN_");
+    const closeToken = candidate.lastIndexOf("]]");
+    if (openToken > closeToken) {
+      const tokenEnd = text.indexOf("]]", offset + cut);
+      if (tokenEnd >= 0 && tokenEnd + 2 - offset <= maxChars + 160) {
+        cut = tokenEnd + 2 - offset;
+      }
+    }
+
+    chunks.push(text.slice(offset, offset + cut));
+    offset += cut;
+  }
+
+  return chunks;
+}
+
+async function scrubAnamnesisPrivacyChunk(
+  chunk: string,
+  key: string,
+  depth = 0,
+): Promise<string> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = await aiScrubItems([{ key, text: chunk }]);
+      if (
+        result.items.length !== 1 ||
+        result.items[0].key !== key ||
+        !result.items[0].text
+      ) {
+        throw new Error("AI de-identification returned an incomplete chunk.");
+      }
+      return result.items[0].text;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) continue;
+    }
+  }
+
+  if (
+    chunk.length > ANAMNESIS_PRIVACY_MIN_SPLIT_CHARS &&
+    depth < 4
+  ) {
+    const halfTarget = Math.max(
+      ANAMNESIS_PRIVACY_MIN_SPLIT_CHARS,
+      Math.ceil(chunk.length / 2),
+    );
+    const pieces = splitTextForAnamnesisPrivacy(chunk, halfTarget);
+    if (pieces.length > 1) {
+      const outputs: string[] = [];
+      for (let i = 0; i < pieces.length; i += 1) {
+        outputs.push(
+          await scrubAnamnesisPrivacyChunk(
+            pieces[i],
+            `${key}_r${depth}_${i}`,
+            depth + 1,
+          ),
+        );
+      }
+      return outputs.join("");
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("AI de-identification failed for one text chunk.");
+}
+
+async function scrubAnamnesisPrivacyChunks(chunks: string[]): Promise<string[]> {
+  const output = new Array<string>(chunks.length);
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= chunks.length) return;
+      output[index] = await scrubAnamnesisPrivacyChunk(
+        chunks[index],
+        `anamnesis_chunk_${index}`,
+      );
+    }
+  };
+
+  const workerCount = Math.min(
+    ANAMNESIS_PRIVACY_CONCURRENCY,
+    Math.max(1, chunks.length),
+  );
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return output;
+}
+
+// Anamnesis-only privacy path for long imported documents.
+// It remains fail-closed, but avoids one huge AI de-ID response by:
+// clinician protection -> deterministic de-ID -> chunked AI de-ID -> reassembly.
+// Existing Stable assistant/persistence de-identification behavior is unchanged.
+export async function deidentifyAnamnesisText(input: string): Promise<string> {
+  const raw = String(input ?? "");
+  if (!raw.trim()) return "";
+
+  const protectedInput = protectAnamnesisClinicianNames(raw);
+  const ruled = ruleBasedDeidentify(protectedInput.text).text;
+  const chunks = splitTextForAnamnesisPrivacy(ruled);
+  const scrubbedChunks = await scrubAnamnesisPrivacyChunks(chunks);
+  const scrubbed = scrubbedChunks.join("");
+
+  if (!scrubbed.trim()) {
+    throw new Error("Privacy check failed; anamnesis text was empty after de-identification.");
+  }
+
+  return restoreProtectedNames(scrubbed, protectedInput.protectedNames);
+}
+
+
 // Assistant requests must fail closed if the AI privacy pass cannot return one
 // sanitized payload. This is stricter than normal persistence de-identification.
 export async function deidentifyAssistantText(input: string): Promise<string> {

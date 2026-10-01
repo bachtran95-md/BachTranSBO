@@ -1601,18 +1601,21 @@ function renderApp() {
   const notes = currentView === "notes";
   const learning = currentView === "learning";
   const admin = currentView === "admin";
+  const anamnesis = currentView === "anamnesis";
   const patients = currentView === "patients";
 
   document.getElementById("patientsNav").classList.toggle("active", patients);
+  document.getElementById("anamnesisNav")?.classList.toggle("active", anamnesis);
   document.getElementById("notesNav")?.classList.toggle("active", notes);
   document.getElementById("aiLearningNav").classList.toggle("active", learning);
   document.getElementById("adminNav").classList.toggle("active", admin);
 
+  document.getElementById("anamnesisView")?.classList.toggle("hidden", !anamnesis);
   document.getElementById("notesView")?.classList.toggle("hidden", !notes);
   document.getElementById("aiLearningView").classList.toggle("hidden", !learning);
   document.getElementById("adminView").classList.toggle("hidden", !admin);
 
-  if (notes || learning || admin) {
+  if (notes || learning || admin || anamnesis) {
     document.getElementById("noShiftView").classList.add("hidden");
     document.getElementById("patientsView").classList.add("hidden");
     if (admin) renderAdminView();
@@ -4531,6 +4534,9 @@ document.getElementById("patientForm").addEventListener("submit", (event) => {
 document.getElementById("langEnBtn").onclick = () => { applyLanguage("en"); renderCurrentMode(); };
 document.getElementById("langHuBtn").onclick = () => { applyLanguage("hu"); renderCurrentMode(); };
 document.getElementById("patientsNav").onclick = () => setView("patients");
+if (document.getElementById("anamnesisNav")) {
+  document.getElementById("anamnesisNav").onclick = () => setView("anamnesis");
+}
 if (document.getElementById("notesNav")) {
   document.getElementById("notesNav").onclick = () => setView("notes");
 }

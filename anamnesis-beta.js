@@ -37,6 +37,7 @@
   }
 
   let state = loadState();
+  const screenshotPreviewUrls = new Map();
 
   function loadState() {
     try {
@@ -57,7 +58,12 @@
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const persisted = structuredClone(state);
+    persisted.sources = (persisted.sources || []).map((source) => {
+      delete source.previewUrl;
+      return source;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
     const status = $("anamnesisSaveState");
     if (status) {
       status.textContent = "Helyben mentve " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
@@ -152,7 +158,13 @@
             <label class="an-caption">Aktuális panasz / felvétel oka</label>
             <input id="anamnesisComplaint" value="${esc(state.complaint)}" placeholder="Pl. dyspnoe, oedema" />
           </div>
-          <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Helyi autosave</span></div>
+          <div class="an-patient-actions">
+            <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Helyi autosave</span></div>
+            <div class="an-patient-buttons">
+              <button class="btn small" id="anamnesisNewPatientBtn" type="button">+ ÚJ BETEG</button>
+              <button class="btn small danger" id="anamnesisDeletePatientBtn" type="button">BETEG TÖRLÉSE</button>
+            </div>
+          </div>
         </div>
 
         <div class="an-grid">
@@ -182,10 +194,12 @@
                 </div>
               </div>
               <div class="an-source-actions">
-                <button class="btn small" id="anamnesisUploadBtn" type="button">+ PDF / KÉP</button>
+                <button class="btn small" id="anamnesisUploadBtn" type="button">+ PDF</button>
+                <button class="btn small" id="anamnesisScreenshotBtn" type="button">+ KÉPERNYŐKÉP</button>
                 <button class="btn small" id="anamnesisTextSourceBtn" type="button">+ SZÖVEG</button>
-                <button class="btn small" id="anamnesisClipboardBtn" type="button">📋 VÁGÓLAP</button>
-                <input class="hidden" id="anamnesisFileInput" type="file" accept=".pdf,image/*" multiple />
+                <button class="btn small" id="anamnesisClipboardBtn" type="button">📋 VÁGÓLAP SZÖVEG</button>
+                <input class="hidden" id="anamnesisFileInput" type="file" accept=".pdf,application/pdf" multiple />
+                <input class="hidden" id="anamnesisScreenshotInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
               </div>
               <div class="an-source-list" id="anamnesisSourceList"></div>
               <div class="an-ai-row">
@@ -283,7 +297,17 @@
             <input data-an-source-date value="${esc(s.date || "")}" placeholder="YYYY.MM.DD" />
             <input data-an-source-place value="${esc(s.place || "")}" placeholder="Intézmény / osztály" />
           </div>
-          <textarea data-an-source-text placeholder="${s.kind === "PDF" ? "PDF feltöltve. Ebben a Beta-körben illeszd ide a PDF releváns szövegét / epikrízisét; a közvetlen PDF-text extraction külön bekötés alatt." : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
+          ${s.kind === "Képernyőkép"
+            ? (s.previewUrl
+              ? '<img class="an-screenshot-preview" src="' + esc(s.previewUrl) + '" alt="Képernyőkép előnézet" />'
+              : '<div class="an-screenshot-missing">Képernyőkép-metaadat megmaradt, de a helyi kép előnézet frissítés után nem tárolódik. Töltsd fel újra, ha szükséges.</div>')
+            : ""}
+          <textarea data-an-source-text placeholder="${s.kind === "PDF"
+            ? "PDF feltöltve. Ebben a Beta-körben illeszd ide a PDF releváns szövegét / epikrízisét; a közvetlen PDF-text extraction külön bekötés alatt."
+            : s.kind === "Képernyőkép"
+            ? "A screenshot képe V1-ben még nem megy AI-ba. Ide írd / illeszd a klinikailag releváns szöveget."
+            : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
+          ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A képernyőkép csak forrás-előnézet. A nyers kép jelenleg nem kerül AI/API feldolgozásra.</div>' : ""}
           ${s.preserve ? '<div class="an-preserve-note"><b>Referencia anamnézis.</b> A későbbi AI-feldolgozás ennek jó megfogalmazását, kronológiáját és relatív részletességét tartja meg; főként formátumot egységesít és szükséges tényekkel egészít ki.</div>' : ""}
         </div>
       </div>
@@ -523,7 +547,49 @@
     ].filter((x,idx,arr) => !(x === "" && arr[idx-1] === "")).join("\n");
   }
 
+  function hasPatientContent() {
+    return Boolean(
+      String(state.label || "").trim() ||
+      String(state.complaint || "").trim() ||
+      state.sources.length ||
+      state.events.length ||
+      state.meds.length ||
+      String(state.final?.diseases || "").trim() ||
+      String(state.final?.historyHtml || "").trim()
+    );
+  }
+
+  function revokeScreenshotUrls() {
+    for (const url of screenshotPreviewUrls.values()) {
+      try { URL.revokeObjectURL(url); } catch {}
+    }
+    screenshotPreviewUrls.clear();
+  }
+
+  function resetPatientWorkspace(message = "Új beteg munkalap indítva.") {
+    revokeScreenshotUrls();
+    state = emptyState();
+    localStorage.removeItem(STORAGE_KEY);
+    renderShell();
+    saveState();
+    toast(message);
+  }
+
   function bindStaticControls() {
+    $("anamnesisNewPatientBtn")?.addEventListener("click", () => {
+      if (hasPatientContent() && !window.confirm("Új beteg indításakor a jelenlegi helyi Anamnézis munkalap törlődik. Folytatod?")) return;
+      resetPatientWorkspace("Új beteg munkalap indítva.");
+    });
+
+    $("anamnesisDeletePatientBtn")?.addEventListener("click", () => {
+      if (!hasPatientContent()) {
+        toast("Nincs törölhető betegadat.");
+        return;
+      }
+      if (!window.confirm("Biztosan törlöd a jelenlegi beteg teljes helyi Anamnézis munkalapját?")) return;
+      resetPatientWorkspace("A beteg helyi Anamnézis munkalapja törölve.");
+    });
+
     $("anamnesisLabel")?.addEventListener("input", (e) => { state.label = e.target.value; saveState(); });
     $("anamnesisMode")?.addEventListener("change", (e) => {
       state.mode = e.target.value;
@@ -551,7 +617,7 @@
       [...(e.target.files || [])].forEach((file) => {
         state.sources.unshift({
           id: uid("source"),
-          kind: file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? "PDF" : "Kép",
+          kind: "PDF",
           name: file.name,
           fileName: file.name,
           date: "",
@@ -566,6 +632,32 @@
       saveState();
     });
 
+    $("anamnesisScreenshotBtn")?.addEventListener("click", () => $("anamnesisScreenshotInput")?.click());
+    $("anamnesisScreenshotInput")?.addEventListener("change", (e) => {
+      [...(e.target.files || [])].forEach((file) => {
+        if (!file.type.startsWith("image/")) return;
+        const id = uid("source");
+        const previewUrl = URL.createObjectURL(file);
+        screenshotPreviewUrls.set(id, previewUrl);
+        state.sources.unshift({
+          id,
+          kind: "Képernyőkép",
+          name: file.name || "Képernyőkép",
+          fileName: file.name || "",
+          date: "",
+          place: "",
+          doctor: "",
+          preserve: false,
+          text: "",
+          previewUrl
+        });
+      });
+      e.target.value = "";
+      renderSources();
+      saveState();
+      toast("Képernyőkép hozzáadva. A kép maga nem kerül AI/API feldolgozásra.");
+    });
+
     $("anamnesisTextSourceBtn")?.addEventListener("click", () => {
       state.sources.unshift({id:uid("source"),kind:"Szöveg",name:"Új szöveges forrás",date:"",place:"",doctor:"",preserve:false,text:""});
       renderSources(); saveState();
@@ -578,7 +670,7 @@
         state.sources.unshift({id:uid("source"),kind:"Vágólap",name:"Beillesztett szöveg",date:"",place:"",doctor:"",preserve:false,text});
         renderSources(); saveState(); toast("Vágólapszöveg hozzáadva.");
       } catch {
-        toast("A böngésző nem engedte a vágólap olvasását.");
+        toast("A vágólap itt csak szöveget támogat. Screenshot/fotó beillesztése V1-ben nincs bekötve.");
       }
     });
 
@@ -660,6 +752,11 @@
       }
       if (sourceCard && e.target.closest("[data-an-delete-source]")) {
         const id = sourceCard.dataset.anSource;
+        const previewUrl = screenshotPreviewUrls.get(id);
+        if (previewUrl) {
+          try { URL.revokeObjectURL(previewUrl); } catch {}
+          screenshotPreviewUrls.delete(id);
+        }
         state.sources = state.sources.filter((x) => x.id !== id);
         state.events = state.events.filter((x) => x.sourceId !== id);
         renderSources(); renderEvents(); saveState(); return;

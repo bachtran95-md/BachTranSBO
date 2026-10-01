@@ -104,7 +104,7 @@
             <h1>Longitudinális anamnézis összeállítása</h1>
             <div class="an-subtle">Források → események → szerkeszthető végleges anamnézis</div>
           </div>
-          <div class="an-pilot"><b>Beta UI pilot.</b> Helyi autosave aktív. Az AI/API és a felhőalapú munkalap-mentés ebben az első repo-verzióban még nincs bekötve.</div>
+          <div class="an-pilot"><b>Beta teszt.</b> Az Anamnézis AI gombok az autentikált szerveroldali OpenAI API-t használják. A munkalap tartós Supabase-mentése külön következő lépés.</div>
         </div>
 
         <div class="an-patient">
@@ -136,7 +136,7 @@
               <div class="an-source-list" id="anamnesisSourceList"></div>
               <div class="an-ai-row">
                 <button class="an-ai" id="anamnesisExtractBtn" type="button">${aiIcon}<span>AI KINYERÉS</span></button>
-                <span class="an-subtle">A későbbi API-verzió ezt a gombot használja majd.</span>
+                <span class="an-subtle">Valódi API-hívás. Jelenleg a forráskártyába beírt / beillesztett szöveget dolgozza fel.</span>
               </div>
             </div>
           </section>
@@ -229,7 +229,7 @@
             <input data-an-source-date value="${esc(s.date || "")}" placeholder="YYYY.MM.DD" />
             <input data-an-source-place value="${esc(s.place || "")}" placeholder="Intézmény / osztály" />
           </div>
-          <textarea data-an-source-text placeholder="${s.kind === "PDF" ? "A PDF tartalmának AI-kinyerése a következő backend lépésben kerül bekötésre. Addig ide kézzel is beilleszthető releváns szöveg." : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
+          <textarea data-an-source-text placeholder="${s.kind === "PDF" ? "PDF feltöltve. Ebben a Beta-körben illeszd ide a PDF releváns szövegét / epikrízisét; a közvetlen PDF-text extraction külön bekötés alatt." : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
           ${s.preserve ? '<div class="an-preserve-note"><b>Referencia anamnézis.</b> A későbbi AI-feldolgozás ennek jó megfogalmazását, kronológiáját és relatív részletességét tartja meg; főként formátumot egységesít és szükséges tényekkel egészít ki.</div>' : ""}
         </div>
       </div>
@@ -241,7 +241,7 @@
     if (!list) return;
     $("anamnesisEventCount").textContent = state.events.length + " esemény";
     if (!state.events.length) {
-      list.innerHTML = '<div class="an-empty">Még nincs esemény. A UI-pilotban az AI KINYERÉS a beírt forrásszövegekből készít teszt-vázlatot.</div>';
+      list.innerHTML = '<div class="an-empty">Még nincs esemény. Adj hozzá forrásszöveget, majd nyomd meg az AI KINYERÉS gombot.</div>';
       return;
     }
     list.innerHTML = state.events.map((e) => {
@@ -298,40 +298,189 @@
     `).join("");
   }
 
-  function extractLocalDraft() {
-    const usable = state.sources.filter((s) => String(s.text || "").trim());
-    if (!usable.length) {
-      toast("Nincs beírt forrásszöveg. A PDF valódi AI-kinyerése még nincs bekötve.");
-      return;
+  async function runAiButton(button, busyLabel, work) {
+    if (!button || button.disabled) return;
+    const label = button.querySelector("span");
+    const original = label?.textContent || "";
+    button.disabled = true;
+    if (label) label.textContent = busyLabel;
+    try {
+      return await work();
+    } catch (error) {
+      console.error("Anamnesis AI:", error);
+      toast(error?.message || "Anamnézis AI hiba.");
+      return null;
+    } finally {
+      button.disabled = false;
+      if (label) label.textContent = original;
     }
-    state.events = usable.map((s) => {
-      const text = String(s.text || "").replace(/\s+/g," ").trim();
-      const short = text.length > 420 ? text.slice(0,417).trimEnd() + "…" : text;
-      return {
-        id: uid("event"),
-        sourceId: s.id,
-        date: s.date || "",
-        place: s.place || "",
-        doctor: s.doctor || "",
-        preserve: Boolean(s.preserve),
-        detail: s.preserve ? "longer" : "shorter",
-        instruction: "",
-        text: short
-      };
-    }).sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
-    renderEvents();
-    saveState();
-    toast("UI-pilot vázlat elkészült. Ez még nem AI-kimenet.");
   }
 
-  function compileHistory({confirmOverwrite=false} = {}) {
-    if (confirmOverwrite && state.final.historyHtml && !window.confirm("Az Anamnézis rész kézzel szerkesztett tartalma újraépül az eseményekből. Folytatod?")) return;
-    const sorted = [...state.events].sort((a,b) => String(a.date || "").localeCompare(String(b.date || "")));
-    state.final.complaint = $("anamnesisFinalComplaint")?.value || state.final.complaint || state.complaint || "";
-    state.final.historyHtml = sorted.map((e) => '<span class="an-history-line"><strong>'+esc(eventHeading(e))+'</strong> '+esc(e.text || "")+'</span>').join("");
-    renderFinal();
-    saveState();
-    toast("Végleges Anamnézis rész frissítve az eseményekből.");
+  function requireAnamnesisBackend() {
+    const api = window.BachSBOBackend?.anamnesisAi;
+    if (typeof api !== "function") {
+      throw new Error("Az Anamnézis AI backend nem érhető el. Frissítsd az oldalt.");
+    }
+    return api;
+  }
+
+  function finalHistoryHtml(events) {
+    return (events || []).map((e) => {
+      const heading = eventHeading(e);
+      return '<span class="an-history-line"><strong>' + esc(heading) + '</strong> ' + esc(e.text || "") + '</span>';
+    }).join("");
+  }
+
+  async function extractWithAi(button) {
+    const usable = state.sources.filter((s) => String(s.text || "").trim());
+    if (!usable.length) {
+      const hasPdf = state.sources.some((s) => s.kind === "PDF");
+      toast(hasPdf
+        ? "A PDF-kártyába még nincs forrásszöveg beillesztve."
+        : "Nincs feldolgozható forrásszöveg.");
+      return;
+    }
+
+    await runAiButton(button, "FELDOLGOZÁS…", async () => {
+      const api = requireAnamnesisBackend();
+      const result = await api({
+        action: "extract",
+        complaint: state.complaint || "",
+        sources: usable.map((s) => ({
+          id: s.id,
+          kind: s.kind || "",
+          name: s.name || "",
+          date: s.date || "",
+          place: s.place || "",
+          preserve: Boolean(s.preserve),
+          text: s.text || ""
+        }))
+      });
+
+      const sourceById = new Map(state.sources.map((s) => [s.id, s]));
+      state.events = (Array.isArray(result?.events) ? result.events : []).map((e) => {
+        const sourceIds = Array.isArray(e.source_ids) ? e.source_ids : [];
+        const sourceId = sourceIds[0] || "";
+        const preserve = sourceIds.some((id) => Boolean(sourceById.get(id)?.preserve));
+        return {
+          id: uid("event"),
+          sourceId,
+          sourceIds,
+          date: String(e.date || ""),
+          place: String(e.place || ""),
+          doctor: String(e.doctor || ""),
+          preserve,
+          detail: ["minimal","shorter","longer","detailed"].includes(e.detail) ? e.detail : (preserve ? "longer" : "shorter"),
+          instruction: "",
+          text: String(e.text || "")
+        };
+      }).sort((a,b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+      const diseases = Array.isArray(result?.known_diseases) ? result.known_diseases.filter(Boolean) : [];
+      if (diseases.length) state.final.diseases = diseases.join(". ");
+      if (Array.isArray(result?.medications) && result.medications.length) {
+        state.meds = result.medications
+          .filter((m) => String(m?.name || "").trim())
+          .map((m) => ({ name:String(m.name || ""), dose:String(m.dose || "") }));
+      }
+      if (String(result?.allergies_cave || "").trim()) {
+        state.final.allergies = String(result.allergies_cave).trim();
+      }
+      if (Array.isArray(result?.discrepancies)) {
+        state.final.discrepancies = result.discrepancies.filter(Boolean).join("\n");
+      }
+
+      renderEvents();
+      renderFinal();
+      saveState();
+      toast("AI kinyerés elkészült.");
+    });
+  }
+
+  function currentFinalPayload() {
+    return {
+      complaint: $("anamnesisFinalComplaint")?.value || state.final.complaint || state.complaint || "",
+      known_diseases: $("anamnesisDiseases")?.value || state.final.diseases || "",
+      history: $("anamnesisHistoryEditor")?.innerText || "",
+      allergies_cave: $("anamnesisAllergies")?.value || state.final.allergies || "",
+      discrepancies: $("anamnesisDiscrepancies")?.value || state.final.discrepancies || ""
+    };
+  }
+
+  async function compileWithAi(button, mode = "compile") {
+    if (!state.events.length) {
+      toast("Nincs összeállítható esemény.");
+      return;
+    }
+    if (mode === "refresh" && state.final.historyHtml) {
+      const ok = window.confirm("Az AI a jelenlegi kézi szerkesztéseket figyelembe véve frissíti a végleges draftot. Folytatod?");
+      if (!ok) return;
+    }
+
+    await runAiButton(button, mode === "refresh" ? "FRISSÍTÉS…" : "ÖSSZEÁLLÍTÁS…", async () => {
+      const api = requireAnamnesisBackend();
+      const result = await api({
+        action: mode,
+        complaint: state.complaint || "",
+        events: state.events.map((e) => ({
+          date:e.date || "",
+          place:e.place || "",
+          doctor:e.doctor || "",
+          text:e.text || "",
+          preserve:Boolean(e.preserve),
+          detail:e.detail || "shorter",
+          instruction:e.instruction || ""
+        })),
+        medications: state.meds.map((m) => ({name:m.name || "", dose:m.dose || ""})),
+        currentFinal: currentFinalPayload()
+      });
+
+      state.final.complaint = String(result?.complaint || state.complaint || "");
+      state.final.diseases = String(result?.known_diseases || "");
+      const finalEvents = Array.isArray(result?.history_events) ? result.history_events.map((e) => ({
+        date:String(e.date || ""),
+        place:String(e.place || ""),
+        doctor:String(e.doctor || ""),
+        text:String(e.text || "")
+      })) : [];
+      state.final.historyHtml = finalHistoryHtml(finalEvents);
+      if (Array.isArray(result?.medications)) {
+        state.meds = result.medications
+          .filter((m) => String(m?.name || "").trim())
+          .map((m) => ({name:String(m.name || ""), dose:String(m.dose || "")}));
+      }
+      state.final.allergies = String(result?.allergies_cave || state.final.allergies || "");
+      state.final.discrepancies = String(result?.discrepancies || "");
+
+      renderFinal();
+      saveState();
+      toast(mode === "refresh" ? "AI frissítés elkészült." : "AI összeállítás elkészült.");
+    });
+  }
+
+  async function rewriteEventWithAi(eventCard, button) {
+    const ev = state.events.find((x) => x.id === eventCard?.dataset?.anEvent);
+    if (!ev) return;
+
+    await runAiButton(button, "ÁTÍRÁS…", async () => {
+      const api = requireAnamnesisBackend();
+      const result = await api({
+        action: "rewrite_event",
+        event: {
+          date:ev.date || "",
+          place:ev.place || "",
+          doctor:ev.doctor || "",
+          text:ev.text || "",
+          preserve:Boolean(ev.preserve),
+          detail:ev.detail || "shorter",
+          instruction:ev.instruction || ""
+        }
+      });
+      ev.text = String(result?.text || ev.text || "");
+      renderEvents();
+      saveState();
+      toast("Esemény AI-átírás elkészült.");
+    });
   }
 
   function clipboardText() {
@@ -394,9 +543,9 @@
       }
     });
 
-    $("anamnesisExtractBtn")?.addEventListener("click", extractLocalDraft);
-    $("anamnesisCompileBtn")?.addEventListener("click", () => compileHistory({confirmOverwrite:false}));
-    $("anamnesisRefreshFinalBtn")?.addEventListener("click", () => compileHistory({confirmOverwrite:true}));
+    $("anamnesisExtractBtn")?.addEventListener("click", (e) => void extractWithAi(e.currentTarget));
+    $("anamnesisCompileBtn")?.addEventListener("click", (e) => void compileWithAi(e.currentTarget, "compile"));
+    $("anamnesisRefreshFinalBtn")?.addEventListener("click", (e) => void compileWithAi(e.currentTarget, "refresh"));
 
     $("anamnesisAddMedBtn")?.addEventListener("click", () => {
       state.meds.push({name:"",dose:""}); renderMeds(); saveState();
@@ -480,7 +629,8 @@
         return;
       }
       if (eventCard && e.target.closest("[data-an-rewrite]")) {
-        toast("UI pilot: az AI ÁTÍRÁS backendje még nincs bekötve.");
+        const button = e.target.closest("[data-an-rewrite]");
+        void rewriteEventWithAi(eventCard, button);
         return;
       }
 
@@ -492,45 +642,13 @@
     });
   }
 
-  function enforceModuleView() {
-    if (!document.body.classList.contains("anamnesis-open")) return;
-    ["rawTransferView","noShiftView","patientsView","notesView","aiLearningView","adminView"].forEach((id) => $(id)?.classList.add("hidden"));
-    document.querySelectorAll(".workspace-nav .nav-item").forEach((node) => node.classList.remove("active"));
-    $("anamnesisNav")?.classList.add("active");
-    $("anamnesisView")?.classList.remove("hidden");
-  }
-
-  function openModule() {
-    const view = $("anamnesisView");
-    if (!view) return;
-    document.body.classList.remove("raw-transfer-mode");
-    document.body.classList.add("anamnesis-open");
-    enforceModuleView();
-    renderShell();
-  }
-
-  function closeModule() {
-    document.body.classList.remove("anamnesis-open");
-    $("anamnesisView")?.classList.add("hidden");
-  }
-
-  function bindNavigation() {
-    $("anamnesisNav")?.addEventListener("click", openModule);
-    ["patientsNav","notesNav","aiLearningNav","adminNav"].forEach((id) => $(id)?.addEventListener("click", closeModule));
-
-    const observer = new MutationObserver(() => {
-      if (document.body.classList.contains("raw-transfer-mode")) closeModule();
-    });
-    observer.observe(document.body, {attributes:true, attributeFilter:["class"]});
-
-    document.addEventListener("bachsbo:ui-rendered", () => {
-      if (document.body.classList.contains("anamnesis-open")) enforceModuleView();
-    });
-  }
-
   function init() {
-    bindNavigation();
     if ($("anamnesisView")) renderShell();
+    document.addEventListener("bachsbo:ui-rendered", (event) => {
+      if (event?.detail?.view === "anamnesis" && $("anamnesisView") && !$("anamnesisView").innerHTML.trim()) {
+        renderShell();
+      }
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

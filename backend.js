@@ -970,6 +970,17 @@
     return { noteId, deleted: true };
   }
 
+  async function anamnesisAi(payload = {}) {
+    if (!payload || typeof payload !== "object") {
+      throw new Error("Invalid Anamnesis AI payload.");
+    }
+    return invokeAuthedFunction(
+      "anamnesis-ai",
+      structuredClone(payload),
+      "Anamnesis AI"
+    );
+  }
+
   async function getLearningOverview() {
     return invokeAuthedFunction(
       "learning-admin",
@@ -1096,6 +1107,7 @@
     createNote,
     updateNote,
     deleteNote,
+    anamnesisAi,
     getLearningOverview,
     listCorpusRevisions,
     reviewCorpusRevision,

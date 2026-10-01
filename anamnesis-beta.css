@@ -18,7 +18,9 @@
   display:grid;grid-template-columns:160px minmax(260px,1fr) auto;gap:8px;align-items:end;
   background:#fff;border:1px solid var(--an-line);border-radius:12px;padding:10px 12px;margin-bottom:12px;box-shadow:var(--an-shadow)
 }
-.anamnesis-module .an-save{display:flex;align-items:center;gap:6px;padding:0 0 8px;font-size:10px;color:#475467;white-space:nowrap}
+.anamnesis-module .an-patient-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.anamnesis-module .an-patient-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.anamnesis-module .an-save{display:flex;align-items:center;gap:6px;font-size:10px;color:#475467;white-space:nowrap}
 .anamnesis-module .an-save-dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
 .anamnesis-module .an-grid{
   display:grid;grid-template-columns:minmax(290px,29fr) minmax(330px,34fr) minmax(390px,37fr);
@@ -49,6 +51,14 @@
 .anamnesis-module .an-card-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .anamnesis-module .an-card-b{padding:8px 9px}
 .anamnesis-module .an-source-fields{display:grid;grid-template-columns:112px 1fr;gap:6px;margin-bottom:6px}
+.anamnesis-module .an-screenshot-preview{
+  display:block;width:100%;max-height:220px;object-fit:contain;background:#f8fafc;
+  border:1px solid #d0d5dd;border-radius:8px;margin-bottom:7px
+}
+.anamnesis-module .an-screenshot-missing{
+  border:1px dashed #d0d5dd;background:#fafafa;color:#667085;border-radius:8px;
+  padding:8px;margin-bottom:7px;font-size:9px;line-height:1.4
+}
 .anamnesis-module input,.anamnesis-module textarea,.anamnesis-module select{
   width:100%;border:1px solid #cfd5dd;border-radius:7px;padding:7px 8px;background:#fff;color:var(--an-text);font-size:10px
 }
@@ -110,5 +120,7 @@
   .anamnesis-module .an-grid .an-panel:last-child{grid-column:auto}
   .anamnesis-module .an-head{flex-direction:column}
   .anamnesis-module .an-patient{grid-template-columns:1fr}
+  .anamnesis-module .an-patient-actions{align-items:flex-start}
+  .anamnesis-module .an-patient-buttons{justify-content:flex-start}
   .anamnesis-module .an-med-row{grid-template-columns:1fr 100px 26px}
 }

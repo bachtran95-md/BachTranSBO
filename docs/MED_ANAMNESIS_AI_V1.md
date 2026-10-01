@@ -69,6 +69,54 @@ In preservation mode:
 
 Preserve content/detail, not the original visual formatting.
 
+## Global anamnesis mode
+
+Before Step 1 extraction, the physician chooses one global mode for the reconstruction. This controls what the AI extracts and how much narrative detail it keeps before Step 2 review.
+
+### RELEVANT TO CURRENT COMPLAINT
+- Prioritize history that is relevant to the current chief complaint / admission reason.
+- Omit low-value unrelated ambulatory detail.
+- Still retain major prior admissions, major procedures, and background facts that materially affect current management or safety.
+- Examples of background facts that should usually survive even when not obviously complaint-specific: important cardiac interventions, severe renal or hepatic dysfunction, insulin-treated diabetes, anticoagulation/antiplatelet therapy, active malignancy, transplant, major allergy/CAVE.
+
+### CONCISE
+- Produce a compact longitudinal history.
+- Keep diagnoses, major interventions, key objective anchor values and outcomes.
+- Remove routine low-value context.
+
+### BALANCED
+- Default mode.
+- Use concise but sufficiently contextual internal-medicine detail.
+- Keep clinically meaningful investigation/treatment context without routine boilerplate.
+
+### DETAILED
+- Preserve more clinically useful context, important investigations, treatment changes and outcomes.
+- Still exclude routine copied boilerplate and long low-value laboratory lists.
+
+The global mode does not prevent the physician from changing the detail level of an individual Step 2 event afterward.
+
+## Clinical anchor highlighting
+
+When an event contains a clinically important, decision-driving objective fact, return that fact as a highlight so the UI can emphasize it in the event preview and final Anamnézis.
+
+Typical examples include, when actually documented:
+- cardiac function: LVEF / EF and important echocardiographic measurements;
+- coronary interventions/anatomy: PTCA, PCI, stent, CABG, relevant coronary anatomy;
+- renal function: creatinine, eGFR / GFR, dialysis, major AKI/CKD information;
+- hematology: Hb / Hgb and other hematologic values only when clinically important;
+- hepatic function: AST, ALT, GGT, ALP, bilirubin, INR, albumin and documented hepatic functional status;
+- diabetes: HbA1c, insulin regimen/scheme, clinically important glucose-management information;
+- antithrombotic treatment: major anticoagulation or antiplatelet therapy when clinically relevant;
+- major imaging, pathology, microbiology, oncologic stage/treatment or other objective findings that materially affect care.
+
+Highlighting rules:
+- Highlight only a small number of high-value facts, usually 0–6 per event.
+- Do not bold routine laboratory values simply because a number is present.
+- A highlight must be an exact substring already present in the event text.
+- Preserve the documented number, unit, date and uncertainty exactly.
+- Never invent, calculate or reinterpret a value just to create a highlight.
+- If the same parameter changes over time, preserve the dated values in their separate chronological events rather than silently reconciling them.
+
 ## Event detail levels
 Each event may be rewritten at one of four levels. Apply the chosen level only to that event.
 
@@ -176,7 +224,7 @@ Use chronology when it explains a true clinical change; otherwise flag for revie
 ## Current-complaint relevance
 The physician may provide the current chief complaint / admission reason.
 
-Use it to highlight particularly relevant historical facts, but do not delete important background history. The underlying longitudinal history should remain stable.
+Use it to highlight particularly relevant historical facts. In the explicit RELEVANT TO CURRENT COMPLAINT mode, low-value unrelated detail may be omitted from the displayed reconstruction, while major admissions/procedures and management-changing safety background must still be retained.
 
 Examples:
 - chest pain: CAD, ACS, PCI/CABG, coronary anatomy, EF, prior similar episodes, CV risk factors, antithrombotic therapy;

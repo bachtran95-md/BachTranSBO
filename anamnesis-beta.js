@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "bachtransbo_beta_anamnesis_v1";
+  const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
@@ -85,6 +86,91 @@
 
   function uid(prefix) {
     return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function localDeidentify(input) {
+    let text = String(input ?? "");
+    const counts = { taj:0, dob:0, email:0, phone:0, address:0, labelledName:0, externalId:0 };
+    const replace = (regex, replacement, key) => {
+      text = text.replace(regex, () => {
+        counts[key] += 1;
+        return replacement;
+      });
+    };
+
+    replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL]", "email");
+    replace(/\bTAJ(?:\s*(?:sz[aá]m|azonos[ií]t[oó]))?\s*[:#-]?\s*\d{3}[\s-]?\d{3}[\s-]?\d{3}\b/gi, "TAJ: [TAJ]", "taj");
+    replace(/(?<!\d)\d{3}[\s-]\d{3}[\s-]\d{3}(?!\d)/g, "[TAJ]", "taj");
+    replace(/\b(?:sz[uü]l(?:etett|et[eé]si\s*(?:id[oő]|d[aá]tum))?|DOB|date\s+of\s+birth|birth\s+date)[\s:.-]*(?:19|20)\d{2}\s*[.\/-]\s*(?:0?[1-9]|1[0-2])\s*[.\/-]\s*(?:0?[1-9]|[12]\d|3[01])\.?/gi, "[DOB]", "dob");
+    replace(/\b(?:tel(?:efon)?|mobil|phone)\s*[:#-]?\s*(?:\+?\d[\d\s()\/-]{6,}\d)\b/gi, "phone: [PHONE]", "phone");
+    replace(/\b(?:beteg\s+neve|p[aá]ciens\s+neve|patient\s+name|name|n[eé]v)\s*[:#-]\s*[^\n;,]{2,80}/gi, "name: [PERSON]", "labelledName");
+    replace(/\b(?:lakc[ií]m|address|patient\s+address)\s*[:#-]\s*[^\n;]{4,140}/gi, "address: [ADDRESS]", "address");
+    replace(/\b(?:MRN|patient\s*ID|betegazonos[ií]t[oó]|t[oö]rzssz[aá]m|esetsz[aá]m)\s*[:#-]?\s*[A-Z0-9][A-Z0-9._\/-]{3,}\b/gi, "[EXTERNAL_ID]", "externalId");
+
+    return {
+      text,
+      count: Object.values(counts).reduce((sum, value) => sum + value, 0),
+      counts
+    };
+  }
+
+  function sanitizeSourceTextLocally(source) {
+    const result = localDeidentify(source?.text || "");
+    return {
+      ...source,
+      text: result.text,
+      localDeidCount: result.count
+    };
+  }
+
+  async function readPdfAsSanitizedText(file) {
+    if (!file || !/pdf/i.test(file.type || "") && !/\.pdf$/i.test(file.name || "")) {
+      throw new Error("Csak PDF fájl támogatott.");
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      throw new Error("A PDF túl nagy. Maximum 15 MB.");
+    }
+    const pdfjs = window.pdfjsLib;
+    if (!pdfjs?.getDocument) {
+      throw new Error("A PDF-olvasó nem töltődött be. Frissítsd a Beta oldalt.");
+    }
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const loadingTask = pdfjs.getDocument({ data: bytes });
+    const pdf = await loadingTask.promise;
+    if (pdf.numPages > 120) {
+      await loadingTask.destroy?.();
+      throw new Error("A PDF túl hosszú. Maximum 120 oldal dolgozható fel egyszerre.");
+    }
+
+    const pages = [];
+    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
+      const page = await pdf.getPage(pageNo);
+      const content = await page.getTextContent();
+      const pageText = (content.items || []).map((item) => {
+        const value = String(item?.str || "");
+        return value + (item?.hasEOL ? "\n" : " ");
+      }).join("")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      if (pageText) pages.push("— " + pageNo + ". oldal —\n" + pageText);
+    }
+    await loadingTask.destroy?.();
+
+    const rawText = pages.join("\n\n").trim();
+    if (!rawText) {
+      throw new Error("A PDF-ből nem nyerhető ki szöveg. Szkennelt dokumentumnál használd a KÉPERNYŐKÉP forrást.");
+    }
+
+    const deid = localDeidentify(rawText);
+    return {
+      text: deid.text,
+      removedCount: deid.count,
+      pageCount: pdf.numPages
+    };
   }
 
   function sourceHeading(s) {
@@ -204,7 +290,7 @@
               <div class="an-source-list" id="anamnesisSourceList"></div>
               <div class="an-ai-row">
                 <button class="an-ai" id="anamnesisExtractBtn" type="button">${aiIcon}<span>AI KINYERÉS</span></button>
-                <span class="an-subtle">Valódi API-hívás: szöveg + azonosítómentesnek jelölt képernyőképek. Screenshot beillesztés: Ctrl+V / ⌘V.</span>
+                <span class="an-subtle">Minden szöveges forrás helyi de-ID szűrőn megy át, majd a szerver újra privacy-checkeli. PDF-ből csak kinyert, tisztított szöveg kerül AI-ba. Screenshot beillesztés: Ctrl+V / ⌘V.</span>
               </div>
             </div>
           </section>
@@ -306,10 +392,17 @@
             ? '<label class="an-image-confirm"><input type="checkbox" data-an-image-confirm ' + (s.imageConfirmed ? 'checked' : '') + ' /> <span>Nincs betegazonosító / személyes adat ezen a képen — AI-ba küldhető</span></label>'
             : ""}
           <textarea data-an-source-text placeholder="${s.kind === "PDF"
-            ? "PDF feltöltve. Ebben a Beta-körben illeszd ide a PDF releváns szövegét / epikrízisét; a közvetlen PDF-text extraction külön bekötés alatt."
+            ? "A PDF kinyert és deazonosított szövege jelenik meg itt. Szükség esetén kézzel szerkeszthető."
             : s.kind === "Képernyőkép"
             ? "Opcionális megjegyzés a screenshothoz."
             : "Forrásszöveg / epikrízis..."}">${esc(s.text || "")}</textarea>
+          ${s.kind === "PDF"
+            ? '<div class="an-privacy-note"><b>De-ID:</b> ' +
+              (s.pdfReady
+                ? esc(String(s.pdfPages || "?")) + ' oldal · ' + esc(String(s.localDeidCount || 0)) + ' azonosító eltávolítva. Az eredeti PDF nem kerül AI-ba; csak a kinyert, tisztított szöveg.'
+                : 'PDF feldolgozásra vár.') +
+              '</div>'
+            : ""}
           ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A screenshot csak az AI KINYERÉS megnyomásakor kerül a szerveroldali OpenAI Responses API-hoz, és csak a fenti jelölés után.</div>' : ""}
           ${s.preserve ? '<div class="an-preserve-note"><b>Referencia anamnézis.</b> A későbbi AI-feldolgozás ennek jó megfogalmazását, kronológiáját és relatív részletességét tartja meg; főként formátumot egységesít és szükséges tényekkel egészít ki.</div>' : ""}
         </div>
@@ -424,7 +517,8 @@
       return;
     }
 
-    const usable = state.sources.filter((s) =>
+    const locallySanitizedSources = state.sources.map(sanitizeSourceTextLocally);
+    const usable = locallySanitizedSources.filter((s) =>
       String(s.text || "").trim() ||
       (s.kind === "Képernyőkép" && Boolean(s.imageDataUrl) && Boolean(s.imageConfirmed))
     );
@@ -443,14 +537,14 @@
       const api = requireAnamnesisBackend();
       const result = await api({
         action: "extract",
-        complaint: state.complaint || "",
+        complaint: localDeidentify(state.complaint || "").text,
         mode: state.mode || "balanced",
         sources: usable.map((s) => ({
           id: s.id,
           kind: s.kind || "",
-          name: s.name || "",
+          name: s.kind === "PDF" ? "PDF dokumentum" : s.kind === "Képernyőkép" ? "Képernyőkép" : localDeidentify(s.name || "").text,
           date: s.date || "",
-          place: s.place || "",
+          place: localDeidentify(s.place || "").text,
           preserve: Boolean(s.preserve),
           text: s.text || "",
           imageDataUrl: s.kind === "Képernyőkép" ? (s.imageDataUrl || "") : "",
@@ -663,23 +757,43 @@
     });
 
     $("anamnesisUploadBtn")?.addEventListener("click", () => $("anamnesisFileInput")?.click());
-    $("anamnesisFileInput")?.addEventListener("change", (e) => {
-      [...(e.target.files || [])].forEach((file) => {
-        state.sources.unshift({
+    $("anamnesisFileInput")?.addEventListener("change", async (e) => {
+      const files = [...(e.target.files || [])];
+      e.target.value = "";
+      for (const file of files) {
+        const pending = {
           id: uid("source"),
           kind: "PDF",
-          name: file.name,
+          name: "PDF dokumentum",
           fileName: file.name,
           date: "",
           place: "",
           doctor: "",
           preserve: false,
-          text: ""
-        });
-      });
-      e.target.value = "";
-      renderSources();
-      saveState();
+          text: "",
+          pdfReady: false,
+          pdfPages: 0,
+          localDeidCount: 0
+        };
+        state.sources.unshift(pending);
+        renderSources();
+        toast("PDF szöveg kinyerése és helyi de-ID folyamatban…");
+        try {
+          const parsed = await readPdfAsSanitizedText(file);
+          pending.text = parsed.text;
+          pending.pdfReady = true;
+          pending.pdfPages = parsed.pageCount;
+          pending.localDeidCount = parsed.removedCount;
+          renderSources();
+          saveState();
+          toast("PDF hozzáadva és deazonosítva. Ellenőrizd a kinyert szöveget.");
+        } catch (error) {
+          state.sources = state.sources.filter((s) => s.id !== pending.id);
+          renderSources();
+          saveState();
+          toast(error?.message || "A PDF nem dolgozható fel.");
+        }
+      }
     });
 
     $("anamnesisScreenshotBtn")?.addEventListener("click", () => $("anamnesisScreenshotInput")?.click());
@@ -724,7 +838,7 @@
         state.sources.unshift({id:uid("source"),kind:"Vágólap",name:"Beillesztett szöveg",date:"",place:"",doctor:"",preserve:false,text});
         renderSources(); saveState(); toast("Vágólapszöveg hozzáadva.");
       } catch {
-        toast("A vágólap itt csak szöveget támogat. Screenshot/fotó beillesztése V1-ben nincs bekötve.");
+        toast("A vágólap szövege nem olvasható. Screenshotot közvetlenül Ctrl+V / ⌘V-vel illessz be az Anamnézis nézetben.");
       }
     });
 

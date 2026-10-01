@@ -320,7 +320,8 @@ async function sanitizeSources(rawSources: any[]) {
 
 async function handleExtract(body: any) {
   const sources = await sanitizeSources(body?.sources || []);
-  const complaint = await deidentifyAssistantText(String(body?.complaint || "").slice(0, 4000));
+  const complaintRaw = String(body?.complaint || "").slice(0, 4000).trim();
+  const complaint = complaintRaw ? await deidentifyAssistantText(complaintRaw) : "";
 
   const input = JSON.stringify({
     current_complaint: complaint,

@@ -159,6 +159,7 @@ const extractionSchema = {
           "doctor",
           "text",
           "detail",
+          "highlights",
         ],
         properties: {
           source_ids: {
@@ -174,6 +175,11 @@ const extractionSchema = {
           detail: {
             type: "string",
             enum: ["minimal", "shorter", "longer", "detailed"],
+          },
+          highlights: {
+            type: "array",
+            maxItems: 16,
+            items: stringSchema,
           },
         },
       },
@@ -208,9 +214,30 @@ const extractionSchema = {
 const rewriteSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["text"],
-  properties: { text: stringSchema },
+  required: ["text", "highlights"],
+  properties: {
+    text: stringSchema,
+    highlights: {
+      type: "array",
+      maxItems: 16,
+      items: stringSchema,
+    },
+  },
 };
+
+function normalizedHighlights(text: string, raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of raw) {
+    const item = String(value || "").trim();
+    if (!item || item.length > 180 || !text.includes(item) || seen.has(item)) continue;
+    seen.add(item);
+    out.push(item);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
 
 const baseInstructions = `
 You are Med - Anamnesis AI for BachTranSBO, assisting a physician with Hungarian longitudinal medical-history reconstruction.
@@ -231,6 +258,9 @@ Core rules:
 - Medication evidence is time-stamped. Never merge different historical medication lists into an assumed current regimen.
 - Never invent absence of allergy. If not established, use wording equivalent to "Gyógyszerallergia: dokumentációból nem megállapítható."
 - Manual physician text should be preserved unless an explicit action asks for rewrite/reconciliation.
+- Preserve and emphasize clinically decision-driving anchor facts when explicitly documented. Typical examples include LVEF/EF and important echocardiographic values; PCI/PTCA/stent/CABG and coronary anatomy; creatinine/eGFR/dialysis; Hb/Hgb and clinically important hematology; hepatic function such as AST/ALT/GGT/ALP/bilirubin/INR/albumin; HbA1c and insulin regimen; major anticoagulation/antiplatelet therapy; major imaging, pathology, microbiology, oncologic stage/treatment, and other values or interventions that materially affect current care.
+- Do not over-highlight routine data. Prefer a small number of high-value anchors per event, usually 0-6.
+- A highlight must be an EXACT substring already present in the event text. Never invent or rephrase a value merely to highlight it.
 `.trim();
 
 async function sanitizeSources(rawSources: any[]) {
@@ -275,8 +305,12 @@ async function handleExtract(body: any) {
   const sources = await sanitizeSources(body?.sources || []);
   const complaintRaw = String(body?.complaint || "").slice(0, 4000).trim();
   const complaint = complaintRaw ? await deidentifyAssistantText(complaintRaw) : "";
+  const mode = ["relevant", "concise", "balanced", "detailed"].includes(String(body?.mode || ""))
+    ? String(body.mode)
+    : "balanced";
 
   const input = JSON.stringify({
+    anamnesis_mode: mode,
     current_complaint: complaint,
     sources,
   });
@@ -289,9 +323,24 @@ Do not invent a precise date or place when the document does not support one.
 For preserve=true sources, preserve good existing historical wording and its relative event detail.
 Return clinically useful event text without Markdown heading syntax; date/place/doctor are separate structured fields.
 For medications, return only medication name and documented dose when available. Do not claim current use unless the sources establish it.
+
+Apply anamnesis_mode:
+- relevant: focus the event narrative on history relevant to the current complaint/admission reason. Omit low-value unrelated ambulatory detail, but retain major prior admissions/procedures and background facts that materially change current management or safety.
+- concise: compact longitudinal history; keep diagnoses, major procedures, key objective anchors and outcomes.
+- balanced: standard internal-medicine detail; concise but sufficiently contextual. This is the default.
+- detailed: preserve more clinically useful context, important investigations, treatment changes and outcomes while still excluding routine boilerplate.
+
+For every event, highlights must list exact substrings from event.text that deserve visual emphasis. Prefer objective/decision-driving anchors such as EF/LVEF, PTCA/PCI/CABG, eGFR/creatinine/dialysis, Hb/Hgb, hepatic-function values, HbA1c, insulin regimens, major anticoagulation/antiplatelet therapy, major imaging/pathology/microbiology, or equivalent high-impact facts when present. Do not highlight routine low-value data.
 `;
 
-  return modelJson("anamnesis_extract", extractionSchema, instructions, input, 12000);
+  const result = await modelJson("anamnesis_extract", extractionSchema, instructions, input, 12000);
+  if (Array.isArray(result.data?.events)) {
+    result.data.events = result.data.events.map((event: any) => ({
+      ...event,
+      highlights: normalizedHighlights(String(event?.text || ""), event?.highlights),
+    }));
+  }
+  return result;
 }
 
 async function handleRewrite(body: any) {
@@ -304,6 +353,7 @@ async function handleRewrite(body: any) {
     preserve: Boolean(event?.preserve),
     detail: String(event?.detail || "shorter"),
     instruction: String(event?.instruction || "").slice(0, 1200),
+    highlights: Array.isArray(event?.highlights) ? event.highlights.slice(0, 16) : [],
   }));
 
   const instructions = `${baseInstructions}
@@ -316,10 +366,15 @@ Respect the selected detail level:
 - detailed: fuller clinically useful account without routine boilerplate
 Apply the custom instruction only to this event.
 If preserve=true, make minimal changes unless the explicit custom instruction asks otherwise.
-Return only the rewritten event text in the structured field.
+Return the rewritten event text and a highlights array. Each highlight must be an exact substring of the rewritten text and should mark only clinically important anchor facts; do not over-highlight.
 `;
 
-  return modelJson("anamnesis_rewrite_event", rewriteSchema, instructions, sanitized, 3500);
+  const result = await modelJson("anamnesis_rewrite_event", rewriteSchema, instructions, sanitized, 3500);
+  result.data.highlights = normalizedHighlights(
+    String(result.data?.text || ""),
+    result.data?.highlights,
+  );
+  return result;
 }
 
 Deno.serve(async (req) => {

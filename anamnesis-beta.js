@@ -416,6 +416,30 @@
         </div>
       </div>
     `).join("");
+
+    list.querySelectorAll("[data-an-preserve]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const sourceCard = button.closest("[data-an-source]");
+        const id = sourceCard?.dataset?.anSource;
+        if (!id) return;
+        const src = state.sources.find((x) => x.id === id);
+        if (!src) return;
+
+        const next = !Boolean(src.preserve);
+        state.sources.forEach((x) => { x.preserve = false; });
+        src.preserve = next;
+
+        state.events.forEach((ev) => {
+          const linked = ev.sourceId === id || (Array.isArray(ev.sourceIds) && ev.sourceIds.includes(id));
+          ev.preserve = next && linked;
+        });
+
+        saveState();
+        renderSources();
+        renderEvents();
+        toast(next ? "MEGŐRZÉS / MIN. VÁLTOZTATÁS bekapcsolva." : "Megőrzési mód kikapcsolva.");
+      });
+    });
   }
 
   function eventVersionKey(event) {
@@ -1104,18 +1128,6 @@
 
     $("anamnesisView")?.addEventListener("click", (e) => {
       const sourceCard = e.target.closest?.("[data-an-source]");
-      if (sourceCard && e.target.closest("[data-an-preserve]")) {
-        const id = sourceCard.dataset.anSource;
-        const src = state.sources.find((x) => x.id === id);
-        if (!src) return;
-        const next = !src.preserve;
-        state.sources.forEach((x) => x.preserve = false);
-        src.preserve = next;
-        state.events.forEach((ev) => ev.preserve = next && ev.sourceId === id);
-        renderSources(); renderEvents(); saveState();
-        toast(next ? "Referencia anamnézis kijelölve." : "Megőrzési mód kikapcsolva.");
-        return;
-      }
       if (sourceCard && e.target.closest("[data-an-delete-source]")) {
         const id = sourceCard.dataset.anSource;
         state.sources = state.sources.filter((x) => x.id !== id);

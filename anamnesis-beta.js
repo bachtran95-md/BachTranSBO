@@ -147,10 +147,11 @@
               <span class="an-chip green" id="anamnesisEventCount"></span>
             </div>
             <div class="an-panel-b">
-              <div class="an-hint">A részletességi gomb és a saját utasítás <b>csak az adott eseményre</b> vonatkozik. Gépelés közben nincs API-hívás.</div>
+              <div class="an-hint">A 2. lépés a jóváhagyási munkanézet. Az esemény szövege kézzel szerkeszthető, AI-val külön átírható vagy teljesen törölhető. A végleges Anamnézis innen készül, <b>AI nélkül</b>.</div>
               <div class="an-event-list" id="anamnesisEventList"></div>
               <div class="an-ai-row">
-                <button class="an-ai" id="anamnesisCompileBtn" type="button">${aiIcon}<span>AI ÖSSZEÁLLÍTÁS</span></button>
+                <button class="btn" id="anamnesisCompileBtn" type="button">ÖSSZEÁLLÍTÁS →</button>
+                <span class="an-subtle">Csak rendezés + formázás JavaScripttel, nincs API-hívás.</span>
               </div>
             </div>
           </section>
@@ -161,7 +162,7 @@
               <span class="an-chip purple">DRAFT</span>
             </div>
             <div class="an-panel-b">
-              <div class="an-final-note">A kézi módosítások a jelenlegi draftban elsőbbséget élveznek. <b>AI FRISSÍTÉS</b> csak explicit megerősítés után építi újra az Anamnézis részt.</div>
+              <div class="an-final-note"><b>V1:</b> a végleges Anamnézis a 2. lépésben jóváhagyott eseményekből készül régebbi → újabb sorrendben, AI-hívás nélkül. Az ismert betegségek és a gyógyszerlista az 1. lépésből érkeznek és kézzel tovább szerkeszthetők.</div>
 
               <div class="an-final-section">
                 <div class="an-final-title">Aktuális panasz / felvétel oka</div>
@@ -190,7 +191,6 @@
               </div>
               <div class="an-final-actions">
                 <button class="btn" id="anamnesisCopyBtn" type="button">MÁSOLÁS</button>
-                <button class="an-ai" id="anamnesisRefreshFinalBtn" type="button">${aiIcon}<span>AI FRISSÍTÉS</span></button>
               </div>
             </div>
           </section>
@@ -250,7 +250,7 @@
         <div class="an-card ${e.preserve ? "reference" : ""}" data-an-event="${esc(e.id)}">
           <div class="an-card-h">
             <div><div class="an-card-title">${esc(eventHeading(e))}</div><div class="an-card-meta">${e.preserve ? "Referenciaforrásból" : "Normál esemény"}</div></div>
-            ${e.preserve ? '<span class="an-chip purple">MEGŐRZÉS</span>' : '<span class="an-chip">ESEMÉNY</span>'}
+            <div class="an-card-actions">${e.preserve ? '<span class="an-chip purple">MEGŐRZÉS</span>' : '<span class="an-chip">ESEMÉNY</span>'}<button class="an-delete" type="button" data-an-delete-event title="Esemény törlése">×</button></div>
           </div>
           <div class="an-card-b">
             <textarea data-an-event-text>${esc(e.text || "")}</textarea>
@@ -397,65 +397,28 @@
     });
   }
 
-  function currentFinalPayload() {
-    return {
-      complaint: $("anamnesisFinalComplaint")?.value || state.final.complaint || state.complaint || "",
-      known_diseases: $("anamnesisDiseases")?.value || state.final.diseases || "",
-      history: $("anamnesisHistoryEditor")?.innerText || "",
-      allergies_cave: $("anamnesisAllergies")?.value || state.final.allergies || "",
-      discrepancies: $("anamnesisDiscrepancies")?.value || state.final.discrepancies || ""
-    };
-  }
-
-  async function compileWithAi(button, mode = "compile") {
+  function assembleFinalFromEvents() {
     if (!state.events.length) {
       toast("Nincs összeállítható esemény.");
       return;
     }
-    if (mode === "refresh" && state.final.historyHtml) {
-      const ok = window.confirm("Az AI a jelenlegi kézi szerkesztéseket figyelembe véve frissíti a végleges draftot. Folytatod?");
-      if (!ok) return;
-    }
 
-    await runAiButton(button, mode === "refresh" ? "FRISSÍTÉS…" : "ÖSSZEÁLLÍTÁS…", async () => {
-      const api = requireAnamnesisBackend();
-      const result = await api({
-        action: mode,
-        complaint: state.complaint || "",
-        events: state.events.map((e) => ({
-          date:e.date || "",
-          place:e.place || "",
-          doctor:e.doctor || "",
-          text:e.text || "",
-          preserve:Boolean(e.preserve),
-          detail:e.detail || "shorter",
-          instruction:e.instruction || ""
-        })),
-        medications: state.meds.map((m) => ({name:m.name || "", dose:m.dose || ""})),
-        currentFinal: currentFinalPayload()
-      });
+    // Step 2 is the source of truth for the Anamnézis in V1.
+    // No AI call: only deterministic chronology + formatting.
+    const sorted = [...state.events].sort(
+      (a,b) => String(a.date || "").localeCompare(String(b.date || ""))
+    );
 
-      state.final.complaint = String(result?.complaint || state.complaint || "");
-      state.final.diseases = String(result?.known_diseases || "");
-      const finalEvents = Array.isArray(result?.history_events) ? result.history_events.map((e) => ({
-        date:String(e.date || ""),
-        place:String(e.place || ""),
-        doctor:String(e.doctor || ""),
-        text:String(e.text || "")
-      })) : [];
-      state.final.historyHtml = finalHistoryHtml(finalEvents);
-      if (Array.isArray(result?.medications)) {
-        state.meds = result.medications
-          .filter((m) => String(m?.name || "").trim())
-          .map((m) => ({name:String(m.name || ""), dose:String(m.dose || "")}));
-      }
-      state.final.allergies = String(result?.allergies_cave || state.final.allergies || "");
-      state.final.discrepancies = String(result?.discrepancies || "");
+    state.final.complaint =
+      $("anamnesisFinalComplaint")?.value ||
+      state.final.complaint ||
+      state.complaint ||
+      "";
+    state.final.historyHtml = finalHistoryHtml(sorted);
 
-      renderFinal();
-      saveState();
-      toast(mode === "refresh" ? "AI frissítés elkészült." : "AI összeállítás elkészült.");
-    });
+    renderFinal();
+    saveState();
+    toast("Végleges anamnézis összeállítva AI nélkül.");
   }
 
   async function rewriteEventWithAi(eventCard, button) {
@@ -544,8 +507,7 @@
     });
 
     $("anamnesisExtractBtn")?.addEventListener("click", (e) => void extractWithAi(e.currentTarget));
-    $("anamnesisCompileBtn")?.addEventListener("click", (e) => void compileWithAi(e.currentTarget, "compile"));
-    $("anamnesisRefreshFinalBtn")?.addEventListener("click", (e) => void compileWithAi(e.currentTarget, "refresh"));
+    $("anamnesisCompileBtn")?.addEventListener("click", assembleFinalFromEvents);
 
     $("anamnesisAddMedBtn")?.addEventListener("click", () => {
       state.meds.push({name:"",dose:""}); renderMeds(); saveState();
@@ -626,6 +588,14 @@
         ev.detail = e.target.closest("[data-an-detail]").dataset.anDetail;
         renderEvents(); saveState();
         toast("Részletesség beállítva. Nincs API-hívás.");
+        return;
+      }
+      if (eventCard && e.target.closest("[data-an-delete-event]")) {
+        const id = eventCard.dataset.anEvent;
+        state.events = state.events.filter((x) => x.id !== id);
+        renderEvents();
+        saveState();
+        toast("Esemény törölve a 2. lépésből.");
         return;
       }
       if (eventCard && e.target.closest("[data-an-rewrite]")) {

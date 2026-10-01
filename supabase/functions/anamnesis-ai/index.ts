@@ -77,7 +77,7 @@ async function modelJson(
   name: string,
   schema: Record<string, unknown>,
   instructions: string,
-  input: string,
+  input: unknown,
   maxOutputTokens = 9000,
 ) {
   const model =
@@ -272,32 +272,66 @@ async function sanitizeSources(rawSources: any[]) {
   }
 
   let totalChars = 0;
+  let totalImageChars = 0;
   const output = [];
+
   for (const raw of rawSources) {
     const id = String(raw?.id || "").slice(0, 120);
+    const kind = String(raw?.kind || "").slice(0, 80);
     const text = String(raw?.text || "").trim();
-    if (!id || !text) continue;
-    if (text.length > 120000) {
-      throw new Error("One source is too long. Split the document before analysis.");
-    }
-    totalChars += text.length;
-    if (totalChars > 320000) {
-      throw new Error("The combined sources are too long. Analyze fewer documents at once.");
+    const imageDataUrl = String(raw?.imageDataUrl || "").trim();
+    const imageConfirmedNoIdentifiers = Boolean(raw?.imageConfirmedNoIdentifiers);
+
+    if (!id) continue;
+
+    let sanitizedText = "";
+    if (text) {
+      if (text.length > 120000) {
+        throw new Error("One source is too long. Split the document before analysis.");
+      }
+      totalChars += text.length;
+      if (totalChars > 320000) {
+        throw new Error("The combined source text is too long. Analyze fewer documents at once.");
+      }
+      sanitizedText = await deidentifyAssistantText(text);
     }
 
-    const sanitized = await deidentifyAssistantText(text);
+    let safeImageDataUrl = "";
+    if (imageDataUrl) {
+      if (kind !== "Képernyőkép") {
+        throw new Error("Image input is only allowed for screenshot sources.");
+      }
+      if (!imageConfirmedNoIdentifiers) {
+        throw new Error("A screenshot must be confirmed as free of patient-identifying/personal data before AI processing.");
+      }
+      if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/i.test(imageDataUrl)) {
+        throw new Error("Unsupported screenshot format.");
+      }
+      if (imageDataUrl.length > 7_000_000) {
+        throw new Error("One screenshot is too large for AI processing.");
+      }
+      totalImageChars += imageDataUrl.length;
+      if (totalImageChars > 14_000_000) {
+        throw new Error("Too many screenshot bytes in one AI request. Process fewer screenshots at once.");
+      }
+      safeImageDataUrl = imageDataUrl;
+    }
+
+    if (!sanitizedText && !safeImageDataUrl) continue;
+
     output.push({
       id,
-      kind: String(raw?.kind || "").slice(0, 80),
+      kind,
       name: String(raw?.name || "").slice(0, 240),
       date: String(raw?.date || "").slice(0, 80),
       place: String(raw?.place || "").slice(0, 240),
       preserve: Boolean(raw?.preserve),
-      text: sanitized,
+      text: sanitizedText,
+      imageDataUrl: safeImageDataUrl,
     });
   }
 
-  if (!output.length) throw new Error("No readable source text was supplied.");
+  if (!output.length) throw new Error("No readable text or approved screenshot was supplied.");
   return output;
 }
 
@@ -309,11 +343,40 @@ async function handleExtract(body: any) {
     ? String(body.mode)
     : "balanced";
 
-  const input = JSON.stringify({
-    anamnesis_mode: mode,
-    current_complaint: complaint,
-    sources,
-  });
+  const sourceMetadata = sources.map((source: any) => ({
+    id: source.id,
+    kind: source.kind,
+    name: source.name,
+    date: source.date,
+    place: source.place,
+    preserve: source.preserve,
+    text: source.text,
+    has_screenshot: Boolean(source.imageDataUrl),
+  }));
+
+  const content: any[] = [{
+    type: "input_text",
+    text: JSON.stringify({
+      anamnesis_mode: mode,
+      current_complaint: complaint,
+      sources: sourceMetadata,
+    }),
+  }];
+
+  for (const source of sources) {
+    if (!source.imageDataUrl) continue;
+    content.push({
+      type: "input_text",
+      text: `Screenshot source ${source.id}. Treat visible content as clinical source data for this source ID. Do not infer identity.`,
+    });
+    content.push({
+      type: "input_image",
+      image_url: source.imageDataUrl,
+      detail: "high",
+    });
+  }
+
+  const input = [{ role: "user", content }];
 
   const instructions = `${baseInstructions}
 
@@ -331,6 +394,8 @@ Apply anamnesis_mode:
 - detailed: preserve more clinically useful context, important investigations, treatment changes and outcomes while still excluding routine boilerplate.
 
 For every event, highlights must list exact substrings from event.text that deserve visual emphasis. Prefer objective/decision-driving anchors such as EF/LVEF, PTCA/PCI/CABG, eGFR/creatinine/dialysis, Hb/Hgb, hepatic-function values, HbA1c, insulin regimens, major anticoagulation/antiplatelet therapy, major imaging/pathology/microbiology, or equivalent high-impact facts when present. Do not highlight routine low-value data.
+
+Screenshot sources have been explicitly marked by the physician as containing no patient-identifying/personal information. Read the visible clinical content directly from the screenshot and associate extracted facts/events with that screenshot's source ID. Do not infer or reconstruct any patient identity from the image.
 `;
 
   const result = await modelJson("anamnesis_extract", extractionSchema, instructions, input, 12000);

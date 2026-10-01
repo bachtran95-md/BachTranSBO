@@ -492,18 +492,25 @@
     });
   }
 
-  function openModule() {
-    const view = $("anamnesisView");
-    if (!view) return;
+  function enforceModuleView() {
+    if (!document.body.classList.contains("anamnesis-open")) return;
     ["rawTransferView","noShiftView","patientsView","notesView","aiLearningView","adminView"].forEach((id) => $(id)?.classList.add("hidden"));
     document.querySelectorAll(".workspace-nav .nav-item").forEach((node) => node.classList.remove("active"));
     $("anamnesisNav")?.classList.add("active");
-    view.classList.remove("hidden");
+    $("anamnesisView")?.classList.remove("hidden");
+  }
+
+  function openModule() {
+    const view = $("anamnesisView");
+    if (!view) return;
     document.body.classList.remove("raw-transfer-mode");
+    document.body.classList.add("anamnesis-open");
+    enforceModuleView();
     renderShell();
   }
 
   function closeModule() {
+    document.body.classList.remove("anamnesis-open");
     $("anamnesisView")?.classList.add("hidden");
   }
 
@@ -515,6 +522,10 @@
       if (document.body.classList.contains("raw-transfer-mode")) closeModule();
     });
     observer.observe(document.body, {attributes:true, attributeFilter:["class"]});
+
+    document.addEventListener("bachsbo:ui-rendered", () => {
+      if (document.body.classList.contains("anamnesis-open")) enforceModuleView();
+    });
   }
 
   function init() {

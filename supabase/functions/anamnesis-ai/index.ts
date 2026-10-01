@@ -262,7 +262,8 @@ Core rules:
 - Reconstruct one longitudinal history instead of independently summarizing every document.
 - Every identified inpatient admission must remain represented.
 - Collapse copied-forward duplicates of the same historical event.
-- Include ambulatory encounters only when they add clinically meaningful new information.
+- Every distinct documented ambulatory/outpatient encounter that contains clinical assessment, symptoms, examination, investigation/result, diagnosis, treatment/medication decision, procedure planning, specialist opinion, or follow-up conclusion must remain represented as its own event. Do not silently omit it merely because a discharge summary is also present.
+- An ambulatory encounter may be omitted only when it is clearly administrative, contains no clinical information beyond scheduling/referral logistics, or is an obvious duplicate/copy-forward of an already represented encounter.
 - For discharge summaries, distinguish the document's existing Anamnézis/Előzmények section from its Epikrízis/Összefoglalás. The existing Anamnézis/Előzmények is evidence for PRIOR longitudinal history; the Epikrízis/Összefoglalás is the primary narrative for the CURRENT admission. Never let the epicrisis replace or erase a clinically useful longitudinal anamnesis section.
 - When a discharge summary contains a coherent, clinically useful Anamnézis/Előzmények block, extract its dated prior admissions, procedures, diagnoses and important objective anchors even if preserve=false. Use the epicrisis to supplement/verify those prior events and to describe the current hospitalization.
 - When a source has preserve=true, treat its good Anamnézis/Előzmények wording, chronology and relative detail as the reference history as much as possible; normalize formatting and remove obvious duplication, but do not aggressively compress it.
@@ -397,6 +398,13 @@ Task: reconstruct clinically meaningful events and structured history facts from
 The source_ids field must contain only IDs from the supplied sources.
 Do not invent a precise date or place when the document does not support one.
 
+SOURCE-COVERAGE CHECK:
+- Before returning, inspect every source and every clearly dated clinical encounter within it.
+- Each genuine inpatient admission and each genuine ambulatory/outpatient encounter with clinical content must map to at least one returned event.
+- Do not let a zárójelentés/epikrízis absorb, replace, or hide a separate ambuláns megjelenés.
+- If one PDF contains several documents or several dated encounters, create separate events for the distinct encounters.
+- Only omit a source/encounter when it is administrative-only or an obvious duplicate of an already represented event.
+
 For each discharge summary / zárójelentés, first identify document sections when possible:
 1. Anamnézis / Előzmények / Kórelőzmény: use this to reconstruct prior longitudinal events. If it already contains a good dated history, preserve that chronology and clinically useful detail rather than replacing it with a shorter epicrisis-derived summary.
 2. Epikrízis / Összefoglalás: use this primarily for the current admission's presentation, investigations, treatment, procedures, complications and outcome, and secondarily to add or verify prior-history facts.
@@ -411,11 +419,11 @@ The three versions are alternatives for the same event, not separate events. Do 
 Return no Markdown heading syntax inside version text; date/place/doctor are separate structured fields.
 For medications, return only medication name and documented dose when available. Do not claim current use unless the sources establish it.
 
-Apply anamnesis_mode:
-- relevant: focus the event narrative on history relevant to the current complaint/admission reason. Omit low-value unrelated ambulatory detail, but retain major prior admissions/procedures and background facts that materially change current management or safety.
-- concise: compact longitudinal history; keep diagnoses, major procedures, key objective anchors and outcomes.
-- balanced: standard internal-medicine detail; concise but sufficiently contextual. This is the default.
-- detailed: preserve more clinically useful context, important investigations, treatment changes and outcomes while still excluding routine boilerplate.
+Apply anamnesis_mode to the LENGTH/CONTENT of each retained event, not to whether a genuine clinical encounter exists:
+- relevant: keep each genuine encounter represented, but compress low-value unrelated ambulatory content to a very short event while preserving any safety-relevant facts.
+- concise: keep each genuine encounter represented compactly; retain diagnoses, major procedures, key objective anchors and outcomes.
+- balanced: keep each genuine encounter represented with standard internal-medicine detail. This is the default.
+- detailed: keep each genuine encounter represented with more clinically useful context, important investigations, treatment changes and outcomes while still excluding routine boilerplate.
 
 For every event version, highlights must list exact substrings from that version's text that deserve visual emphasis. Prefer objective/decision-driving anchors such as EF/LVEF, PTCA/PCI/CABG, eGFR/creatinine/dialysis, Hb/Hgb, hepatic-function values, HbA1c, insulin regimens, major anticoagulation/antiplatelet therapy, major imaging/pathology/microbiology, or equivalent high-impact facts when present. Do not highlight routine low-value data.
 

@@ -210,3 +210,18 @@ Before returning a final reconstruction, check:
 
 ## V1 clinical objective
 Optimize for a trustworthy, editable final patient history for an internal-medicine ward pilot. Accuracy, traceability, and prevention of silent omission are more important than maximum compression or stylistic polish.
+
+
+## V1 workflow boundary
+
+- AI is used in Step 1 to extract longitudinal events and structured fields such as known diseases, medication name + dose, allergy/CAVE and discrepancies.
+- In Step 2, every extracted event is physician-editable. The physician may:
+  - edit the event text manually,
+  - request an explicit AI rewrite for that event only,
+  - change the event detail level,
+  - or delete the event entirely if it should not appear in the final anamnesis.
+- Step 2 is the source of truth for the final Anamnézis section.
+- Step 2 → Step 3 uses deterministic JavaScript only: approved events are ordered oldest → newest and formatted into the final history. No AI call is made for this assembly.
+- Known diseases and medication name + dose are carried forward from Step 1 and remain manually editable; they are not regenerated in Step 3.
+- V1 has no global “AI refresh” action in the final panel. A later version may add physician-controlled reconciliation with explicit diff/accept behavior.
+

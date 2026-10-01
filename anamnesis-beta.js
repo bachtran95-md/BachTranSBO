@@ -285,6 +285,7 @@
               <div class="an-source-actions">
                 <button class="btn small" id="anamnesisUploadBtn" type="button">+ PDF</button>
                 <button class="btn small" id="anamnesisScreenshotBtn" type="button">+ KÉPERNYŐKÉP</button>
+                <button class="btn small" id="anamnesisClipboardImageBtn" type="button">📋 KÉP VÁGÓLAPRÓL</button>
                 <button class="btn small" id="anamnesisTextSourceBtn" type="button">+ SZÖVEG</button>
                 <button class="btn small" id="anamnesisClipboardBtn" type="button">📋 VÁGÓLAP SZÖVEG</button>
                 <input class="hidden" id="anamnesisFileInput" type="file" accept=".pdf,application/pdf" multiple />
@@ -764,6 +765,49 @@
     toast("Képernyőkép hozzáadva. Jelöld az azonosítómentességet, majd AI KINYERÉS.");
   }
 
+  function isAnamnesisVisible() {
+    const view = $("anamnesisView");
+    return Boolean(view && !view.classList.contains("hidden"));
+  }
+
+  async function addClipboardScreenshotFromEvent(event) {
+    const items = [...(event?.clipboardData?.items || [])];
+    const imageItem = items.find((item) => item?.kind === "file" && /^image\//i.test(item.type || ""));
+    if (!imageItem) return false;
+    const blob = imageItem.getAsFile();
+    if (!blob) return false;
+    await addScreenshotFile(blob, "Vágólapról beillesztett képernyőkép");
+    return true;
+  }
+
+  async function addClipboardScreenshotWithApi() {
+    if (!navigator.clipboard?.read) {
+      throw new Error("A böngésző nem támogatja a közvetlen képolvasást. Nyomj Ctrl+V / ⌘V-t az Anamnézis oldalon.");
+    }
+    const clipboardItems = await navigator.clipboard.read();
+    for (const item of clipboardItems) {
+      const imageType = (item.types || []).find((type) => /^image\/(png|jpeg|webp)$/i.test(type));
+      if (!imageType) continue;
+      const blob = await item.getType(imageType);
+      const file = new File([blob], "clipboard-screenshot", { type: imageType });
+      await addScreenshotFile(file, "Vágólapról beillesztett képernyőkép");
+      return true;
+    }
+    throw new Error("A vágólapon nincs támogatott PNG/JPEG/WebP kép.");
+  }
+
+  async function handleGlobalScreenshotPaste(event) {
+    if (!isAnamnesisVisible()) return;
+    try {
+      const added = await addClipboardScreenshotFromEvent(event);
+      if (!added) return;
+      event.preventDefault();
+    } catch (error) {
+      console.error("Anamnesis screenshot paste:", error);
+      toast(error?.message || "A vágólap képe nem adható hozzá.");
+    }
+  }
+
   function hasPatientContent() {
     return Boolean(
       String(state.label || "").trim() ||
@@ -876,22 +920,13 @@
       }
     });
 
-    const moduleRoot = $("anamnesisView");
-    if (moduleRoot) {
-      moduleRoot.onpaste = async (event) => {
-        const items = [...(event.clipboardData?.items || [])];
-        const imageItem = items.find((item) => /^image\/(png|jpeg|webp)$/i.test(item.type || ""));
-        if (!imageItem) return;
-        const file = imageItem.getAsFile();
-        if (!file) return;
-        event.preventDefault();
-        try {
-          await addScreenshotFile(file, "Vágólapról beillesztett képernyőkép");
-        } catch (error) {
-          toast(error?.message || "A vágólap képe nem adható hozzá.");
-        }
-      };
-    }
+    $("anamnesisClipboardImageBtn")?.addEventListener("click", async () => {
+      try {
+        await addClipboardScreenshotWithApi();
+      } catch (error) {
+        toast(error?.message || "A vágólap képe nem olvasható.");
+      }
+    });
 
     $("anamnesisTextSourceBtn")?.addEventListener("click", () => {
       state.sources.unshift({id:uid("source"),kind:"Szöveg",name:"Új szöveges forrás",date:"",place:"",doctor:"",preserve:false,text:""});
@@ -1039,6 +1074,7 @@
   }
 
   function init() {
+    document.addEventListener("paste", handleGlobalScreenshotPaste);
     if ($("anamnesisView")) renderShell();
     document.addEventListener("bachsbo:ui-rendered", (event) => {
       if (event?.detail?.view === "anamnesis" && $("anamnesisView") && !$("anamnesisView").innerHTML.trim()) {

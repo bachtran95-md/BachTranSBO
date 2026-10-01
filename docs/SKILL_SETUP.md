@@ -61,3 +61,12 @@ When the Skill changes:
 3. set the new row `is_active = true`.
 
 Generated summaries record the Skill version used.
+
+
+## Anamnézis companion skill
+
+`docs/MED_ANAMNESIS_AI_V1.md` is a task-specific companion instruction set for the existing `SBO Documentation AI` GPT skill.
+
+It is **not** stored or activated as a second backend skill and does not use a separate `skill_versions` table. When the Anamnézis module is wired to the API, its instructions should be composed with the main SBO Documentation AI instructions for Anamnézis-specific requests.
+
+This keeps one overall GPT documentation skill while allowing Anamnézis behavior to evolve independently in a versioned repository document.

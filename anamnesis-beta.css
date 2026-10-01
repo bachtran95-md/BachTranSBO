@@ -7,12 +7,12 @@
 }
 .anamnesis-module .an-shell{padding:0 0 28px}
 .anamnesis-module .an-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}
-.anamnesis-module .an-kicker{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:900;color:var(--an-accent)}
-.anamnesis-module h1{margin:3px 0 4px;font-size:23px}
-.anamnesis-module .an-subtle{font-size:11px;color:var(--an-muted)}
+.anamnesis-module .an-kicker{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:900;color:var(--an-accent)}
+.anamnesis-module h1{margin:3px 0 4px;font-size:24px}
+.anamnesis-module .an-subtle{font-size:12px;color:var(--an-muted)}
 .anamnesis-module .an-pilot{
   max-width:480px;border:1px solid #fcd34d;background:#fffbeb;color:#92400e;border-radius:9px;
-  padding:7px 9px;font-size:10px;line-height:1.35
+  padding:7px 9px;font-size:11px;line-height:1.35
 }
 .anamnesis-module .an-patient{
   display:grid;grid-template-columns:160px minmax(260px,1fr) auto;gap:8px;align-items:end;
@@ -20,7 +20,7 @@
 }
 .anamnesis-module .an-patient-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .anamnesis-module .an-patient-buttons{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
-.anamnesis-module .an-save{display:flex;align-items:center;gap:6px;font-size:10px;color:#475467;white-space:nowrap}
+.anamnesis-module .an-save{display:flex;align-items:center;gap:6px;font-size:11px;color:#475467;white-space:nowrap}
 .anamnesis-module .an-save-dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
 .anamnesis-module .an-grid{
   display:grid;grid-template-columns:minmax(290px,29fr) minmax(330px,34fr) minmax(390px,37fr);
@@ -29,11 +29,11 @@
 .anamnesis-module .an-panel{background:#fff;border:1px solid var(--an-line);border-radius:13px;box-shadow:var(--an-shadow);overflow:hidden;min-width:0}
 .anamnesis-module .an-panel.an-sticky{position:sticky;top:118px;max-height:calc(100vh - 138px);overflow:auto}
 .anamnesis-module .an-panel-h{padding:11px 12px;border-bottom:1px solid var(--an-line);display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.anamnesis-module .an-step{font-size:9px;font-weight:900;color:var(--an-accent);letter-spacing:.07em}
-.anamnesis-module .an-title{font-size:14px;font-weight:900;margin-top:2px}
+.anamnesis-module .an-step{font-size:10px;font-weight:900;color:var(--an-accent);letter-spacing:.07em}
+.anamnesis-module .an-title{font-size:15px;font-weight:900;margin-top:2px}
 .anamnesis-module .an-panel-b{padding:10px}
-.anamnesis-module .an-hint{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:8px;padding:7px 8px;font-size:10px;line-height:1.4;margin-bottom:8px}
-.anamnesis-module .an-chip{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap;background:#e5e7eb;color:#475467}
+.anamnesis-module .an-hint{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:8px;padding:7px 8px;font-size:11px;line-height:1.4;margin-bottom:8px}
+.anamnesis-module .an-chip{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;font-size:9px;font-weight:900;white-space:nowrap;background:#e5e7eb;color:#475467}
 .anamnesis-module .an-chip.blue{background:#dbeafe;color:#1d4ed8}
 .anamnesis-module .an-chip.purple{background:#ede9fe;color:#6d28d9}
 .anamnesis-module .an-chip.green{background:#dcfce7;color:#166534}
@@ -46,8 +46,8 @@
 .anamnesis-module .an-card{border:1px solid var(--an-line);border-radius:10px;overflow:hidden;background:#fff}
 .anamnesis-module .an-card.reference{border-color:#c4b5fd;box-shadow:0 0 0 2px rgba(109,40,217,.06)}
 .anamnesis-module .an-card-h{display:flex;justify-content:space-between;gap:7px;align-items:flex-start;padding:8px 9px;background:#f8fafc;border-bottom:1px solid #eef2f7}
-.anamnesis-module .an-card-title{font-size:11px;font-weight:850;line-height:1.3}
-.anamnesis-module .an-card-meta{font-size:9px;color:#667085;margin-top:2px}
+.anamnesis-module .an-card-title{font-size:12px;font-weight:850;line-height:1.3}
+.anamnesis-module .an-card-meta{font-size:10px;color:#667085;margin-top:2px}
 .anamnesis-module .an-card-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .anamnesis-module .an-card-b{padding:8px 9px}
 .anamnesis-module .an-source-fields{display:grid;grid-template-columns:112px 1fr;gap:6px;margin-bottom:6px}
@@ -57,37 +57,37 @@
 }
 .anamnesis-module .an-privacy-note{
   margin-top:6px;padding:7px 8px;border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;
-  border-radius:8px;font-size:9.5px;line-height:1.4
+  border-radius:8px;font-size:10.5px;line-height:1.4
 }
 .anamnesis-module .an-screenshot-missing{
   border:1px dashed #d0d5dd;background:#fafafa;color:#667085;border-radius:8px;
-  padding:8px;margin-bottom:7px;font-size:9px;line-height:1.4
+  padding:8px;margin-bottom:7px;font-size:10px;line-height:1.4
 }
 .anamnesis-module .an-image-confirm{
   display:flex;align-items:flex-start;gap:7px;margin:0 0 7px;padding:7px 8px;
   border:1px solid #f3d6a0;background:#fffbeb;color:#7c4a03;border-radius:8px;
-  font-size:9px;font-weight:800;line-height:1.35
+  font-size:10px;font-weight:800;line-height:1.35
 }
 .anamnesis-module .an-image-confirm input{
   width:auto;margin:1px 0 0;flex:0 0 auto
 }
 .anamnesis-module input,.anamnesis-module textarea,.anamnesis-module select{
-  width:100%;border:1px solid #cfd5dd;border-radius:7px;padding:7px 8px;background:#fff;color:var(--an-text);font-size:10px
+  width:100%;border:1px solid #cfd5dd;border-radius:7px;padding:7px 8px;background:#fff;color:var(--an-text);font-size:11px
 }
 .anamnesis-module textarea{resize:vertical;min-height:72px;line-height:1.4}
-.anamnesis-module .an-caption{display:block;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.04em;color:#667085;margin-bottom:4px}
+.anamnesis-module .an-caption{display:block;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.04em;color:#667085;margin-bottom:4px}
 .anamnesis-module .an-preserve{
   border:1px solid #c4b5fd;background:#fff;color:#6d28d9;border-radius:7px;padding:5px 7px;
-  font-size:8px;font-weight:900;line-height:1;white-space:nowrap
+  font-size:9px;font-weight:900;line-height:1;white-space:nowrap
 }
 .anamnesis-module .an-preserve.active{background:#ede9fe;border-color:#8b5cf6;color:#5b21b6}
-.anamnesis-module .an-preserve-note{margin-top:6px;padding:6px 7px;border:1px solid #ddd6fe;background:#faf5ff;color:#5b21b6;border-radius:7px;font-size:9px;line-height:1.35}
-.anamnesis-module .an-delete{border:0;background:transparent;color:#b42318;font-size:16px;font-weight:900;padding:1px 3px}
+.anamnesis-module .an-preserve-note{margin-top:6px;padding:6px 7px;border:1px solid #ddd6fe;background:#faf5ff;color:#5b21b6;border-radius:7px;font-size:10px;line-height:1.35}
+.anamnesis-module .an-delete{border:0;background:transparent;color:#b42318;font-size:17px;font-weight:900;padding:1px 3px}
 .anamnesis-module .an-ai{
   width:auto;min-height:32px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 10px;
   border:1px solid rgba(255,255,255,.22);border-radius:10px;
   background:linear-gradient(135deg,#4338ca 0%,#4f46e5 42%,#7c3aed 100%);color:#fff;
-  font-size:10px;font-weight:850;letter-spacing:.015em;line-height:1;white-space:nowrap;
+  font-size:11px;font-weight:850;letter-spacing:.015em;line-height:1;white-space:nowrap;
   box-shadow:0 5px 13px rgba(79,70,229,.22),inset 0 1px 0 rgba(255,255,255,.16);
   transition:transform .14s ease,box-shadow .14s ease,filter .14s ease
 }
@@ -97,26 +97,26 @@
 .anamnesis-module .an-highlight-preview{
   margin-top:6px;padding:0;
   border:0;background:transparent;border-radius:0;
-  font-size:10px;line-height:1.45;color:#344054;text-align:justify;text-justify:inter-word
+  font-size:11px;line-height:1.45;color:#344054;text-align:justify;text-justify:inter-word
 }
 .anamnesis-module .an-highlight-preview::before{
-  content:"Fontos adatok előnézet";display:block;margin-bottom:4px;font-size:8px;font-weight:900;
+  content:"Fontos adatok előnézet";display:block;margin-bottom:4px;font-size:9px;font-weight:900;
   text-transform:uppercase;letter-spacing:.05em;color:#667085
 }
 .anamnesis-module .an-clinical-anchor{
   font-weight:900;color:inherit;background:transparent;border-radius:0;padding:0
 }
 .anamnesis-module .an-segmented{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin:6px 0}
-.anamnesis-module .an-seg{border:1px solid #d0d5dd;background:#fff;color:#475467;border-radius:6px;padding:5px 2px;font-size:8px;font-weight:850}
+.anamnesis-module .an-seg{border:1px solid #d0d5dd;background:#fff;color:#475467;border-radius:6px;padding:5px 2px;font-size:9px;font-weight:850}
 .anamnesis-module .an-seg.active{background:#eef4ff;border-color:#84adff;color:#1849a9}
 .anamnesis-module .an-inline-actions{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
-.anamnesis-module .an-final-note{border:1px solid #eaecf0;background:#f8fafc;border-radius:8px;padding:7px 8px;font-size:9px;color:#475467;margin-bottom:8px}
+.anamnesis-module .an-final-note{border:1px solid #eaecf0;background:#f8fafc;border-radius:8px;padding:7px 8px;font-size:10px;color:#475467;margin-bottom:8px}
 .anamnesis-module .an-final-section{border-top:1px solid #eaecf0;padding-top:8px;margin-top:8px}
 .anamnesis-module .an-final-section:first-of-type{border-top:0;padding-top:0;margin-top:0}
-.anamnesis-module .an-final-title{display:flex;justify-content:space-between;gap:7px;align-items:center;margin-bottom:5px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#344054}
+.anamnesis-module .an-final-title{display:flex;justify-content:space-between;gap:7px;align-items:center;margin-bottom:5px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:#344054}
 .anamnesis-module .an-history-editor{
   border:1px solid #cfd5dd;border-radius:7px;padding:8px;min-height:145px;
-  font-size:10px;line-height:1.5;outline:none;white-space:pre-wrap;
+  font-size:11px;line-height:1.5;outline:none;white-space:pre-wrap;
   text-align:justify;text-justify:inter-word
 }
 .anamnesis-module .an-history-line{
@@ -125,10 +125,10 @@
 .anamnesis-module .an-history-line strong{display:inline}
 .anamnesis-module .an-med-list{display:flex;flex-direction:column;gap:5px}
 .anamnesis-module .an-med-row{display:grid;grid-template-columns:minmax(140px,1fr) 115px 26px;gap:5px;align-items:center}
-.anamnesis-module .an-conflict{border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:7px;padding:7px;font-size:9px;line-height:1.35}
+.anamnesis-module .an-conflict{border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;border-radius:7px;padding:7px;font-size:10px;line-height:1.35}
 .anamnesis-module .an-final-actions{position:sticky;bottom:-1px;background:rgba(255,255,255,.97);border-top:1px solid var(--an-line);padding:8px 0 2px;margin-top:8px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
-.anamnesis-module .an-empty{padding:14px;border:1px dashed #d0d5dd;border-radius:9px;text-align:center;color:#667085;font-size:10px;background:#fafafa}
-.anamnesis-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 11px;border-radius:9px;font-size:10px;box-shadow:0 10px 26px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.16s;z-index:1000}
+.anamnesis-module .an-empty{padding:14px;border:1px dashed #d0d5dd;border-radius:9px;text-align:center;color:#667085;font-size:11px;background:#fafafa}
+.anamnesis-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 11px;border-radius:9px;font-size:11px;box-shadow:0 10px 26px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.16s;z-index:1000}
 .anamnesis-toast.show{opacity:1}
 @media(max-width:1280px){
   .anamnesis-module .an-grid{grid-template-columns:1fr 1fr}

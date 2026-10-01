@@ -164,6 +164,9 @@
     if (!rawText) {
       throw new Error("A PDF-ből nem nyerhető ki szöveg. Szkennelt dokumentumnál használd a KÉPERNYŐKÉP forrást.");
     }
+    if (rawText.length > 120000) {
+      throw new Error("A PDF kinyert szövege túl hosszú. Bontsd kisebb PDF-re (max. 120 000 karakter / forrás).");
+    }
 
     const deid = localDeidentify(rawText);
     return {
@@ -401,7 +404,10 @@
               (s.pdfReady
                 ? esc(String(s.pdfPages || "?")) + ' oldal · ' + esc(String(s.localDeidCount || 0)) + ' azonosító eltávolítva. Az eredeti PDF nem kerül AI-ba; csak a kinyert, tisztított szöveg.'
                 : 'PDF feldolgozásra vár.') +
-              '</div>'
+              '</div>' +
+              (s.pdfReady
+                ? '<label class="an-image-confirm"><input type="checkbox" data-an-pdf-confirm ' + (s.pdfConfirmed ? 'checked' : '') + ' /> <span>De-ID ellenőrizve — ez a tisztított PDF-szöveg AI-ba küldhető</span></label>'
+                : '')
             : ""}
           ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A screenshot csak az AI KINYERÉS megnyomásakor kerül a szerveroldali OpenAI Responses API-hoz, és csak a fenti jelölés után.</div>' : ""}
           ${s.preserve ? '<div class="an-preserve-note"><b>Referencia anamnézis.</b> A későbbi AI-feldolgozás ennek jó megfogalmazását, kronológiáját és relatív részletességét tartja meg; főként formátumot egységesít és szükséges tényekkel egészít ki.</div>' : ""}
@@ -514,6 +520,13 @@
     );
     if (unconfirmedImages.length) {
       toast("Jelöld a screenshoton, hogy nincs rajta betegazonosító / személyes adat.");
+      return;
+    }
+    const unconfirmedPdfs = state.sources.filter(
+      (s) => s.kind === "PDF" && String(s.text || "").trim() && !s.pdfConfirmed
+    );
+    if (unconfirmedPdfs.length) {
+      toast("Ellenőrizd a PDF de-ID szövegét, majd jelöld, hogy AI-ba küldhető.");
       return;
     }
 
@@ -684,7 +697,7 @@
       id,
       kind: "Képernyőkép",
       name: sourceLabel,
-      fileName: file.name || "",
+      fileName: "Képernyőkép",
       date: "",
       place: "",
       doctor: "",
@@ -765,7 +778,7 @@
           id: uid("source"),
           kind: "PDF",
           name: "PDF dokumentum",
-          fileName: file.name,
+          fileName: "PDF dokumentum",
           date: "",
           place: "",
           doctor: "",
@@ -773,6 +786,7 @@
           text: "",
           pdfReady: false,
           pdfPages: 0,
+          pdfConfirmed: false,
           localDeidCount: 0
         };
         state.sources.unshift(pending);
@@ -784,6 +798,7 @@
           pending.pdfReady = true;
           pending.pdfPages = parsed.pageCount;
           pending.localDeidCount = parsed.removedCount;
+          pending.pdfConfirmed = false;
           renderSources();
           saveState();
           toast("PDF hozzáadva és deazonosítva. Ellenőrizd a kinyert szöveget.");
@@ -873,8 +888,16 @@
         if (!s) return;
         if (e.target.matches("[data-an-source-date]")) s.date = e.target.value;
         if (e.target.matches("[data-an-source-place]")) s.place = e.target.value;
-        if (e.target.matches("[data-an-source-text]")) s.text = e.target.value;
+        if (e.target.matches("[data-an-source-text]")) {
+          s.text = e.target.value;
+          if (s.kind === "PDF") {
+            s.pdfConfirmed = false;
+            const confirm = sourceCard.querySelector("[data-an-pdf-confirm]");
+            if (confirm) confirm.checked = false;
+          }
+        }
         if (e.target.matches("[data-an-image-confirm]")) s.imageConfirmed = Boolean(e.target.checked);
+        if (e.target.matches("[data-an-pdf-confirm]")) s.pdfConfirmed = Boolean(e.target.checked);
         saveState();
         return;
       }

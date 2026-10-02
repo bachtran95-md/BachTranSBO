@@ -1,0 +1,31 @@
+name: Build offline bundle
+
+on:
+  push:
+    branches:
+      - offline-bundle-20261002
+    paths:
+      - '.github/workflows/offline-bundle.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout bundle branch
+        uses: actions/checkout@v4
+
+      - name: Create archive
+        run: |
+          rm -rf .git
+          zip -r BachTranSBO-offline-2026-10-02.zip .             -x "BachTranSBO-offline-2026-10-02.zip"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: BachTranSBO-offline-2026-10-02
+          path: BachTranSBO-offline-2026-10-02.zip
+          if-no-files-found: error
+          retention-days: 7

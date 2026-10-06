@@ -185,7 +185,7 @@
   function eventHeading(e) {
     const date = e.date || "Dátum?";
     const place = e.place || "Intézmény / osztály?";
-    return e.doctor ? date + " — " + e.doctor + ", " + place + " —" : date + " — " + place + " —";
+    return e.doctor ? date + " - " + e.doctor + ", " + place + " -" : date + " - " + place + " -";
   }
 
   function highlightedText(text, highlights) {

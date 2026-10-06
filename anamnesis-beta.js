@@ -783,8 +783,14 @@
         return;
       }
       [...node.attributes].forEach((attr) => node.removeAttribute(attr.name));
+      if (node.tagName === "STRONG" || node.tagName === "B") {
+        const bold = document.createElement("b");
+        bold.setAttribute("style", "font-weight:700;");
+        bold.innerHTML = node.innerHTML;
+        node.replaceWith(bold);
+      }
     });
-    return '<div style="text-align:justify;text-justify:inter-word">' + container.innerHTML + '</div>';
+    return '<div>' + container.innerHTML + '</div>';
   }
 
   function finalClipboardPayload() {
@@ -808,7 +814,7 @@
 
     const textHtml = (value) => esc(value).replace(/\n/g, "<br>");
     const section = (title, bodyHtml) =>
-      '<div><strong>' + esc(title) + '</strong><br>' + (bodyHtml || "—") + '</div>';
+      '<div><b style="font-weight:700;">' + esc(title) + '</b><br>' + (bodyHtml || "—") + '</div>';
 
     const html = [
       section("Aktuális panasz / felvétel oka", textHtml(complaint)),

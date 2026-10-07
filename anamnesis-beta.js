@@ -4,7 +4,13 @@
   const STORAGE_KEY = "bachtransbo_beta_anamnesis_v1";
   const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
   const $ = (id) => document.getElementById(id);
-  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({
+  const shortHyphens = (value) => {
+    const shared = window.BachSBOShortHyphens;
+    return typeof shared === "function"
+      ? shared(value)
+      : String(value ?? "").replace(/[\u2013\u2014]/g, "-");
+  };
+  const esc = (value) => shortHyphens(value).replace(/[&<>"']/g, (c) => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
   }[c]));
 
@@ -156,7 +162,7 @@
         .replace(/[ \t]{2,}/g, " ")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
-      if (pageText) pages.push("— " + pageNo + ". oldal —\n" + pageText);
+      if (pageText) pages.push("- " + pageNo + ". oldal -\n" + pageText);
     }
     await loadingTask.destroy?.();
 
@@ -241,7 +247,7 @@
         <div class="an-patient">
           <div>
             <label class="an-caption">Munkalap neve</label>
-            <input id="anamnesisLabel" value="${esc(state.label)}" placeholder="Pl. 04 – belgyógyászat" />
+            <input id="anamnesisLabel" value="${esc(state.label)}" placeholder="Pl. 04 - belgyógyászat" />
           </div>
           <div>
             <label class="an-caption">Aktuális panasz / felvétel oka</label>
@@ -409,7 +415,7 @@
               : '<div class="an-screenshot-missing">A képernyőkép képi tartalma frissítés után nem marad helyben. Illeszd vagy töltsd fel újra az AI feldolgozáshoz.</div>')
             : ""}
           ${s.kind === "Képernyőkép"
-            ? '<label class="an-image-confirm"><input type="checkbox" data-an-image-confirm ' + (s.imageConfirmed ? 'checked' : '') + ' /> <span>Nincs betegazonosító / személyes adat ezen a képen — AI-ba küldhető</span></label>'
+            ? '<label class="an-image-confirm"><input type="checkbox" data-an-image-confirm ' + (s.imageConfirmed ? 'checked' : '') + ' /> <span>Nincs betegazonosító / személyes adat ezen a képen - AI-ba küldhető</span></label>'
             : ""}
           <textarea data-an-source-text placeholder="${s.kind === "PDF"
             ? "A PDF kinyert és deazonosított szövege jelenik meg itt. Szükség esetén kézzel szerkeszthető."
@@ -423,7 +429,7 @@
                 : 'PDF feldolgozásra vár.') +
               '</div>' +
               (s.pdfReady
-                ? '<label class="an-image-confirm"><input type="checkbox" data-an-pdf-confirm ' + (s.pdfConfirmed ? 'checked' : '') + ' /> <span>De-ID ellenőrizve — ez a tisztított PDF-szöveg AI-ba küldhető</span></label>'
+                ? '<label class="an-image-confirm"><input type="checkbox" data-an-pdf-confirm ' + (s.pdfConfirmed ? 'checked' : '') + ' /> <span>De-ID ellenőrizve - ez a tisztított PDF-szöveg AI-ba küldhető</span></label>'
                 : '')
             : ""}
           ${s.kind === "Képernyőkép" ? '<div class="an-subtle" style="margin-top:5px">A screenshot csak az AI KINYERÉS megnyomásakor kerül a szerveroldali OpenAI Responses API-hoz, és csak a fenti jelölés után.</div>' : ""}
@@ -807,25 +813,25 @@
       "Aktuális panasz / felvétel oka", complaint, "",
       "Ismert betegségek", diseases, "",
       "Anamnézis", historyText, "",
-      "Gyógyszerelés", meds || "—", "",
+      "Gyógyszerelés", meds || "-", "",
       "Allergiák / CAVE", allergies, "",
       discrepancies ? "Ellenőrizendő eltérések\n" + discrepancies : ""
     ].filter((x,idx,arr) => !(x === "" && arr[idx-1] === "")).join("\n");
 
     const textHtml = (value) => esc(value).replace(/\n/g, "<br>");
     const section = (title, bodyHtml) =>
-      '<div><b style="font-weight:700;">' + esc(title) + '</b><br>' + (bodyHtml || "—") + '</div>';
+      '<div><b style="font-weight:700;">' + esc(title) + '</b><br>' + (bodyHtml || "-") + '</div>';
 
     const html = [
       section("Aktuális panasz / felvétel oka", textHtml(complaint)),
       section("Ismert betegségek", textHtml(diseases)),
-      section("Anamnézis", historyHtml || "—"),
-      section("Gyógyszerelés", textHtml(meds || "—")),
+      section("Anamnézis", historyHtml || "-"),
+      section("Gyógyszerelés", textHtml(meds || "-")),
       section("Allergiák / CAVE", textHtml(allergies)),
       discrepancies ? section("Ellenőrizendő eltérések", textHtml(discrepancies)) : ""
     ].filter(Boolean).join("<br>");
 
-    return { text, html };
+    return { text: shortHyphens(text), html: shortHyphens(html) };
   }
 
   async function copyFinalStep3() {
@@ -1163,7 +1169,7 @@
         ev.selectedVersion = e.target.closest("[data-an-detail]").dataset.anDetail;
         ensureEventVersions(ev);
         renderEvents(); saveState();
-        toast("Verzió váltva JavaScripttel — nincs API-hívás.");
+        toast("Verzió váltva JavaScripttel - nincs API-hívás.");
         return;
       }
       if (eventCard && e.target.closest("[data-an-delete-event]")) {

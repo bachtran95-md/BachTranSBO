@@ -30,6 +30,12 @@ let passwordReauthInProgress = false;
 let shiftDurationTimer = null;
 const MAX_TEST_ENTRIES_PER_TYPE = 999;
 
+// Clipboard compatibility rule: UI and copyable text use ASCII hyphen-minus only.
+function shortHyphens(value) {
+  return String(value ?? "").replace(/[\u2013\u2014]/g, "-");
+}
+window.BachSBOShortHyphens = shortHyphens;
+
 const SUMMARY_FIXED_FOOTER = `A beteget tanáccsal elláttuk, kérdéseire választ adtunk, több kérdés nem merült fel.
 Hirtelen vagy súlyos állapotromlás esetén haladéktalanul jelentkezzen a területileg illetékes Sürgősségi Betegellátó Osztályon / SBO-n!
 Ambuláns lappal minél előbb jelentkezzen háziorvosánál, kezelőorvosánál.
@@ -53,7 +59,7 @@ const I18N = {
     patientHistory:"Medical history", markNone:"NONE", required:"REQUIRED", complete:"COMPLETE", none:"NONE",
     sectionTests:"2. Physical status and investigations",
     testLegend:"Orange = unresolved. Enter a result to turn green, or mark Not ordered to turn grey.",
-    physicalExam:"Physical examination — main points / status",
+    physicalExam:"Physical examination - main points / status",
     lab:"Lab", addLab:"+ ADD LAB", ekg:"EKG", bloodGas:"Blood gas (ABG / VBG)",
     radiology:"Radiology", addRadiology:"+ ADD IMAGING",
     consultations:"Consultations", addConsultation:"+ ADD CONSULTATION", others:"Others",
@@ -67,7 +73,7 @@ const I18N = {
     additionalNote:"Additional note", outcome:"Outcome", details:"Details",
     caseSummary:"5. Case summary",
     summaryInfo:"Generate Summary uses the de-identified case and the active SBO Documentation Skill. Review and edit the draft before finalizing.",
-    generateSummary:"GENERATE SUMMARY", copyGeminiPrompt:"COPY GEMINI PROMPT", summaryEditable:"Summary — editable",
+    generateSummary:"GENERATE SUMMARY", copyGeminiPrompt:"COPY GEMINI PROMPT", summaryEditable:"Summary - editable",
     finalizeSummary:"FINALIZE SUMMARY", saveCase:"SAVE CASE", autosaveHint:"Autosave active",
     diagnosesNote:"Clinician-authored reasoning. Enter a consideration or mark NONE. If entered, it is integrated near the end of the Summary with uncertainty preserved; it is not a diagnosis list.",
     learningDesc:"Doctor-reviewed learning from finalized summaries and Státusz feedback. Nothing here auto-edits active rules.",
@@ -117,7 +123,7 @@ const I18N = {
     patientHistory:"Anamnézis", markNone:"NINCS", required:"KÖTELEZŐ", complete:"KÉSZ", none:"NINCS",
     sectionTests:"2. Fizikális státusz és vizsgálatok",
     testLegend:"Narancs = rendezetlen. Eredmény megadásakor zöldre vált; ha nem történt vizsgálat, jelölje „Nem történt” állapotra.",
-    physicalExam:"Fizikális vizsgálat — lényeges eltérések / státusz",
+    physicalExam:"Fizikális vizsgálat - lényeges eltérések / státusz",
     lab:"Labor", addLab:"+ LABOR HOZZÁADÁSA", ekg:"EKG", bloodGas:"Vérgáz (AVG / VVG)",
     radiology:"Képalkotó vizsgálatok", addRadiology:"+ KÉPALKOTÓ HOZZÁADÁSA",
     consultations:"Konzíliumok", addConsultation:"+ KONZÍLIUM HOZZÁADÁSA", others:"Egyéb",
@@ -131,7 +137,7 @@ const I18N = {
     additionalNote:"Kiegészítő megjegyzés", outcome:"Kimenetel", details:"Részletek",
     caseSummary:"5. Összefoglaló",
     summaryInfo:"Az összefoglaló a deidentifikált esetadatokból és az aktív SBO Documentation Skill alapján készül. Véglegesítés előtt ellenőrizze és szükség szerint szerkessze.",
-    generateSummary:"ÖSSZEFOGLALÓ GENERÁLÁSA", copyGeminiPrompt:"GEMINI PROMPT MÁSOLÁSA", summaryEditable:"Összefoglaló — szerkeszthető",
+    generateSummary:"ÖSSZEFOGLALÓ GENERÁLÁSA", copyGeminiPrompt:"GEMINI PROMPT MÁSOLÁSA", summaryEditable:"Összefoglaló - szerkeszthető",
     finalizeSummary:"ÖSSZEFOGLALÓ VÉGLEGESÍTÉSE", saveCase:"ESET MENTÉSE", autosaveHint:"Automatikus mentés aktív",
     diagnosesNote:"Orvos által rögzített klinikai gondolat. Adjon meg megfontolást vagy jelölje NINCS állapotra. Ha kitöltött, az összefoglaló vége felé kerül be, a bizonytalanság megtartásával; nem külön diagnózislista.",
     learningDesc:"Orvos által ellenőrzött tanulás a véglegesített összefoglalókból és a Státusz feedbackből. A rendszer nem módosít automatikusan aktív szabályt.",
@@ -363,7 +369,7 @@ function fmtTime(iso) {
 
 function formatShiftStart(value) {
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "—";
+  if (!Number.isFinite(date.getTime())) return "-";
   return new Intl.DateTimeFormat(uiLang === "hu" ? "hu-HU" : "en-GB", {
     year: "numeric",
     month: "2-digit",
@@ -375,7 +381,7 @@ function formatShiftStart(value) {
 
 function formatShiftActiveDuration(value) {
   const start = new Date(value).getTime();
-  if (!Number.isFinite(start)) return "—";
+  if (!Number.isFinite(start)) return "-";
   const totalMinutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
   const days = Math.floor(totalMinutes / 1440);
   const hours = Math.floor((totalMinutes % 1440) / 60);
@@ -456,7 +462,7 @@ function patientSexLabel(sex) {
   if (value === "F") return uiLang === "hu" ? "Nő" : "Female";
   if (value === "M") return uiLang === "hu" ? "Férfi" : "Male";
   if (value === "O") return uiLang === "hu" ? "Egyéb" : "Other";
-  return value || "—";
+  return value || "-";
 }
 
 function paintRecordHeaderSex(sex) {
@@ -737,7 +743,7 @@ function radiologyType(entry) {
   const body = (entry.bodyPart || "").trim();
   const modality = (entry.modality || "").trim();
   const other = (entry.otherTest || "").trim();
-  if (modality === "other") return [body, other].filter(Boolean).join(" — ") || "Radiology";
+  if (modality === "other") return [body, other].filter(Boolean).join(" - ") || "Radiology";
   return [body, modality].filter(Boolean).join(" ").trim() || "Radiology";
 }
 
@@ -1034,7 +1040,7 @@ function investigationItems(patient) {
     const modality = String(entry?.modality || "").trim();
     const other = String(entry?.otherTest || "").trim();
     const detail = modality === "other"
-      ? [body, other].filter(Boolean).join(" — ")
+      ? [body, other].filter(Boolean).join(" - ")
       : [body, modality].filter(Boolean).join(" ");
     const base = uiLang === "hu" ? "Radiológia" : "Radiology";
     return detail ? `${base} · ${detail}` : `${base} ${index + 1}`;
@@ -1369,10 +1375,10 @@ function renderRawTransferCaseList() {
     const selected = item.id === rawTransferSelectedCaseId ? " selected" : "";
     return `
       <button class="raw-transfer-case${selected}" type="button" data-raw-case-id="${attr(item.id)}">
-        <span class="raw-transfer-case-id">#${esc(item.localId || "—")}</span>
+        <span class="raw-transfer-case-id">#${esc(item.localId || "-")}</span>
         <span class="raw-transfer-case-main">
-          <b>${esc(patientSexLabel(item.sex))} • ${esc(age || "—")} ${uiLang === "hu" ? "év" : "y"}</b>
-          <small>${esc(item.mainComplaint || "—")}</small>
+          <b>${esc(patientSexLabel(item.sex))} • ${esc(age || "-")} ${uiLang === "hu" ? "év" : "y"}</b>
+          <small>${esc(item.mainComplaint || "-")}</small>
         </span>
         <span class="raw-transfer-case-arrow">›</span>
       </button>
@@ -1409,8 +1415,8 @@ async function loadRawTransferEditor(caseId) {
 
   if (!patient || !textarea || !save) return;
 
-  title.textContent = `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId || "—"}`;
-  meta.textContent = `${patientSexLabel(patient.sex)} • ${ageFromYob(patient.yearOfBirth) || "—"} ${uiLang === "hu" ? "év" : "y"} • ${patient.mainComplaint || "—"}`;
+  title.textContent = `${uiLang === "hu" ? "Eset" : "Case"} ${patient.localId || "-"}`;
+  meta.textContent = `${patientSexLabel(patient.sex)} • ${ageFromYob(patient.yearOfBirth) || "-"} ${uiLang === "hu" ? "év" : "y"} • ${patient.mainComplaint || "-"}`;
   textarea.disabled = true;
   save.disabled = true;
   if (status) status.textContent = uiLang === "hu" ? "Raw data betöltése…" : "Loading raw data…";
@@ -2372,7 +2378,7 @@ function renderRadiologyCards(patient) {
     const bodyParts = ["", "koponya", "mellkas", "has", "mellkas és has", "has és kismedence"];
     const bodyLabels = uiLang === "hu"
       ? {
-          "": "— válasszon —",
+          "": "- válasszon -",
           "koponya": "Koponya",
           "mellkas": "Mellkas",
           "has": "Has",
@@ -2380,7 +2386,7 @@ function renderRadiologyCards(patient) {
           "has és kismedence": "Has és kismedence"
         }
       : {
-          "": "— select —",
+          "": "- select -",
           "koponya": "Head",
           "mellkas": "Chest",
           "has": "Abdomen",
@@ -2389,11 +2395,11 @@ function renderRadiologyCards(patient) {
         };
     const modalities = ["", "RTG", "US", "Native CT", "Contrast CT", "MR", "other"];
     const modalityLabels = {
-      "": uiLang === "hu" ? "— válasszon —" : "— select —",
+      "": uiLang === "hu" ? "- válasszon -" : "- select -",
       "other": uiLang === "hu" ? "Egyéb / specifikus" : "Other / specific"
     };
     const options = (items, current, labels = {}) => items.map((value) =>
-      `<option value="${attr(value)}"${value === current ? " selected" : ""}>${labels[value] || value || "—"}</option>`
+      `<option value="${attr(value)}"${value === current ? " selected" : ""}>${labels[value] || value || "-"}</option>`
     ).join("");
 
     card.className = `test-card ${status === "result" ? "result" : status === "notordered" ? "notordered" : ""}`;
@@ -3030,7 +3036,7 @@ async function copyGeminiPrompt() {
   const patient = collectForm();
   if (!patient) return;
 
-  const prompt = buildExternalEpicrisisPrompt(patient);
+  const prompt = shortHyphens(buildExternalEpicrisisPrompt(patient));
   if (!prompt) return;
 
   try {
@@ -3084,7 +3090,7 @@ async function generateSummary() {
     const targetPatient = patientById(requestedCaseId);
     if (!targetPatient) return;
 
-    targetPatient.summary = result.summary || "";
+    targetPatient.summary = shortHyphens(result.summary || "");
     targetPatient.summaryGeneratedText = targetPatient.summary;
     targetPatient.summaryGeneratedAt = result.generatedAt || nowIso();
     targetPatient.summaryModel = result.model || "";
@@ -3191,10 +3197,10 @@ async function finalizeSummary() {
     }
   }
 
-  const clipboardText = summaryWithFixedFooter(
+  const clipboardText = shortHyphens(summaryWithFixedFooter(
     patient.summaryFinalizedText || patient.summary || text,
     patient.disposition
-  );
+  ));
 
   try {
     await navigator.clipboard.writeText(clipboardText);
@@ -3514,7 +3520,7 @@ async function renderStatusLearningDashboard() {
     <div class="learning-actions status-learning-tabs">
       ${tabs}
     </div>
-    <div class="subtle status-learning-range">${total ? `${from}–${to} / ${total}` : "0"}</div>
+    <div class="subtle status-learning-range">${total ? `${from}-${to} / ${total}` : "0"}</div>
     ${cards}
     ${total > STATUS_LEARNING_PAGE_SIZE ? `
       <div class="learning-actions status-learning-pagination">
@@ -3687,7 +3693,7 @@ async function renderCorpusRevisions(source) {
         ${tabs}
       </div>
       <div class="subtle" style="margin-bottom:10px">
-        ${total ? `${from}–${to} / ${total}` : "0"}
+        ${total ? `${from}-${to} / ${total}` : "0"}
       </div>
       ${cards}
       ${total > CORPUS_REVIEW_PAGE_SIZE ? `
@@ -3802,7 +3808,7 @@ function renderStyleProfiles(profiles, coachRuns = []) {
           • ${Number(coach.official_rule_count || 0)} official rules
           ${coach.generated_at ? ` • ${esc(new Date(coach.generated_at).toLocaleString())}` : ""}
         </div>`
-      : '<div class="subtle">Legacy candidate — no Style Coach audit record.</div>';
+      : '<div class="subtle">Legacy candidate - no Style Coach audit record.</div>';
     const coachAnalysis = coach?.analysis_text
       ? `<details class="mt16">
           <summary>STYLE COACH ANALYSIS</summary>
@@ -4484,7 +4490,7 @@ window.BachSBOClinicalUi = Object.freeze({
 async function copyNoteSnippet(button) {
   const card = button?.closest?.("[data-note-card]");
   const textarea = card?.querySelector?.("textarea");
-  const text = String(textarea?.value || "").trim();
+  const text = shortHyphens(String(textarea?.value || "").trim());
   if (!text) return;
 
   try {
@@ -4514,7 +4520,7 @@ function flash(message) {
 }
 
 function esc(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+  return shortHyphens(value).replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
@@ -4526,6 +4532,100 @@ function esc(value) {
 function attr(value) {
   return esc(value).replace(/`/g, "&#096;");
 }
+
+function installAsciiHyphenUiGuard() {
+  const hasLongDash = (value) => /[\u2013\u2014]/.test(String(value ?? ""));
+
+  const normalizeElement = (root) => {
+    if (!root) return;
+    const normalizeTextNode = (node) => {
+      if (node?.nodeType === Node.TEXT_NODE && hasLongDash(node.nodeValue)) {
+        node.nodeValue = shortHyphens(node.nodeValue);
+      }
+    };
+
+    if (root.nodeType === Node.TEXT_NODE) {
+      normalizeTextNode(root);
+      return;
+    }
+    if (root.nodeType !== Node.ELEMENT_NODE) return;
+    if (root.matches?.("script, style")) return;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const parent = node.parentElement;
+      if (parent?.closest?.("script, style")) continue;
+      normalizeTextNode(node);
+    }
+
+    const fields = [];
+    if (root.matches?.("input, textarea")) fields.push(root);
+    root.querySelectorAll?.("input, textarea").forEach((el) => fields.push(el));
+    fields.forEach((el) => {
+      if (hasLongDash(el.value)) el.value = shortHyphens(el.value);
+      ["placeholder", "title", "aria-label"].forEach((name) => {
+        const value = el.getAttribute?.(name);
+        if (hasLongDash(value)) el.setAttribute(name, shortHyphens(value));
+      });
+    });
+  };
+
+  normalizeElement(document.body);
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "characterData") normalizeElement(mutation.target);
+      mutation.addedNodes?.forEach((node) => normalizeElement(node));
+    });
+  });
+  observer.observe(document.body, { subtree:true, childList:true, characterData:true });
+
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (!hasLongDash(target.value)) return;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    target.value = shortHyphens(target.value);
+    if (Number.isInteger(start) && Number.isInteger(end)) {
+      try { target.setSelectionRange(start, end); } catch {}
+    }
+  }, true);
+
+  document.addEventListener("copy", (event) => {
+    if (!event.clipboardData) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      const start = active.selectionStart;
+      const end = active.selectionEnd;
+      if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
+        const selected = active.value.slice(start, end);
+        if (hasLongDash(selected)) {
+          event.preventDefault();
+          event.clipboardData.setData("text/plain", shortHyphens(selected));
+        }
+        return;
+      }
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const plain = selection.toString();
+    if (!hasLongDash(plain)) return;
+
+    const holder = document.createElement("div");
+    for (let i = 0; i < selection.rangeCount; i += 1) {
+      holder.appendChild(selection.getRangeAt(i).cloneContents());
+    }
+    normalizeElement(holder);
+    event.preventDefault();
+    event.clipboardData.setData("text/plain", shortHyphens(plain));
+    event.clipboardData.setData("text/html", holder.innerHTML);
+  });
+}
+
+installAsciiHyphenUiGuard();
 
 document.getElementById("patientForm").addEventListener("submit", (event) => {
   event.preventDefault();

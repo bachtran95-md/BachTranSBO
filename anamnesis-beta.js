@@ -1078,7 +1078,7 @@
         toast("A böngésző nem engedte a vágólap írását.");
       }
     });
-    $("anamnesisCloseFooterBtn")?.addEventListener("click", () => void closeAuditModal());
+    $("anamnesisCloseFooterBtn")?.addEventListener("click", () => closeAuditModal());
 
     ["anamnesisDiseases","anamnesisAllergies","anamnesisDiscrepancies"].forEach((id) => {
       $(id)?.addEventListener("input", (e) => {
@@ -1183,25 +1183,26 @@
     });
   }
 
-  async function syncShortHistoryToCase() {
-    if (!activeCaseId) return;
+  function syncShortHistoryToCase() {
+    if (!activeCaseId) return false;
     const patient = activePatient();
-    if (!patient || String(patient.id) !== activeCaseId) return;
+    if (!patient || String(patient.id) !== activeCaseId) return false;
 
     const field = $("fHistory");
-    if (!field) return;
+    if (!field) return false;
     const shortHistory = shortHyphens(String($("anamnesisDiseases")?.value || state.final.diseases || "").trim());
 
     field.value = shortHistory;
     field.dispatchEvent(new Event("input", { bubbles:true }));
     field.dispatchEvent(new Event("change", { bubbles:true }));
     window.BachSBOClinicalUi?.commitCurrentDraft?.();
-    try {
-      await window.BachSBOClinicalUi?.autosaveCurrentCase?.();
-    } catch (error) {
+
+    // Do not keep the modal open while waiting for network autosave.
+    Promise.resolve(window.BachSBOClinicalUi?.autosaveCurrentCase?.()).catch((error) => {
       console.warn("Anamnesis short history autosave failed:", error);
       toast("A rövid anamnézis a mezőbe került, de az autosave nem igazolható.");
-    }
+    });
+    return true;
   }
 
   function setModalOpen(open) {
@@ -1232,26 +1233,28 @@
     requestAnimationFrame(updateAnamnesisPanelHeight);
   }
 
-  async function closeAuditModal() {
+  function closeAuditModal() {
     if (!isAnamnesisVisible()) return;
     saveState();
-    await syncShortHistoryToCase();
+    const synced = syncShortHistoryToCase();
     setModalOpen(false);
-    toast("Rövid anamnézis frissítve az esetben. A részletes anamnézis csak clipboard.");
+    toast(synced
+      ? "Rövid anamnézis frissítve az esetben. A részletes anamnézis csak clipboard."
+      : "Anamnézis Audit bezárva.");
   }
 
   function init() {
     document.addEventListener("paste", handleGlobalScreenshotPaste);
     window.addEventListener("resize", updateAnamnesisPanelHeight, { passive: true });
     $("anamnesisAuditBtn")?.addEventListener("click", openAuditModal);
-    $("anamnesisModalCloseBtn")?.addEventListener("click", () => void closeAuditModal());
+    $("anamnesisModalCloseBtn")?.addEventListener("click", () => closeAuditModal());
     $("anamnesisModal")?.addEventListener("click", (event) => {
-      if (event.target === $("anamnesisModal")) void closeAuditModal();
+      if (event.target === $("anamnesisModal")) closeAuditModal();
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && isAnamnesisVisible()) {
         event.preventDefault();
-        void closeAuditModal();
+        closeAuditModal();
       }
     });
   }

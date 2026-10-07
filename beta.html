@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=clinical-consideration-20260928-1" />
   <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
-  <link rel="stylesheet" href="anamnesis-beta.css?v=panel-scroll-20261001-16" />
+  <link rel="stylesheet" href="anamnesis-beta.css?v=case-modal-20261007-1" />
 </head>
 <body class="beta-build beta-simple-status">
   <header class="topbar">
@@ -30,7 +30,6 @@
   <nav class="workspace-nav" aria-label="Workspace">
     <div class="workspace-nav-main">
       <button class="nav-item active" id="patientsNav"><span data-i18n="casesNav">Cases</span><span>●</span></button>
-      <button class="nav-item" id="anamnesisNav"><span>Anamnézis</span><span class="beta-build-badge">BETA</span></button>
       <button class="nav-item" id="notesNav"><span data-i18n="notesNav">Notes</span></button>
       <button class="nav-item" id="aiLearningNav"><span data-i18n="aiLearningNav">AI Learning</span></button>
       <button class="nav-item" id="adminNav"><span data-i18n="adminNav">Admin</span><span>⚙</span></button>
@@ -278,6 +277,10 @@
                     <div class="narrative-head">
                       <label data-i18n="patientHistory">Medical history</label>
                       <div class="narrative-actions">
+                        <button class="btn small anamnesis-audit-trigger" id="anamnesisAuditBtn" type="button" title="Opcionális Anamnézis Audit">
+                          <span aria-hidden="true">☷</span>
+                          <span>ANAMNÉZIS AUDIT</span>
+                        </button>
                         <span class="field-state waiting" data-field-state="history">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
                       </div>
@@ -572,7 +575,19 @@
         </div>
       </section>
 
-      <section id="anamnesisView" class="hidden"></section>
+      <div class="anamnesis-modal-wrap hidden" id="anamnesisModal" role="dialog" aria-modal="true" aria-labelledby="anamnesisModalTitle" aria-hidden="true">
+        <div class="anamnesis-modal">
+          <div class="anamnesis-modal-head">
+            <div class="anamnesis-modal-heading">
+              <strong id="anamnesisModalTitle">ANAMNÉZIS AUDIT</strong>
+              <span class="anamnesis-modal-case" id="anamnesisModalCase"></span>
+              <span class="beta-build-badge">BETA</span>
+            </div>
+            <button class="btn small anamnesis-modal-close" id="anamnesisModalCloseBtn" type="button" aria-label="Bezárás">×</button>
+          </div>
+          <section id="anamnesisView" class="hidden"></section>
+        </div>
+      </div>
 
       <section id="aiLearningView" class="hidden">
         <div class="learning-head">
@@ -836,6 +851,6 @@
   <script src="beta-features.js?v=main-badge-20260928-1"></script>
   <script src="status-vocabulary.js?v=renal-percussion-20260923-1"></script>
   <script src="beta-status-generator.js?v=ascii-hyphen-20261007-1"></script>
-  <script src="anamnesis-beta.js?v=ascii-hyphen-20261007-1"></script>
+  <script src="anamnesis-beta.js?v=case-modal-20261007-1"></script>
 </body>
 </html>

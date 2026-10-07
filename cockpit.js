@@ -680,7 +680,7 @@
         const title = [organization, sourceTitle]
           .filter(Boolean)
           .filter((value, index, array) => array.indexOf(value) === index)
-          .join(" — ") || url;
+          .join(" - ") || url;
         const meta = [
           source?.year ? String(source.year) : "",
           source?.jurisdiction || ""
@@ -1181,7 +1181,7 @@
     const readonly = Boolean(patient.summaryFinalizedAt);
 
     const labelNode = control.querySelector(".case-triage-label");
-    if (labelNode) labelNode.textContent = `— ${isHu ? "Triázs" : "Triage"}`;
+    if (labelNode) labelNode.textContent = `- ${isHu ? "Triázs" : "Triage"}`;
     const options = control.querySelector(".case-triage-options");
     options?.setAttribute("aria-label", isHu ? "Case triázs" : "Case triage");
 
@@ -1541,7 +1541,7 @@
     const select = document.createElement("select");
     select.id = "cockpitWardSelect";
     select.innerHTML =
-      `<option value="">—</option>` +
+      `<option value="">-</option>` +
       wardOptions.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("") +
       `<option value="__other__">Egyéb</option>`;
 
@@ -1606,8 +1606,8 @@
       const labelNode = note.closest(".field")?.querySelector("label");
       if (labelNode) {
         labelNode.textContent = label(
-          "Additional note — condition / transport?",
-          "Kiegészítő megjegyzés — milyen állapotban, szállítás?"
+          "Additional note - condition / transport?",
+          "Kiegészítő megjegyzés - milyen állapotban, szállítás?"
         );
       }
     }

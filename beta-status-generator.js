@@ -38,7 +38,7 @@
       ["C7", "C7. Vérzés"]
     ],
     D: [
-      ["D1", "D1. Tudat — AVPU"],
+      ["D1", "D1. Tudat - AVPU"],
       ["D2", "D2. GCS"],
       ["D3", "D3. Orientáció / mentális státusz"],
       ["D4", "D4. Beszéd / aphasia"],
@@ -95,8 +95,15 @@
   let refreshTimer = null;
   let clinicalAutosaveTimer = null;
 
+  function shortHyphens(value) {
+    const shared = window.BachSBOShortHyphens;
+    return typeof shared === "function"
+      ? shared(value)
+      : String(value ?? "").replace(/[\u2013\u2014]/g, "-");
+  }
+
   function esc(value) {
-    return String(value ?? "")
+    return shortHyphens(value)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
@@ -1630,7 +1637,7 @@
         ensureSentence(item.raw) + " ",
         "unresolved",
         item.section,
-        "Nem felismert finding — nyers szöveg változatlanul megtartva."
+        "Nem felismert finding - nyers szöveg változatlanul megtartva."
       ));
   }
 
@@ -1744,11 +1751,11 @@
       if (!host || !block) continue;
       const items = grouped[section];
       const options = [
-        '<option value="">— Válassza ki, hova tartozik —</option>',
+        '<option value="">- Válassza ki, hova tartozik -</option>',
         ...(SUBSECTION_OPTIONS[section] || []).map(([value, label]) =>
           '<option value="' + esc(value) + '">' + esc(label) + '</option>'
         ),
-        '<option value="__append">Egyéb / új finding — hozzáadás a végére</option>'
+        '<option value="__append">Egyéb / új finding - hozzáadás a végére</option>'
       ].join("");
       block.classList.toggle("has-unknown", items.length > 0);
       host.innerHTML = items.map((item, index) =>
@@ -1954,7 +1961,7 @@
     document.getElementById("betaStatusCopyBtn")?.addEventListener("click", async (event) => {
       if (!activeState) return;
       const model = buildRenderModel();
-      const text = modelText(model);
+      const text = shortHyphens(modelText(model));
       try {
         await navigator.clipboard.writeText(text);
       } catch {

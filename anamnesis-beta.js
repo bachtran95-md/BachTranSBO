@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "bachtransbo_beta_anamnesis_v1";
+  const STORAGE_PREFIX = "bachtransbo_beta_anamnesis_case_v1:";
   const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
   const $ = (id) => document.getElementById(id);
   const shortHyphens = (value) => {
@@ -43,34 +43,63 @@
     };
   }
 
-  let state = loadState();
+  let activeCaseId = "";
+  let activeShiftId = "";
+  let state = emptyState();
 
-  function loadState() {
+  function activePatient() {
+    return window.BachSBOClinicalUi?.getPatientSnapshot?.() || null;
+  }
+
+  function storageKey(caseId = activeCaseId, shiftId = activeShiftId) {
+    if (!caseId || !shiftId) return "";
+    return STORAGE_PREFIX + String(shiftId) + ":" + String(caseId);
+  }
+
+  function hydrateCaseDefaults(nextState, patient) {
+    const result = nextState || emptyState();
+    if (!patient) return result;
+    if (!String(result.label || "").trim()) result.label = String(patient.localId || "");
+    if (!String(result.complaint || "").trim()) {
+      result.complaint = String(patient.mainComplaint || patient.complaint || "").trim();
+    }
+    if (!String(result.final?.diseases || "").trim()) {
+      result.final.diseases = String(patient.history || "").trim();
+    }
+    return result;
+  }
+
+  function loadStateForCase(patient) {
+    if (!patient?.id || !patient?.shiftId) return emptyState();
+    activeCaseId = String(patient.id);
+    activeShiftId = String(patient.shiftId);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return emptyState();
+      const raw = localStorage.getItem(storageKey());
+      if (!raw) return hydrateCaseDefaults(emptyState(), patient);
       const parsed = JSON.parse(raw);
-      return {
+      return hydrateCaseDefaults({
         ...emptyState(),
         ...parsed,
         final: { ...emptyState().final, ...(parsed.final || {}) },
         sources: Array.isArray(parsed.sources) ? parsed.sources : [],
         events: Array.isArray(parsed.events) ? parsed.events : [],
         meds: Array.isArray(parsed.meds) ? parsed.meds : []
-      };
+      }, patient);
     } catch {
-      return emptyState();
+      return hydrateCaseDefaults(emptyState(), patient);
     }
   }
 
   function saveState() {
+    const key = storageKey();
+    if (!key) return;
     const persisted = structuredClone(state);
     persisted.sources = (persisted.sources || []).map((source) => {
       delete source.previewUrl;
       delete source.imageDataUrl;
       return source;
     });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+    localStorage.setItem(key, JSON.stringify(persisted));
     const status = $("anamnesisSaveState");
     if (status) {
       status.textContent = "Helyben mentve " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
@@ -229,6 +258,19 @@
     return html;
   }
 
+  function caseBindingLabel() {
+    const patient = activePatient();
+    if (!patient) return "Nincs aktív eset";
+    const age = window.BachSBOClinicalUi?.ageFromYob?.(patient.yob);
+    const sex = patient.sex === "M" ? "Férfi" : patient.sex === "F" ? "Nő" : patient.sex === "O" ? "Egyéb" : "";
+    return [
+      patient.localId ? "Eset " + patient.localId : "",
+      sex,
+      age ? age + " év" : "",
+      String(patient.mainComplaint || "").trim()
+    ].filter(Boolean).join(" - ");
+  }
+
   function renderShell() {
     const root = $("anamnesisView");
     if (!root) return;
@@ -237,28 +279,24 @@
       <div class="an-shell">
         <div class="an-head">
           <div>
-            <div class="an-kicker">BachTranSBO Beta · Anamnézis</div>
+            <div class="an-kicker">BachTranSBO Beta - Anamnézis Audit</div>
             <h1>Longitudinális anamnézis összeállítása</h1>
-            <div class="an-subtle">Források → események → szerkeszthető végleges anamnézis</div>
+            <div class="an-subtle">Források -> események -> szerkeszthető végleges anamnézis</div>
           </div>
-          <div class="an-pilot"><b>Beta teszt.</b> Az Anamnézis AI gombok az autentikált szerveroldali OpenAI API-t használják. A munkalap tartós Supabase-mentése külön következő lépés.</div>
+          <div class="an-pilot"><b>Opcionális eszköz.</b> Bezáráskor csak az <b>Ismert betegségek</b> rövid anamnézis kerül vissza az aktív eset Anamnézis mezőjébe a Summary számára. A részletes anamnézis csak a vágólapra kerül.</div>
         </div>
 
         <div class="an-patient">
-          <div>
-            <label class="an-caption">Munkalap neve</label>
-            <input id="anamnesisLabel" value="${esc(state.label)}" placeholder="Pl. 04 - belgyógyászat" />
+          <div class="an-case-binding">
+            <label class="an-caption">Aktív eset</label>
+            <div class="an-case-binding-value" id="anamnesisCaseBinding">${esc(caseBindingLabel())}</div>
           </div>
           <div>
             <label class="an-caption">Aktuális panasz / felvétel oka</label>
             <input id="anamnesisComplaint" value="${esc(state.complaint)}" placeholder="Pl. dyspnoe, oedema" />
           </div>
           <div class="an-patient-actions">
-            <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Helyi autosave</span></div>
-            <div class="an-patient-buttons">
-              <button class="btn small" id="anamnesisNewPatientBtn" type="button">+ ÚJ BETEG</button>
-              <button class="btn small danger" id="anamnesisDeletePatientBtn" type="button">BETEG TÖRLÉSE</button>
-            </div>
+            <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Helyi autosave - ehhez az esethez</span></div>
           </div>
         </div>
 
@@ -329,15 +367,11 @@
               <div class="an-final-note"><b>V1:</b> a végleges Anamnézis a 2. lépésben jóváhagyott eseményekből készül régebbi → újabb sorrendben, AI-hívás nélkül. Az ismert betegségek és a gyógyszerlista az 1. lépésből érkeznek és kézzel tovább szerkeszthetők.</div>
 
               <div class="an-final-section">
-                <div class="an-final-title">Aktuális panasz / felvétel oka</div>
-                <textarea id="anamnesisFinalComplaint"></textarea>
-              </div>
-              <div class="an-final-section">
-                <div class="an-final-title">Ismert betegségek</div>
+                <div class="an-final-title"><span>Ismert betegségek</span><span class="an-chip an-summary-chip">RÖVID - SUMMARY</span></div>
                 <textarea id="anamnesisDiseases"></textarea>
               </div>
               <div class="an-final-section">
-                <div class="an-final-title"><span>Anamnézis</span><span class="an-chip green">régebbi → újabb</span></div>
+                <div class="an-final-title"><span>Részletes anamnézis</span><span class="an-chip an-clipboard-chip">CSAK CLIPBOARD</span></div>
                 <div class="an-history-editor" id="anamnesisHistoryEditor" contenteditable="true" spellcheck="false"></div>
               </div>
               <div class="an-final-section">
@@ -352,11 +386,13 @@
               <div class="an-final-section">
                 <div class="an-final-title">Ellenőrizendő eltérések</div>
                 <textarea id="anamnesisDiscrepancies" placeholder="Pl. eltérő EF, gyógyszerlista, dátum..."></textarea>
+                <div class="an-internal-only-note">Belső QC mező - nem kerül a vágólapra és nem kerül az eset Anamnézis mezőjébe.</div>
               </div>
             </div>
             <div class="an-panel-footer an-final-actions">
-              <span class="an-subtle">A Step 3 jelenlegi, kézzel szerkesztett tartalmát másolja.</span>
-              <button class="btn" id="anamnesisCopyBtn" type="button" title="A jelenlegi Step 3 tartalom másolása formázással">MÁSOLÁS</button>
+              <span class="an-subtle">A részletes Anamnézis + gyógyszerelés + Allergiák / CAVE kerül a vágólapra. Az Ellenőrizendő eltérések kimarad.</span>
+              <button class="btn an-close-footer" id="anamnesisCloseFooterBtn" type="button">BEZÁRÁS</button>
+              <button class="btn" id="anamnesisCopyBtn" type="button" title="A részletes anamnézis másolása formázással">MÁSOLÁS</button>
             </div>
           </section>
         </div>
@@ -529,12 +565,10 @@
   }
 
   function renderFinal() {
-    const complaint = $("anamnesisFinalComplaint");
     const diseases = $("anamnesisDiseases");
     const history = $("anamnesisHistoryEditor");
     const allergies = $("anamnesisAllergies");
     const discrepancies = $("anamnesisDiscrepancies");
-    if (complaint) complaint.value = state.final.complaint || state.complaint || "";
     if (diseases) diseases.value = state.final.diseases || "";
     if (history) history.innerHTML = state.final.historyHtml || "";
     if (allergies) allergies.value = state.final.allergies || "";
@@ -710,11 +744,6 @@
       (a,b) => String(a.date || "").localeCompare(String(b.date || ""))
     );
 
-    state.final.complaint =
-      $("anamnesisFinalComplaint")?.value ||
-      state.final.complaint ||
-      state.complaint ||
-      "";
     state.final.historyHtml = finalHistoryHtml(sorted);
 
     renderFinal();
@@ -800,22 +829,20 @@
   }
 
   function finalClipboardPayload() {
-    const complaint = String($("anamnesisFinalComplaint")?.value || state.final.complaint || state.complaint || "").trim();
     const diseases = String($("anamnesisDiseases")?.value || state.final.diseases || "").trim();
     const historyEditor = $("anamnesisHistoryEditor");
     const historyText = String(historyEditor?.innerText || "").trim();
     const historyHtml = clipboardSafeHistoryHtml();
     const meds = currentMedicationText();
     const allergies = String($("anamnesisAllergies")?.value || state.final.allergies || "").trim();
-    const discrepancies = String($("anamnesisDiscrepancies")?.value || state.final.discrepancies || "").trim();
 
+    // Detailed ambulatory-note output for clipboard only.
+    // The internal "Ellenőrizendő eltérések" QC field is intentionally excluded.
     const text = [
-      "Aktuális panasz / felvétel oka", complaint, "",
       "Ismert betegségek", diseases, "",
       "Anamnézis", historyText, "",
       "Gyógyszerelés", meds || "-", "",
-      "Allergiák / CAVE", allergies, "",
-      discrepancies ? "Ellenőrizendő eltérések\n" + discrepancies : ""
+      "Allergiák / CAVE", allergies
     ].filter((x,idx,arr) => !(x === "" && arr[idx-1] === "")).join("\n");
 
     const textHtml = (value) => esc(value).replace(/\n/g, "<br>");
@@ -823,12 +850,10 @@
       '<div><b style="font-weight:700;">' + esc(title) + '</b><br>' + (bodyHtml || "-") + '</div>';
 
     const html = [
-      section("Aktuális panasz / felvétel oka", textHtml(complaint)),
       section("Ismert betegségek", textHtml(diseases)),
       section("Anamnézis", historyHtml || "-"),
       section("Gyógyszerelés", textHtml(meds || "-")),
-      section("Allergiák / CAVE", textHtml(allergies)),
-      discrepancies ? section("Ellenőrizendő eltérések", textHtml(discrepancies)) : ""
+      section("Allergiák / CAVE", textHtml(allergies))
     ].filter(Boolean).join("<br>");
 
     return { text: shortHyphens(text), html: shortHyphens(html) };
@@ -893,8 +918,8 @@
   }
 
   function isAnamnesisVisible() {
-    const view = $("anamnesisView");
-    return Boolean(view && !view.classList.contains("hidden"));
+    const modal = $("anamnesisModal");
+    return Boolean(modal && !modal.classList.contains("hidden"));
   }
 
   async function addClipboardScreenshotFromEvent(event) {
@@ -935,42 +960,7 @@
     }
   }
 
-  function hasPatientContent() {
-    return Boolean(
-      String(state.label || "").trim() ||
-      String(state.complaint || "").trim() ||
-      state.sources.length ||
-      state.events.length ||
-      state.meds.length ||
-      String(state.final?.diseases || "").trim() ||
-      String(state.final?.historyHtml || "").trim()
-    );
-  }
-
-  function resetPatientWorkspace(message = "Új beteg munkalap indítva.") {
-    state = emptyState();
-    localStorage.removeItem(STORAGE_KEY);
-    renderShell();
-    saveState();
-    toast(message);
-  }
-
   function bindStaticControls() {
-    $("anamnesisNewPatientBtn")?.addEventListener("click", () => {
-      if (hasPatientContent() && !window.confirm("Új beteg indításakor a jelenlegi helyi Anamnézis munkalap törlődik. Folytatod?")) return;
-      resetPatientWorkspace("Új beteg munkalap indítva.");
-    });
-
-    $("anamnesisDeletePatientBtn")?.addEventListener("click", () => {
-      if (!hasPatientContent()) {
-        toast("Nincs törölhető betegadat.");
-        return;
-      }
-      if (!window.confirm("Biztosan törlöd a jelenlegi beteg teljes helyi Anamnézis munkalapját?")) return;
-      resetPatientWorkspace("A beteg helyi Anamnézis munkalapja törölve.");
-    });
-
-    $("anamnesisLabel")?.addEventListener("input", (e) => { state.label = e.target.value; saveState(); });
     $("anamnesisMode")?.addEventListener("change", (e) => {
       state.mode = e.target.value;
       const hint = $("anamnesisModeHint");
@@ -988,7 +978,6 @@
     });
     $("anamnesisComplaint")?.addEventListener("input", (e) => {
       state.complaint = e.target.value;
-      if (!state.final.complaint) $("anamnesisFinalComplaint").value = e.target.value;
       saveState();
     });
 
@@ -1083,16 +1072,16 @@
       try {
         const mode = await copyFinalStep3();
         toast(mode === "rich"
-          ? "A Step 3 aktuális változata formázással a vágólapra másolva."
-          : "A Step 3 aktuális változata másolva; ez a böngésző csak egyszerű szöveget engedett.");
+          ? "A részletes anamnézis formázással a vágólapra másolva."
+          : "A részletes anamnézis másolva; ez a böngésző csak egyszerű szöveget engedett.");
       } catch {
         toast("A böngésző nem engedte a vágólap írását.");
       }
     });
+    $("anamnesisCloseFooterBtn")?.addEventListener("click", () => void closeAuditModal());
 
-    ["anamnesisFinalComplaint","anamnesisDiseases","anamnesisAllergies","anamnesisDiscrepancies"].forEach((id) => {
+    ["anamnesisDiseases","anamnesisAllergies","anamnesisDiscrepancies"].forEach((id) => {
       $(id)?.addEventListener("input", (e) => {
-        if (id === "anamnesisFinalComplaint") state.final.complaint = e.target.value;
         if (id === "anamnesisDiseases") state.final.diseases = e.target.value;
         if (id === "anamnesisAllergies") state.final.allergies = e.target.value;
         if (id === "anamnesisDiscrepancies") state.final.discrepancies = e.target.value;
@@ -1194,16 +1183,75 @@
     });
   }
 
+  async function syncShortHistoryToCase() {
+    if (!activeCaseId) return;
+    const patient = activePatient();
+    if (!patient || String(patient.id) !== activeCaseId) return;
+
+    const field = $("fHistory");
+    if (!field) return;
+    const shortHistory = shortHyphens(String($("anamnesisDiseases")?.value || state.final.diseases || "").trim());
+
+    field.value = shortHistory;
+    field.dispatchEvent(new Event("input", { bubbles:true }));
+    field.dispatchEvent(new Event("change", { bubbles:true }));
+    window.BachSBOClinicalUi?.commitCurrentDraft?.();
+    try {
+      await window.BachSBOClinicalUi?.autosaveCurrentCase?.();
+    } catch (error) {
+      console.warn("Anamnesis short history autosave failed:", error);
+      toast("A rövid anamnézis a mezőbe került, de az autosave nem igazolható.");
+    }
+  }
+
+  function setModalOpen(open) {
+    const modal = $("anamnesisModal");
+    if (!modal) return;
+    modal.classList.toggle("hidden", !open);
+    modal.setAttribute("aria-hidden", open ? "false" : "true");
+    document.body.classList.toggle("anamnesis-modal-open", open);
+  }
+
+  function openAuditModal() {
+    const patient = activePatient();
+    if (!patient?.id || !patient?.shiftId) {
+      toast("Előbb válassz aktív esetet.");
+      return;
+    }
+    if (patient.summaryFinalizedAt) {
+      toast("Lezárt esetnél előbb nyisd újra az esetet.");
+      return;
+    }
+
+    state = loadStateForCase(patient);
+    state.complaint = String(patient.mainComplaint || patient.complaint || state.complaint || "").trim();
+    const caseLabel = $("anamnesisModalCase");
+    if (caseLabel) caseLabel.textContent = caseBindingLabel();
+    renderShell();
+    setModalOpen(true);
+    requestAnimationFrame(updateAnamnesisPanelHeight);
+  }
+
+  async function closeAuditModal() {
+    if (!isAnamnesisVisible()) return;
+    saveState();
+    await syncShortHistoryToCase();
+    setModalOpen(false);
+    toast("Rövid anamnézis frissítve az esetben. A részletes anamnézis csak clipboard.");
+  }
+
   function init() {
     document.addEventListener("paste", handleGlobalScreenshotPaste);
     window.addEventListener("resize", updateAnamnesisPanelHeight, { passive: true });
-    if ($("anamnesisView")) renderShell();
-    document.addEventListener("bachsbo:ui-rendered", (event) => {
-      if (event?.detail?.view === "anamnesis" && $("anamnesisView") && !$("anamnesisView").innerHTML.trim()) {
-        renderShell();
-      }
-      if (event?.detail?.view === "anamnesis") {
-        requestAnimationFrame(updateAnamnesisPanelHeight);
+    $("anamnesisAuditBtn")?.addEventListener("click", openAuditModal);
+    $("anamnesisModalCloseBtn")?.addEventListener("click", () => void closeAuditModal());
+    $("anamnesisModal")?.addEventListener("click", (event) => {
+      if (event.target === $("anamnesisModal")) void closeAuditModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && isAnamnesisVisible()) {
+        event.preventDefault();
+        void closeAuditModal();
       }
     });
   }

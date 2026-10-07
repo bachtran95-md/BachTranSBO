@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; worker-src 'self' blob: https://cdn.jsdelivr.net; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
-  <title>ER Command Center — Beta</title>
+  <title>ER Command Center - Beta</title>
   <link rel="stylesheet" href="styles.css?v=clinical-consideration-20260928-1" />
   <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
@@ -127,7 +127,7 @@
                   <div class="field">
                     <label data-i18n="sex">Sex</label>
                     <select id="newSex">
-                      <option value="">—</option>
+                      <option value="">-</option>
                       <option value="M">Férfi</option>
                       <option value="F">Nő</option>
                       <option value="O">Egyéb</option>
@@ -246,7 +246,7 @@
                       <div class="field cockpit-arrival-field">
                         <label data-ice-label="arrival">SBO-ra érkezés módja</label>
                         <select id="iceArrival">
-                          <option value="">— válasszon —</option>
+                          <option value="">- válasszon -</option>
                           <option value="omsz">OMSz szállította</option>
                           <option value="esetkocsi">Esetkocsi szállította</option>
                           <option value="walk_in">Saját lábán érkezett</option>
@@ -315,56 +315,56 @@
                     <div class="beta-status-generator-columns">
                       <div class="beta-status-generator-column">
                         <div class="beta-status-input-block">
-                          <label>A – Légút</label>
+                          <label>A - Légút</label>
                           <textarea data-status-section="A" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="A"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>B – Légzés / Mellkas / Pulmo</label>
+                          <label>B - Légzés / Mellkas / Pulmo</label>
                           <textarea data-status-section="B" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="B"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>C – Keringés / Szív</label>
+                          <label>C - Keringés / Szív</label>
                           <textarea data-status-section="C" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="C"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>D – Neurológia</label>
+                          <label>D - Neurológia</label>
                           <textarea data-status-section="D" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="D"></div>
                         </div>
                       </div>
 
                       <div class="beta-status-generator-column">
-                        <div class="beta-status-generator-heading beta-status-exposure-heading">E – Exposure</div>
+                        <div class="beta-status-generator-heading beta-status-exposure-heading">E - Exposure</div>
                         <div class="beta-status-input-block">
-                          <label>E1 – Általános állapot</label>
+                          <label>E1 - Általános állapot</label>
                           <textarea data-status-section="E1" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E1"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>E2 – Bőr / nyálkahártyák</label>
+                          <label>E2 - Bőr / nyálkahártyák</label>
                           <textarea data-status-section="E2" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E2"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>E3 – Sérülés</label>
+                          <label>E3 - Sérülés</label>
                           <textarea data-status-section="E3" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E3"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>E4 – Végtagok / oedema / MVT</label>
+                          <label>E4 - Végtagok / oedema / MVT</label>
                           <textarea data-status-section="E4" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E4"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>E5 – Has</label>
+                          <label>E5 - Has</label>
                           <textarea data-status-section="E5" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E5"></div>
                         </div>
                         <div class="beta-status-input-block">
-                          <label>E6 – Vese / urogenitalis</label>
+                          <label>E6 - Vese / urogenitalis</label>
                           <textarea data-status-section="E6" placeholder="csak pozitív eltérés"></textarea>
                           <div class="beta-status-unknown-host" data-status-unknown-host="E6"></div>
                         </div>
@@ -550,11 +550,11 @@
                   </div>
                   <div class="summary-status" id="summaryStatus"></div>
                   <div class="field">
-                    <label data-i18n="summaryEditable">Summary — editable</label>
+                    <label data-i18n="summaryEditable">Summary - editable</label>
                     <textarea id="fSummary" class="summary-box" placeholder="A generált összefoglaló itt jelenik meg. Véglegesítés előtt szerkeszthető."></textarea>
                   </div>
                   <div class="field fixed-summary-footer-field hidden" id="fixedSummaryFooterField">
-                    <label data-i18n="summaryFixedFooter">Állandó záró szöveg — nem szerkeszthető</label>
+                    <label data-i18n="summaryFixedFooter">Állandó záró szöveg - nem szerkeszthető</label>
                     <textarea id="summaryFixedFooter" class="summary-fixed-footer" readonly aria-readonly="true"></textarea>
                   </div>
                   <div class="toolbar">
@@ -586,15 +586,15 @@
         <div class="learning-metrics">
           <div class="card learning-metric">
             <div class="subtle" data-i18n="finalizedCorpus">Finalized corpus</div>
-            <div class="learning-number" id="learningFinalizedCount">—</div>
+            <div class="learning-number" id="learningFinalizedCount">-</div>
           </div>
           <div class="card learning-metric">
             <div class="subtle" data-i18n="activeSkill">Active Skill</div>
-            <div class="learning-number small" id="learningActiveSkill">—</div>
+            <div class="learning-number small" id="learningActiveSkill">-</div>
           </div>
           <div class="card learning-metric">
             <div class="subtle" data-i18n="activeStyle">Active style</div>
-            <div class="learning-number small" id="learningActiveStyle">—</div>
+            <div class="learning-number small" id="learningActiveStyle">-</div>
           </div>
         </div>
 
@@ -796,7 +796,7 @@
       <div>
         <div class="raw-data-drawer-kicker">HEIDI → AI ADATBEVITEL</div>
         <strong id="cockpitPasteTitle">✨ AI-assisted data entry</strong>
-        <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Routing és adatkinyerés — a Heidi szöveg megfogalmazását megtartva</div>
+        <div class="cockpit-data-entry-sub" id="cockpitPasteSub">Routing és adatkinyerés - a Heidi szöveg megfogalmazását megtartva</div>
       </div>
       <button class="btn small" id="cockpitDataEntryClose" type="button" aria-label="Bezárás">×</button>
     </div>

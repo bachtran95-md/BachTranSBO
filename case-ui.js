@@ -12,7 +12,7 @@
   let metadataDirtyCaseId = "";
 
   const ARRIVAL_OPTIONS = [
-    ["", "— select —", "— válasszon —"],
+    ["", "- select -", "- válasszon -"],
     ["omsz", "OMSz transported", "OMSz szállította"],
     ["esetkocsi", "Emergency unit transported", "Esetkocsi szállította"],
     ["walk_in", "Arrived walking", "Saját lábán érkezett"],
@@ -75,7 +75,7 @@
     const normalized = normalizeSex(current);
     return [""].concat(SEX_VALUES).map((value) => {
       const selected = value === normalized ? " selected" : "";
-      const text = value ? sexLabel(value) : "—";
+      const text = value ? sexLabel(value) : "-";
       return `<option value="${value}"${selected}>${text}</option>`;
     }).join("");
   }
@@ -132,7 +132,7 @@
       options.length === expected.length &&
       options.every((option, index) => {
         const value = expected[index];
-        const expectedText = value ? sexLabel(value) : "—";
+        const expectedText = value ? sexLabel(value) : "-";
         return option.value === value && option.textContent === expectedText;
       });
 
@@ -465,7 +465,7 @@
     const subtitle = document.getElementById("recordSubtitle");
     if (subtitle) {
       subtitle.textContent =
-        `${sexLabel(sex) || "—"} • ${displayAge || "—"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
+        `${sexLabel(sex) || "-"} • ${displayAge || "-"} ${lang() === "hu" ? "év" : "y"} • ${document.getElementById("fMainComplaint")?.value || ""}`;
     }
 
     const header = document.getElementById("recordHeader");

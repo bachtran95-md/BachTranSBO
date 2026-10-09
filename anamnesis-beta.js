@@ -1221,7 +1221,7 @@
     const autosave = window.BachSBOClinicalUi?.autosaveCurrentCase;
     if (typeof autosave !== "function") throw new Error("Clinical autosave unavailable.");
     const result = await autosave();
-    if (result?.skipped || (result?.patient?.id && result.patient.id !== caseId)) {
+    if (result?.skipped || result?.patient?.id !== caseId) {
       throw new Error("Anamnézis autosave could not be confirmed for the current case.");
     }
     return true;

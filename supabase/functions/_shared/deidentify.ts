@@ -495,14 +495,17 @@ export function splitTextForAnamnesisPrivacy(
       ? Math.max(...boundaries.map((x) => x.index + x.width))
       : maxChars;
 
-    // Never split a protected clinician token if a hard cut lands inside it.
-    const candidate = text.slice(offset, offset + cut);
-    const openToken = candidate.lastIndexOf("[[ANAMNESIS_CLINICIAN_");
-    const closeToken = candidate.lastIndexOf("]]");
-    if (openToken > closeToken) {
-      const tokenEnd = text.indexOf("]]", offset + cut);
-      if (tokenEnd >= 0 && tokenEnd + 2 - offset <= maxChars + 160) {
-        cut = tokenEnd + 2 - offset;
+    // Inspect the original text around the proposed boundary. The complete
+    // token prefix may begin before the cut and be truncated in windowText.
+    const tokenStart = text.lastIndexOf("[[ANAMNESIS_CLINICIAN_", offset + cut - 1);
+    if (tokenStart >= offset) {
+      const tokenEnd = text.indexOf("]]", tokenStart);
+      if (tokenEnd >= 0 && tokenEnd + 2 > offset + cut) {
+        if (tokenEnd + 2 - offset <= maxChars + 160) {
+          cut = tokenEnd + 2 - offset;
+        } else if (tokenStart > offset) {
+          cut = tokenStart - offset;
+        }
       }
     }
 

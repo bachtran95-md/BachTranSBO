@@ -713,7 +713,7 @@ const newSexOptions = await page.locator("#newSex").evaluate((select) =>
   [...select.options].map((option) => ({ value: option.value, text: option.textContent }))
 );
 const expectedNewSexOptions = [
-  { value: "", text: "—" },
+  { value: "", text: "-" },
   { value: "M", text: "Férfi" },
   { value: "F", text: "Nő" },
   { value: "O", text: "Egyéb" }
@@ -1106,7 +1106,7 @@ const arrivalOptionState = await beta.locator("#iceArrival").evaluate((select) =
   return [...select.options].map((option) => ({ value: option.value, text: option.textContent }));
 });
 const expectedArrivalOptions = [
-  { value: "", text: "— válasszon —" },
+  { value: "", text: "- válasszon -" },
   { value: "omsz", text: "OMSz szállította" },
   { value: "esetkocsi", text: "Esetkocsi szállította" },
   { value: "walk_in", text: "Saját lábán érkezett" },
@@ -2325,7 +2325,7 @@ if (!unresolvedBState.preview.includes("Bal pleuralis dörzszörej.") ||
   throw new Error("Unresolved Status finding blocked workflow or was dropped: " + JSON.stringify(unresolvedBState));
 }
 const bUnknownTargets = await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-target="0"] option').allTextContents();
-for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding — hozzáadás a végére"]) {
+for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding - hozzáadás a végére"]) {
   if (!bUnknownTargets.includes(expected)) {
     throw new Error("Unknown B finding target option missing: " + expected + " -> " + JSON.stringify(bUnknownTargets));
   }

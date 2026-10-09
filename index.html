@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="referrer" content="no-referrer" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+    content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; worker-src 'self' blob: https://cdn.jsdelivr.net; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>ER Command Center</title>
   <link rel="stylesheet" href="styles.css?v=clinical-consideration-20260928-1" />
   <link rel="stylesheet" href="beta-features.css?v=status-learning-paused-20260923-1" />
   <link rel="stylesheet" href="beta-status-generator.css?v=clinical-note-20260923-2" />
+  <link rel="stylesheet" href="anamnesis-beta.css?v=case-modal-main-20261009-1" />
 </head>
 <body class="beta-build beta-simple-status">
   <header class="topbar">
@@ -276,6 +277,10 @@
                     <div class="narrative-head">
                       <label data-i18n="patientHistory">Medical history</label>
                       <div class="narrative-actions">
+                        <button class="btn small anamnesis-audit-trigger" id="anamnesisAuditBtn" type="button" title="Opcionális Anamnézis Audit">
+                          <span aria-hidden="true">☷</span>
+                          <span>ANAMNÉZIS AUDIT</span>
+                        </button>
                         <span class="field-state waiting" data-field-state="history">KÖTELEZŐ</span>
                         <button class="btn small none-toggle" type="button" data-none-toggle="history" data-i18n="markNone">NONE</button>
                       </div>
@@ -570,6 +575,19 @@
         </div>
       </section>
 
+      <div class="anamnesis-modal-wrap hidden" id="anamnesisModal" role="dialog" aria-modal="true" aria-labelledby="anamnesisModalTitle" aria-hidden="true">
+        <div class="anamnesis-modal">
+          <div class="anamnesis-modal-head">
+            <div class="anamnesis-modal-heading">
+              <strong id="anamnesisModalTitle">ANAMNÉZIS AUDIT</strong>
+              <span class="anamnesis-modal-case" id="anamnesisModalCase"></span>
+            </div>
+            <button class="btn small anamnesis-modal-close" id="anamnesisModalCloseBtn" type="button" aria-label="Bezárás">×</button>
+          </div>
+          <section id="anamnesisView" class="hidden"></section>
+        </div>
+      </div>
+
       <section id="aiLearningView" class="hidden">
         <div class="learning-head">
           <div>
@@ -821,9 +839,10 @@
 
   <div id="modalHost"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script src="config.js?v=config-only-20260920-1"></script>
   <script src="case-ui.js?v=ascii-hyphen-20261007-1"></script>
-  <script src="backend.js?v=canonical-vitals-20260923-1"></script>
+  <script src="backend.js?v=anamnesis-api-20261001-2"></script>
   <script src="assistant-core.js?v=canonical-vitals-20260923-1"></script>
   <script src="app.js?v=gemini-no-parameters-20261007-1"></script>
   <!-- cockpit.js temporarily disabled after production regression; keep legacy UI active -->
@@ -831,5 +850,6 @@
   <script src="beta-features.js?v=main-badge-20260928-1"></script>
   <script src="status-vocabulary.js?v=renal-percussion-20260923-1"></script>
   <script src="beta-status-generator.js?v=ascii-hyphen-20261007-1"></script>
+  <script src="anamnesis-beta.js?v=case-modal-main-20261009-1"></script>
 </body>
 </html>

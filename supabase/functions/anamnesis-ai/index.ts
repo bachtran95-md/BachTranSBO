@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 import { openAiApiKey } from "../_shared/openai.ts";
-import { deidentifyAnamnesisText } from "../_shared/deidentify.ts";
+import { deidentifyAnamnesisText, deidentifyAssistantText } from "../_shared/deidentify.ts";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") || "*";
 const corsHeaders = {

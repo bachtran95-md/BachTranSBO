@@ -713,7 +713,7 @@ const newSexOptions = await page.locator("#newSex").evaluate((select) =>
   [...select.options].map((option) => ({ value: option.value, text: option.textContent }))
 );
 const expectedNewSexOptions = [
-  { value: "", text: "—" },
+  { value: "", text: "-" },
   { value: "M", text: "Férfi" },
   { value: "F", text: "Nő" },
   { value: "O", text: "Egyéb" }
@@ -911,11 +911,11 @@ if (/\+\d+/.test(pendingSummary)) {
   throw new Error(`Case list still truncates waiting tests with +N: ${pendingSummary}`);
 }
 
-// Stable case tabs must be five distinct workflow steps in the requested order.
+// Main's promoted Státusz is its own step between clinical history and investigations.
 const tabOrder = await beta.locator("#cockpitCaseTabs [data-cockpit-tab]").evaluateAll((nodes) =>
   nodes.map((node) => node.dataset.cockpitTab)
 );
-const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary"];
+const expectedTabOrder = ["clinical", "status", "tests", "course", "disposition", "summary"];
 if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
   throw new Error(`Unexpected Stable tab order: ${JSON.stringify(tabOrder)}`);
 }
@@ -1106,7 +1106,7 @@ const arrivalOptionState = await beta.locator("#iceArrival").evaluate((select) =
   return [...select.options].map((option) => ({ value: option.value, text: option.textContent }));
 });
 const expectedArrivalOptions = [
-  { value: "", text: "— válasszon —" },
+  { value: "", text: "- válasszon -" },
   { value: "omsz", text: "OMSz szállította" },
   { value: "esetkocsi", text: "Esetkocsi szállította" },
   { value: "walk_in", text: "Saját lábán érkezett" },
@@ -1218,10 +1218,10 @@ if (
   throw new Error("Pending investigation is not visibly orange: " + JSON.stringify(pendingInvestigationStyle));
 }
 
-// Section 2 wording and the dedicated third Therapy/Course tab.
+// Dedicated Investigations and Therapy/Course tabs follow the separate Státusz step.
 await beta.locator("#langHuBtn").click();
 await beta.waitForFunction(() =>
-  (document.querySelector('[data-cockpit-panel="tests"] .section-title')?.textContent || "").includes("Fizikális státusz és vizsgálatok")
+  (document.querySelector('[data-cockpit-panel="tests"] .section-title')?.textContent || "").includes("3. Vizsgálatok")
 );
 
 await beta.locator('[data-cockpit-tab="course"]').click();
@@ -1630,7 +1630,7 @@ await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => document.querySelector("#fOthers")?.value.includes("orvos által felülírt"));
 
 const appliedOverride = await beta.locator("#fOthers").inputValue();
-if (!appliedOverride.includes("mellkasi fájdalom – orvos által felülírt szöveg")) {
+if (!appliedOverride.includes("mellkasi fájdalom - orvos által felülírt szöveg")) {
   throw new Error("Doctor-edited extracted text or target override was not applied");
 }
 const applyStatusWithIncompleteDischarge = await beta.locator("#cockpitExtractStatus").textContent();
@@ -1688,9 +1688,12 @@ await beta.waitForFunction(() =>
 );
 
 await beta.locator("#aiLearningNav").click();
-// Status learning is a Beta-only dormant feature. Stable must not expose it.
+// Status learning remains paused; the visible reminder must be disabled.
 if (await beta.locator('[data-learning-section="status"]').count()) {
-  throw new Error("Beta-only Status learning control leaked into Stable");
+  const statusLearning = beta.locator('[data-learning-section="status"]');
+  if (!(await statusLearning.isDisabled())) throw new Error("Paused Status learning must be disabled");
+  const summaryHidden = await beta.locator("#learningSummaryPane").evaluate((el) => el.classList.contains("hidden"));
+  if (summaryHidden) throw new Error("Paused Status learning displaced the Summary learning view");
 }
 await beta.locator("#styleProfilesList").waitFor();
 await beta.waitForFunction(() =>
@@ -2325,7 +2328,7 @@ if (!unresolvedBState.preview.includes("Bal pleuralis dörzszörej.") ||
   throw new Error("Unresolved Status finding blocked workflow or was dropped: " + JSON.stringify(unresolvedBState));
 }
 const bUnknownTargets = await betaFeatures.locator('[data-status-unknown-host="B"] [data-status-confirm-target="0"] option').allTextContents();
-for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding — hozzáadás a végére"]) {
+for (const expected of ["B1. Légzéstípus", "B4. Mellékzörejek", "Egyéb / új finding - hozzáadás a végére"]) {
   if (!bUnknownTargets.includes(expected)) {
     throw new Error("Unknown B finding target option missing: " + expected + " -> " + JSON.stringify(bUnknownTargets));
   }

@@ -100,8 +100,16 @@ jobs:
             echo "beta.html must not load retired structured-status assets."
             exit 1
           fi
-          if grep -q 'beta-features.js\|beta-features.css\|beta-status-generator.js\|beta-status-generator.css\|beta-finding-registry.generated.js\|beta-status-module.js' index.html; then
-            echo "Production index.html must not load beta-only feature assets."
+          if ! grep -q 'beta-features.js' index.html || ! grep -q 'beta-features.css' index.html || ! grep -q 'beta-status-generator.js' index.html || ! grep -q 'beta-status-generator.css' index.html; then
+            echo "Main must retain the shared Státusz generator and feature assets promoted in September."
+            exit 1
+          fi
+          if ! grep -q 'anamnesis-beta.js' index.html || ! grep -q 'anamnesis-beta.css' index.html || ! grep -q 'id="anamnesisAuditBtn"' index.html; then
+            echo "Main must expose the promoted Anamnézis Audit entrypoint and dependencies."
+            exit 1
+          fi
+          if grep -q 'beta-finding-registry.generated.js\|beta-status-module.js' index.html; then
+            echo "Main must not load retired experimental Status assets."
             exit 1
           fi
           if grep -E -q '<script[^>]+src="[^"]*cockpit' recovery.html; then

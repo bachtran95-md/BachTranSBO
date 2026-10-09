@@ -1218,10 +1218,10 @@ if (
   throw new Error("Pending investigation is not visibly orange: " + JSON.stringify(pendingInvestigationStyle));
 }
 
-// Section 2 wording and the dedicated third Therapy/Course tab.
+// Dedicated Investigations and Therapy/Course tabs follow the separate Státusz step.
 await beta.locator("#langHuBtn").click();
 await beta.waitForFunction(() =>
-  (document.querySelector('[data-cockpit-panel="tests"] .section-title')?.textContent || "").includes("Fizikális státusz és vizsgálatok")
+  (document.querySelector('[data-cockpit-panel="tests"] .section-title')?.textContent || "").includes("3. Vizsgálatok")
 );
 
 await beta.locator('[data-cockpit-tab="course"]').click();

@@ -1688,9 +1688,10 @@ await beta.waitForFunction(() =>
 );
 
 await beta.locator("#aiLearningNav").click();
-// Status learning remains paused even when its navigation control is present.
+// Status learning remains paused; the visible reminder must be disabled.
 if (await beta.locator('[data-learning-section="status"]').count()) {
-  await beta.locator('[data-learning-section="status"]').click();
+  const statusLearning = beta.locator('[data-learning-section="status"]');
+  if (!(await statusLearning.isDisabled())) throw new Error("Paused Status learning must be disabled");
   const summaryHidden = await beta.locator("#learningSummaryPane").evaluate((el) => el.classList.contains("hidden"));
   if (summaryHidden) throw new Error("Paused Status learning displaced the Summary learning view");
 }

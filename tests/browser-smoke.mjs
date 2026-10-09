@@ -911,11 +911,11 @@ if (/\+\d+/.test(pendingSummary)) {
   throw new Error(`Case list still truncates waiting tests with +N: ${pendingSummary}`);
 }
 
-// Stable case tabs must be five distinct workflow steps in the requested order.
+// Main's promoted Státusz is its own step between clinical history and investigations.
 const tabOrder = await beta.locator("#cockpitCaseTabs [data-cockpit-tab]").evaluateAll((nodes) =>
   nodes.map((node) => node.dataset.cockpitTab)
 );
-const expectedTabOrder = ["clinical", "tests", "course", "disposition", "summary"];
+const expectedTabOrder = ["clinical", "status", "tests", "course", "disposition", "summary"];
 if (JSON.stringify(tabOrder) !== JSON.stringify(expectedTabOrder)) {
   throw new Error(`Unexpected Stable tab order: ${JSON.stringify(tabOrder)}`);
 }

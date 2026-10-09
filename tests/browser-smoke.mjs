@@ -1688,9 +1688,11 @@ await beta.waitForFunction(() =>
 );
 
 await beta.locator("#aiLearningNav").click();
-// Status learning is a Beta-only dormant feature. Stable must not expose it.
+// Status learning remains paused even when its navigation control is present.
 if (await beta.locator('[data-learning-section="status"]').count()) {
-  throw new Error("Beta-only Status learning control leaked into Stable");
+  await beta.locator('[data-learning-section="status"]').click();
+  const summaryHidden = await beta.locator("#learningSummaryPane").evaluate((el) => el.classList.contains("hidden"));
+  if (summaryHidden) throw new Error("Paused Status learning displaced the Summary learning view");
 }
 await beta.locator("#styleProfilesList").waitFor();
 await beta.waitForFunction(() =>

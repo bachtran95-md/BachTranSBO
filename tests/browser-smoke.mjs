@@ -1630,7 +1630,7 @@ await beta.locator("#cockpitExtractConfirmApply").click();
 await beta.waitForFunction(() => document.querySelector("#fOthers")?.value.includes("orvos által felülírt"));
 
 const appliedOverride = await beta.locator("#fOthers").inputValue();
-if (!appliedOverride.includes("mellkasi fájdalom – orvos által felülírt szöveg")) {
+if (!appliedOverride.includes("mellkasi fájdalom - orvos által felülírt szöveg")) {
   throw new Error("Doctor-edited extracted text or target override was not applied");
 }
 const applyStatusWithIncompleteDischarge = await beta.locator("#cockpitExtractStatus").textContent();

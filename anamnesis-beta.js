@@ -2,6 +2,9 @@
   "use strict";
 
   const STORAGE_PREFIX = "bachtransbo_beta_anamnesis_case_v1:";
+  // Clinical source documents and working notes stay in memory, not durable browser storage.
+  const volatileCaseDrafts = new Map();
+  let closingAuditModal = false;
   const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
   const $ = (id) => document.getElementById(id);
   const shortHyphens = (value) => {
@@ -56,6 +59,30 @@
     return STORAGE_PREFIX + String(shiftId) + ":" + String(caseId);
   }
 
+  function migrateAndPurgeLegacyCaseDrafts() {
+    // Transfer legacy drafts into this tab's memory before clearing unprotected
+    // clinical text stored by older builds in localStorage.
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(STORAGE_PREFIX)) keys.push(key);
+      }
+      keys.forEach((key) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) volatileCaseDrafts.set(key, JSON.parse(raw));
+        } catch (error) {
+          console.warn("Historical Anamnézis draft could not be imported:", error);
+        } finally {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn("Historical Anamnézis browser storage cleanup failed:", error);
+    }
+  }
+
   function hydrateCaseDefaults(nextState, patient) {
     const result = nextState || emptyState();
     if (!patient) return result;
@@ -74,9 +101,8 @@
     activeCaseId = String(patient.id);
     activeShiftId = String(patient.shiftId);
     try {
-      const raw = localStorage.getItem(storageKey());
-      if (!raw) return hydrateCaseDefaults(emptyState(), patient);
-      const parsed = JSON.parse(raw);
+      const parsed = volatileCaseDrafts.get(storageKey());
+      if (!parsed) return hydrateCaseDefaults(emptyState(), patient);
       return hydrateCaseDefaults({
         ...emptyState(),
         ...parsed,
@@ -93,16 +119,10 @@
   function saveState() {
     const key = storageKey();
     if (!key) return;
-    const persisted = structuredClone(state);
-    persisted.sources = (persisted.sources || []).map((source) => {
-      delete source.previewUrl;
-      delete source.imageDataUrl;
-      return source;
-    });
-    localStorage.setItem(key, JSON.stringify(persisted));
+    volatileCaseDrafts.set(key, structuredClone(state));
     const status = $("anamnesisSaveState");
     if (status) {
-      status.textContent = "Helyben mentve " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+      status.textContent = "Memóriában mentve (frissítéskor törlődik) " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
     }
   }
 
@@ -296,7 +316,7 @@
             <input id="anamnesisComplaint" value="${esc(state.complaint)}" placeholder="Pl. dyspnoe, oedema" />
           </div>
           <div class="an-patient-actions">
-            <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Helyi autosave - ehhez az esethez</span></div>
+            <div class="an-save"><span class="an-save-dot"></span><span id="anamnesisSaveState">Átmeneti memóriamentés - ehhez az esethez</span></div>
           </div>
         </div>
 
@@ -1183,13 +1203,14 @@
     });
   }
 
-  function syncShortHistoryToCase() {
+  async function syncShortHistoryToCase() {
     if (!activeCaseId) return false;
     const patient = activePatient();
     if (!patient || String(patient.id) !== activeCaseId) return false;
 
     const field = $("fHistory");
     if (!field) return false;
+    const caseId = activeCaseId;
     const shortHistory = shortHyphens(String($("anamnesisDiseases")?.value || state.final.diseases || "").trim());
 
     field.value = shortHistory;
@@ -1197,11 +1218,12 @@
     field.dispatchEvent(new Event("change", { bubbles:true }));
     window.BachSBOClinicalUi?.commitCurrentDraft?.();
 
-    // Do not keep the modal open while waiting for network autosave.
-    Promise.resolve(window.BachSBOClinicalUi?.autosaveCurrentCase?.()).catch((error) => {
-      console.warn("Anamnesis short history autosave failed:", error);
-      toast("A rövid anamnézis a mezőbe került, de az autosave nem igazolható.");
-    });
+    const autosave = window.BachSBOClinicalUi?.autosaveCurrentCase;
+    if (typeof autosave !== "function") throw new Error("Clinical autosave unavailable.");
+    const result = await autosave();
+    if (result?.skipped || (result?.patient?.id && result.patient.id !== caseId)) {
+      throw new Error("Anamnézis autosave could not be confirmed for the current case.");
+    }
     return true;
   }
 
@@ -1233,17 +1255,32 @@
     requestAnimationFrame(updateAnamnesisPanelHeight);
   }
 
-  function closeAuditModal() {
-    if (!isAnamnesisVisible()) return;
+  async function closeAuditModal() {
+    if (!isAnamnesisVisible() || closingAuditModal) return;
     saveState();
-    const synced = syncShortHistoryToCase();
-    setModalOpen(false);
-    toast(synced
-      ? "Rövid anamnézis frissítve az esetben. A részletes anamnézis csak clipboard."
-      : "Anamnézis Audit bezárva.");
+    closingAuditModal = true;
+    const closeButtons = [$("anamnesisModalCloseBtn"), $("anamnesisCloseFooterBtn")].filter(Boolean);
+    closeButtons.forEach((button) => { button.disabled = true; });
+    const indicator = $("anamnesisSaveState");
+    const priorText = indicator?.textContent || "";
+    if (indicator) indicator.textContent = "Rövid anamnézis szerverre mentése…";
+    try {
+      const synced = await syncShortHistoryToCase();
+      if (!synced) throw new Error("The active case changed during Anamnézis autosave.");
+      setModalOpen(false);
+      toast("Rövid anamnézis mentve az esetbe. A részletes anamnézis csak clipboard.");
+    } catch (error) {
+      console.warn("Anamnézis Audit close/autosave failed:", error);
+      if (indicator) indicator.textContent = priorText;
+      toast("Mentési hiba: az Anamnézis Audit nyitva maradt. Ellenőrizd a kapcsolatot, majd próbáld újra.");
+    } finally {
+      closeButtons.forEach((button) => { button.disabled = false; });
+      closingAuditModal = false;
+    }
   }
 
   function init() {
+    migrateAndPurgeLegacyCaseDrafts();
     document.addEventListener("paste", handleGlobalScreenshotPaste);
     window.addEventListener("resize", updateAnamnesisPanelHeight, { passive: true });
     $("anamnesisAuditBtn")?.addEventListener("click", openAuditModal);

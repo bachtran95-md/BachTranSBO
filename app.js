@@ -796,16 +796,13 @@ function narrativeStatus(patient, key) {
   const config = NARRATIVE_FIELDS[key];
   if (!config || !patient) return "waiting";
   if (patient[config.skipProp]) return "none";
+  // Persisted structured examinations are authoritative in every UI mode.
+  // The simple-status mode may render an older case before migrating its editor.
+  if (key === "physical" && patient?.physicalStatus?.version === 1) {
+    return structuredPhysicalStatusComplete(patient) ? "result" : "waiting";
+  }
   if (key === "physical" && document.body.classList.contains("beta-build") && usesSimplePhysicalStatus()) {
     return simplePhysicalStatusHasInput(patient) ? "result" : "waiting";
-  }
-  if (key === "physical" && document.body.classList.contains("beta-build") && !usesSimplePhysicalStatus()) {
-    return patient?.physicalStatus?.version === 1 && structuredPhysicalStatusComplete(patient)
-      ? "result"
-      : "waiting";
-  }
-  if (key === "physical" && !usesSimplePhysicalStatus() && patient?.physicalStatus?.version === 1) {
-    return structuredPhysicalStatusComplete(patient) ? "result" : "waiting";
   }
   if (String(patient[config.valueProp] || "").trim()) return "result";
   return "waiting";

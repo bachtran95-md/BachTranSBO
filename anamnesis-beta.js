@@ -4,6 +4,7 @@
   const STORAGE_PREFIX = "bachtransbo_beta_anamnesis_case_v1:";
   // Clinical source documents and working notes stay in memory, not durable browser storage.
   const volatileCaseDrafts = new Map();
+  const batchResultCache = new Map();
   let closingAuditModal = false;
   const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
   const $ = (id) => document.getElementById(id);
@@ -680,7 +681,11 @@
 
     await runAiButton(button, "FELDOLGOZÁS…", async () => {
       const api = requireAnamnesisBackend();
-      const result = await api({
+      const batching = window.BachSBOAnamnesisBatches;
+      if (!batching?.partitionSources || !batching?.mergeResults) {
+        throw new Error("Az Anamnézis feldolgozási modul nem töltődött be. Frissítsd az oldalt.");
+      }
+      const sourcePayload = {
         action: "extract",
         complaint: localDeidentify(state.complaint || "").text,
         mode: state.mode || "balanced",
@@ -695,7 +700,45 @@
           imageDataUrl: s.kind === "Képernyőkép" ? (s.imageDataUrl || "") : "",
           imageConfirmedNoIdentifiers: s.kind === "Képernyőkép" ? Boolean(s.imageConfirmed) : false
         }))
-      });
+      };
+      // Keep the original 12-source/320k-character privacy budget; split only
+      // to bound work per Edge Function invocation, not to bypass safety caps.
+      if (sourcePayload.sources.length > 12 ||
+          sourcePayload.sources.reduce((sum, s) => sum + String(s.text || "").length, 0) > 320000 ||
+          sourcePayload.sources.reduce((sum, s) => sum + String(s.imageDataUrl || "").length, 0) > 14000000) {
+        throw new Error("Túl sok forrás egy elemzéshez. Válassz kevesebb dokumentumot.");
+      }
+      const { batches, originalSourceIds } = batching.partitionSources(sourcePayload.sources);
+      const caseAtStart = activeCaseId;
+      const shiftAtStart = activeShiftId;
+      const results = [];
+      const label = button.querySelector("span");
+      for (let index = 0; index < batches.length; index += 1) {
+        if (activeCaseId !== caseAtStart || activeShiftId !== shiftAtStart) {
+          throw new Error("Az aktív eset megváltozott a feldolgozás alatt.");
+        }
+        if (label) label.textContent = "FELDOLGOZÁS " + (index + 1) + "/" + batches.length;
+        const request = {
+          ...sourcePayload,
+          sources: batches[index]
+        };
+        // Per-tab only: successful parts can be reused after a timeout.
+        // Cache keys include exact content and case binding, never localStorage.
+        const key = caseAtStart + ":" + shiftAtStart + ":" + JSON.stringify(request);
+        let part = batchResultCache.get(key);
+        if (!part) {
+          part = await api(request);
+          if (!part || !Array.isArray(part.events)) {
+            throw new Error("Az Anamnézis AI hiányos eredményt adott.");
+          }
+          if (batchResultCache.size >= 30) {
+            batchResultCache.delete(batchResultCache.keys().next().value);
+          }
+          batchResultCache.set(key, part);
+        }
+        results.push(part);
+      }
+      const result = batching.mergeResults(results, originalSourceIds);
 
       const sourceById = new Map(state.sources.map((s) => [s.id, s]));
       state.events = (Array.isArray(result?.events) ? result.events : []).map((e) => {
@@ -1268,6 +1311,7 @@
       const synced = await syncShortHistoryToCase();
       if (!synced) throw new Error("The active case changed during Anamnézis autosave.");
       setModalOpen(false);
+      batchResultCache.clear();
       toast("Rövid anamnézis mentve az esetbe. A részletes anamnézis csak clipboard.");
     } catch (error) {
       console.warn("Anamnézis Audit close/autosave failed:", error);

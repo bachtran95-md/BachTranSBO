@@ -32,7 +32,9 @@ jobs:
           node --check cockpit-beta.js
           node --check beta-features.js
           node --check beta-status-generator.js
+          node --check anamnesis-batching.js
           node --check anamnesis-beta.js
+          node --test tests/anamnesis-batching.test.mjs
 
       - name: Check security invariants
         run: |
